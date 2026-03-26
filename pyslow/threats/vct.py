@@ -1,0 +1,2 @@
+"""VCT search extension point."""
+
