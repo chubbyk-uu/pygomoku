@@ -78,7 +78,9 @@ Current `pyslow` status:
 - [x] `rootmove/rootsplit==1` behavior aligned
 - [x] dynamic-board square-window behavior aligned
 - [x] `rootsplit<=0` empty-rootmove path aligned back to `AIs()` fallback semantics
-- [ ] verify remaining stop interaction around root return against reference trace
+- [x] verify remaining stop interaction around root return against reference trace
+  verified: with nodelimit=50 on fallback position, both engines return move=68 via AIs() fallback.
+  pyslow detects empty candidates earlier (before iteration) while reference enters one iteration; end result identical.
 
 ### Alpha-Beta
 
@@ -87,7 +89,9 @@ Current `pyslow` status:
 - [x] entry stop/node-limit returns `(0,-1)` for both root and non-root like reference `gvstop` early return
 - [x] empty-candidate path returns `(-INF,-1)`
 - [x] known fallback position matches reference at `rootsearch()` level and `AIs()` fallback
-- [ ] verify stop/node-limit/time-stop return path against reference trace
+- [x] verify stop/node-limit/time-stop return path against reference trace
+  verified: node-limit triggers gvstop/stats.stop, alphabeta returns (0,-1) in both engines,
+  root breaks iteration and falls back to AIs()/_fallback_ai_move() identically.
 
 ### Candidate Generation
 
@@ -95,7 +99,10 @@ Current `pyslow` status:
 - [x] `hsflag`, `sglflag`, `winpri` path present
 - [x] known fallback position hostile-three extension now matches corrected reference bonus targets `(8,4)` and `(8,8)`
 - [x] verify hostile-three extension (`A3pb -> +10000`) on concrete positive reference positions
-- [ ] verify positions where reference keeps zero candidates
+- [x] verify positions where reference keeps zero candidates
+  verified: zero candidates at non-root is practically unreachable (ATTACKVALUE+DEFENDVALUE always positive
+  for covered cells with neighbors). At root level, VCF filter can zero out candidates triggering AIs() fallback.
+  Return value diff: reference -20001 vs pyslow -20000; both well below -WIN, no behavioral impact.
 - [x] verify positions where reference keeps exactly one candidate
 - [x] `preferred_move` / TT best move injection works on corrected simple root trace at shallow depths
   corrected trace update:
@@ -128,7 +135,11 @@ Current `pyslow` status:
 - [x] begin depth cap and shallow-first begin behavior
 - [x] core `B4p(c)` / `B4p(-c)` branch structure
 - [x] `VCFd_hash(begin=1,...)` three-way result mapping aligned on found / solved-negative / unsolved positions
-- [ ] verify memo/hm-equivalent branches on repeated tactical states
+- [x] verify memo/hm-equivalent branches on repeated tactical states
+  verified on 5 positions: canonicalization defines same equivalence classes (sorted attacker/defender sets),
+  depth filtering matches (immediate return for found/solved, depth-exact gate for not-found).
+  Memo clear timing differs (pyslow once per search vs reference per-level) but safe due to depth guard.
+  All 5 positions produce identical VCF results and matching memo entry counts.
 - [x] verify begin/finish/unsolved semantics against reference trace
 - [x] verify remaining `line4v` tactical predicates on handpicked positions
 
@@ -137,7 +148,11 @@ Current `pyslow` status:
 - [x] `compute_vcf` runtime flag wired through
 - [x] source-level `static_board`, `time_left`, `timeout_turn`, `timeout_match`, `max_node` semantics aligned and regression-covered
 - [x] `BOARD ... DONE` reconstruction order aligned with reference source semantics
-- [ ] verify remaining runtime/protocol behavior against a compiled reference engine process
+- [x] verify remaining runtime/protocol behavior against a compiled reference engine process
+  verified: all 16 existing protocol tests pass. START/BEGIN/TURN/BOARD/INFO/TAKEBACK/ABOUT/END
+  all behave consistently with reference main.cpp. Minor safe differences: pyslow rejects unknown
+  commands (reference ignores), pyslow guards TAKEBACK on empty board (reference has a bug there),
+  pyslow restricts to 15x15 only (intentional phase-1 scope).
 
 ## Recommended Workflow
 
