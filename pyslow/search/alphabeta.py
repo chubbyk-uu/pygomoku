@@ -177,11 +177,13 @@ class AlphaBetaSearcher:
         child_wide = min((wide * self.config.root_search.ratio_num) // self.config.root_search.ratio_den + 1, wide)
         case_count = len(ordered)
 
+        running_downf = downf
         for index, candidate in enumerate(ordered):
             snapshot = caches.snapshot()
             board.play(candidate.move, side)
             value_wide_compute(board, caches)
-            local_downf = downf + index
+            running_downf += index
+            local_downf = running_downf
             depthdown = max(
                 0.0,
                 1.0
@@ -193,6 +195,7 @@ class AlphaBetaSearcher:
                 net = local_downf // 15
                 depthdown += net
                 local_downf %= 15
+            running_downf = local_downf
 
             atdown = 0
             if candidate.self_attack == 4:

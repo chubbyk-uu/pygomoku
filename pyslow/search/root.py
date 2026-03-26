@@ -251,12 +251,6 @@ class RootSearcher:
             center = xy_to_move(board.size // 2, board.size // 2)
             return SearchResult(move=center, score=0, depth=0, nodes=0)
 
-        if board.move_count == 1 and board.at(7, 7) == 1:
-            for x, y in ((6, 7), (6, 8)):
-                move = xy_to_move(x, y)
-                if board.is_legal_move(move):
-                    return SearchResult(move=move, score=0, depth=0, nodes=0)
-
         side = board.side_to_move
         if self.config.runtime.compute_vcf:
             vcf_result = self.vcf.search(board, side, 8)

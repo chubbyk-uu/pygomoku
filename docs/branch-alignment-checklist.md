@@ -19,19 +19,17 @@ The checklist is strong evidence of branch-level progress, but it is not the fin
 Most recent systematic comparison status:
 
 - [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py) compares 16 fixed positions
-- current result: `14/16`
-- one mismatch is a known harness artifact:
-  - `open_center`
-  - reference harness is compiled with `N==20`, so the `if (N==15)` one-move opening shortcut is skipped
-- one mismatch is still unresolved and must be treated as a real open item until explained:
-  - `mid_ladder`
-  - move matches: `(7,5)`
-  - score differs: `reference=45`, `pyslow=19988`
+- current result: `16/16`
+- the previous two residuals are now closed:
+  - `mid_ladder` was caused by a real search-semantic bug in `pyslow`
+  - `open_center` was resolved by aligning root behavior with the compiled
+    reference path instead of keeping a Python-only one-move shortcut
 
 Therefore:
 
-- do not interpret all checked items below as proof of complete reference equivalence
-- until `mid_ladder` is explained, branch alignment is "high confidence but not closed"
+- branch-level alignment is now closed for the current 16-position compare set
+- future work should treat semantic alignment as a regression target, not as an
+  open investigation item
 
 ## Rules
 
@@ -102,7 +100,13 @@ Current `pyslow` status:
 - [x] verify remaining stop interaction around root return against reference trace
   verified: with nodelimit=50 on fallback position, both engines return move=68 via AIs() fallback.
   pyslow detects empty candidates earlier (before iteration) while reference enters one iteration; end result identical.
-- [ ] explain the remaining systematic-compare score residual on `mid_ladder`
+- [x] explain and eliminate the former systematic-compare score residual on `mid_ladder`
+  root cause:
+  `pyslow` had incorrect `downf` semantics in non-root alpha-beta.
+  Reference accumulates `downf` across siblings and carries the remainder
+  forward; Python incorrectly recomputed `downf` from the parent base for each
+  child. This changed `depthdown`, PVS shape, and TT interaction, producing the
+  false near-win score on `mid_ladder`.
 
 ### Alpha-Beta
 
@@ -114,7 +118,11 @@ Current `pyslow` status:
 - [x] verify stop/node-limit/time-stop return path against reference trace
   verified: node-limit triggers gvstop/stats.stop, alphabeta returns (0,-1) in both engines,
   root breaks iteration and falls back to AIs()/_fallback_ai_move() identically.
-- [ ] verify whether `mid_ladder` score divergence comes from alpha-beta propagation, window behavior, or search-extension semantics
+- [x] verify whether `mid_ladder` score divergence comes from alpha-beta propagation, window behavior, or search-extension semantics
+  resolved:
+  the exact non-root divergence at `mid_ladder + (7,5)` was fixed by matching
+  reference `downf` accumulation semantics. Exact child result now matches
+  reference: `score=-47`, `move=(7,9)`.
 
 ### Candidate Generation
 
@@ -137,7 +145,10 @@ Current `pyslow` status:
   and reference tie-break keeps `(6,6)`
   `pyslow` now matches this corrected root result when called with `SearchLimits(max_depth=3, root_width=8)`
 - [x] corrected simple TT-alpha seeded two-stone root result aligned
-- [ ] verify whether `mid_ladder` score divergence depends on candidate ordering / top-width retention under depth=3,width=8
+- [x] verify whether `mid_ladder` score divergence depends on candidate ordering / top-width retention under depth=3,width=8
+  result:
+  candidate retention was not the root cause after corrected trace analysis.
+  The decisive mismatch was search-extension state propagation, not movegen.
 
 ### ValueWide
 
@@ -147,14 +158,18 @@ Current `pyslow` status:
 - [x] verify `ComputeValue1b` bucket outputs against reference trace on handpicked points
 - [x] verify `attack1bWide` outputs on threat/fork/four positions against reference trace
 - [x] verify `ValueWideCompute` incremental update path against reference snapshots
-- [ ] rule out `ValueWide` / eval mismatch as the cause of `mid_ladder` score divergence by pointwise trace on that exact position
+- [x] rule out `ValueWide` / eval mismatch as the cause of `mid_ladder` score divergence by pointwise trace on that exact position
+  result:
+  `ValueWide` / eval were not the root cause of the remaining residual.
 
 ### Global Eval
 
 - [x] main `LAST5`/`NEXT43` structure present
 - [x] verify recursive branch returns on handpicked forced positions
 - [x] verify extreme-value and terminal-return edge cases against reference trace
-- [ ] rule out `global_eval` branch mismatch as the cause of `mid_ladder` score divergence on the exact ladder position
+- [x] rule out `global_eval` branch mismatch as the cause of `mid_ladder` score divergence on the exact ladder position
+  result:
+  the resolved mismatch was in alpha-beta search state, not global eval.
 
 ### VCF / Threat Board
 
@@ -168,7 +183,9 @@ Current `pyslow` status:
   All 5 positions produce identical VCF results and matching memo entry counts.
 - [x] verify begin/finish/unsolved semantics against reference trace
 - [x] verify remaining `line4v` tactical predicates on handpicked positions
-- [ ] determine whether `mid_ladder` enters a tactical / VCF path in `pyslow` but not in reference
+- [x] determine whether `mid_ladder` enters a tactical / VCF path in `pyslow` but not in reference
+  result:
+  no. The residual stayed on the normal search path.
 
 ### Protocol / Runtime
 
@@ -204,10 +221,10 @@ For any suspected mismatch:
 - one regression test in `tests/`
 - one checklist note here if the branch was non-obvious
 
-For the current open residual `mid_ladder`, use this stricter workflow:
+For future residuals, use this stricter workflow:
 
-1. Run `alignment_compare.py` and confirm the mismatch still reproduces.
-2. Trace the exact position in both engines at `depth=3,width=8`.
+1. Run `alignment_compare.py` and confirm the mismatch reproduces.
+2. Trace the exact position in both engines at the same `depth,width`.
 3. Compare, in order:
 - root exit path
 - whether VCF/special path fired

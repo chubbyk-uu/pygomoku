@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 
+from benchmarks.alignment_compare import POSITIONS
 from pyslow.board import Board, move_to_xy, xy_to_move
 from pyslow.config import load_default_config
 from pyslow.eval.caches import EvalCaches
@@ -54,12 +55,13 @@ def test_root_search_prefers_vcf_first_when_available() -> None:
     assert move_to_xy(result.move) in {(2, 7), (6, 7)}
 
 
-def test_root_search_uses_reference_one_move_reply_set() -> None:
+def test_root_search_matches_reference_one_move_reply() -> None:
     board = Board()
     board.play(xy_to_move(7, 7))
     searcher = RootSearcher(load_default_config())
-    result = searcher.search(board)
-    assert move_to_xy(result.move) in {(6, 7), (6, 8)}
+    result = searcher.search(board, SearchLimits(max_depth=3, root_width=8))
+    assert move_to_xy(result.move) == (7, 4)
+    assert result.score == -12
 
 
 def test_root_allowed_moves_use_dynamic_board_margin_when_enabled() -> None:
@@ -439,3 +441,28 @@ def test_alphabeta_leaf_matches_reference_sign_convention_on_simple_child_board(
     )
     assert move == -1
     assert score == -1
+
+
+def test_alphabeta_matches_reference_mid_ladder_nonroot_score() -> None:
+    board = Board()
+    for x, y, side in POSITIONS["mid_ladder"]:
+        board.play(xy_to_move(x, y), side)
+    board.play(xy_to_move(7, 5), 1)
+    caches = EvalCaches()
+    recompute_all(board, caches)
+    searcher = AlphaBetaSearcher(load_default_config())
+    score, move = searcher.search(
+        board,
+        caches,
+        board.side_to_move,
+        3.0,
+        -20002,
+        20002,
+        8,
+        opo=1,
+        ply=1,
+        stats=SearchStats(),
+        downf=1,
+    )
+    assert move_to_xy(move) == (7, 9)
+    assert score == -47

@@ -23,15 +23,23 @@ Recent audit update:
 - a systematic 16-position comparison script was added:
   - [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
 - current comparison result is:
-  - 14/16 positions aligned
-  - `open_center` is a reference-trace construction artifact, not a `pyslow` bug
-  - `mid_ladder` still has a real score mismatch to investigate
+  - 16/16 positions aligned
+- the last two alignment issues are now closed:
+  - `mid_ladder` was a real bug in `pyslow`
+  - `open_center` was a Python-only shortcut mismatch against the compiled reference path
+- concrete root causes fixed:
+  - `para[263]` in [`config.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/config.py) was corrected from `6000.0` to the reference value `1000000.0`
+  - non-root alpha-beta `downf` handling now matches reference sibling-accumulation semantics
+  - the one-move center opening shortcut was removed from [`root.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/root.py) so the one-stone position follows the verified reference search path
+- exact regression coverage was added for the resolved non-root ladder case:
+  - [`tests/test_search.py`](/home/jerry/python-test/gomoku/slow_temp/tests/test_search.py)
+  - `mid_ladder + (7,5)` now matches reference with `score=-47`, `move=(7,9)`
 
 Current confidence level:
 
-- branch alignment is strong, but not yet complete enough to declare full reference equivalence
-- do not treat the previous “all items verified” commit message as final truth
-- the remaining work should continue from the unresolved comparison residuals, not from broad re-analysis
+- for the current freestyle 15x15 scope and current compare set, branch alignment is closed
+- treat the current search/eval semantics as the reference-aligned baseline
+- subsequent work should focus on speed and search reach without changing behavior
 
 The most important result is that alignment work is now driven by:
 
@@ -51,38 +59,7 @@ Relevant documents:
 
 ## Work Order
 
-### 1. Finish Remaining Checklist Alignment
-
-Primary source of truth:
-
-- [branch-alignment-checklist.md](/home/jerry/python-test/gomoku/slow_temp/docs/branch-alignment-checklist.md)
-
-Continue from the remaining unchecked items, with this priority:
-
-1. investigate the systematic-compare residual `mid_ladder`
-2. re-check any checklist item whose confidence came only from local reasoning rather than corrected reference trace
-3. continue branch-level comparison for root / alpha-beta / movegen edge paths
-4. continue protocol/runtime comparison only after search-score residuals are understood
-
-Method:
-
-- prefer corrected minimal reference trace harnesses
-- fix the earliest diverging layer
-- add one regression test for each non-obvious branch
-- when a systematic compare mismatch is found, do not mark any surrounding checklist item as complete until that mismatch is explained
-
-Reference harness helper:
-
-- [reference_trace.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/reference_trace.py)
-
-Important note:
-
-- temporary `/tmp/slowrenju-trace-*` build directories are disposable
-- only the methodology in the repo should be treated as persistent
-- the harness itself must set `S=15; boardSize=15;`
-- the `open_center` mismatch in [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py) is caused by reference compile-time `N==20`, so that one opening shortcut is intentionally not treated as a `pyslow` bug
-
-### 2. Performance Analysis And Acceleration
+### 1. Performance Analysis And Acceleration
 
 Primary source of truth:
 
@@ -98,9 +75,10 @@ Rules:
 
 Execution order:
 
-1. re-run hotspot measurement after alignment work stabilizes
+1. re-run hotspot measurement on the now-stable aligned baseline
 2. optimize pure Python implementation first
-3. only then consider native replacements
+3. increase practical root depth / width only after measuring post-optimization gains
+4. only then consider native replacements for proven hotspots
 
 Likely hotspots:
 
@@ -109,6 +87,21 @@ Likely hotspots:
 - `threats/threat_board`
 - `threats/vcf`
 - board access hot paths
+
+### 2. Search Reach Upgrade
+
+After each performance round:
+
+1. benchmark achievable `depth` / `width` increases under fixed time budgets
+2. keep `alignment_compare.py` and targeted regression tests green
+3. expand benchmark coverage before changing default limits
+
+Immediate likely knobs:
+
+- root iterative depth
+- root width
+- child width ratio
+- VCF depth caps
 
 ### 3. Add VCT
 
@@ -134,8 +127,7 @@ When resuming work later, do not start by re-analyzing the whole project.
 
 Start here:
 
-1. read [branch-alignment-checklist.md](/home/jerry/python-test/gomoku/slow_temp/docs/branch-alignment-checklist.md)
-2. run [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py) and start from `mid_ladder`
-3. use [reference_trace.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/reference_trace.py) when branch semantics are uncertain
-4. after the remaining comparison residuals are explained, continue from the first unchecked or downgraded checklist item
-5. after checklist work is stable, switch to [acceleration-plan.md](/home/jerry/python-test/gomoku/slow_temp/docs/acceleration-plan.md)
+1. run [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py) to confirm the baseline still stays `16/16`
+2. read [acceleration-plan.md](/home/jerry/python-test/gomoku/slow_temp/docs/acceleration-plan.md)
+3. profile the aligned baseline before changing any default search limits
+4. after each speedup, re-run the alignment and regression suites

@@ -128,16 +128,17 @@ Python policy:
 Reference special cases:
 
 - empty board uses an opening shortcut
-- if only one move exists and center is occupied, a nearby response is chosen
-  from the two hard-coded replies in `AIx.cpp`
+- the reference source also contains a one-move center-response shortcut, but
+  our compiled alignment harness uses `N==20`, so that `if (N==15)` branch is
+  not active in the verified reference path
 
 Python policy:
 
 - preserve the empty-board center move shortcut
-- preserve the one-move nearby response shortcut present in the reference code
-- note that the reference code randomly chooses between the two hard-coded
-  replies; if `pyslow` stays deterministic, it should still preserve the same
-  two-move candidate set and document the deterministic tie-break
+- do not keep an unconditional one-move center-response shortcut in `pyslow`
+  while alignment is defined against the compiled reference path
+- for the current verified reference build, treat the one-stone center position
+  as a normal search case, which yields `(7,4)` at `depth=3,width=8`
 
 ### 4. Run VCF First
 
