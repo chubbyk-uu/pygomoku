@@ -116,7 +116,7 @@ def test_alphabeta_uses_vcf_shortcut_on_tactical_win() -> None:
         stats=SearchStats(),
     )
     assert move_to_xy(move) in {(2, 7), (6, 7)}
-    assert score >= 20000 - 1
+    assert score >= 15000
 
 
 def test_alphabeta_skips_vcf_shortcut_when_runtime_disables_it(monkeypatch) -> None:

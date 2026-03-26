@@ -43,6 +43,7 @@ def test_root_search_defaults_match_reference_entry() -> None:
 def test_runtime_defaults_match_reference_behavior() -> None:
     config = load_default_config()
     assert config.runtime.compute_vcf is True
+    assert config.runtime.nonroot_vcf is False
     assert config.runtime.static_board is True
     assert config.runtime.dynamic_board_margin == 4
 

@@ -81,6 +81,10 @@ class AlphaBetaSearcher:
         self.tt = tt or TranspositionTable()
         self.vcf = VCFSearcher()
 
+    @staticmethod
+    def _nonroot_vcf_depth(depth: float, root_depth: float) -> int:
+        return int(depth + 6 - 2 * root_depth)
+
     def search(
         self,
         board: Board,
@@ -97,7 +101,10 @@ class AlphaBetaSearcher:
         root: bool = False,
         root_allowed_moves: set[int] | None = None,
         downf: int = 0,
+        root_depth: float | None = None,
     ) -> tuple[int, int]:
+        if root_depth is None:
+            root_depth = depth
         hash_depth = int(depth)
         if stats is None:
             stats = SearchStats()
@@ -138,22 +145,6 @@ class AlphaBetaSearcher:
             )
             return score, -1
 
-        if self.config.runtime.compute_vcf and depth >= 2:
-            vcf_result = self.vcf.search(board, side, min(depth + 1, 5))
-            if vcf_result.found:
-                score = INF - ply
-                self.tt.store(
-                    TTEntry(
-                        key=board.zobrist_key,
-                        value=score,
-                        flag=HASHF_EXACT,
-                        depth=hash_depth,
-                        priority=board.move_count * 10 + hash_depth,
-                        best_move=vcf_result.move,
-                    )
-                )
-                return score, vcf_result.move
-
         generated = generate_candidates(
             board,
             caches,
@@ -164,6 +155,17 @@ class AlphaBetaSearcher:
             preferred_move=probe.best_move,
         )
         ordered = order_candidates(board, generated.candidates, side, probe.best_move)
+        if self.config.runtime.compute_vcf and self.config.runtime.nonroot_vcf and not root:
+            nonroot_vcf_depth = self._nonroot_vcf_depth(depth, root_depth)
+            if nonroot_vcf_depth > 0 and self.vcf.search(board, -side, nonroot_vcf_depth).found:
+                filtered: list = []
+                for candidate in ordered:
+                    trial = board.copy()
+                    trial.side_to_move = side
+                    trial.play(candidate.move, side)
+                    if not self.vcf.search(trial, -side, nonroot_vcf_depth).found:
+                        filtered.append(candidate)
+                ordered = tuple(filtered)
         if not generated.win_priority and not generated.single_forcing:
             ordered = ordered[:wide]
         if not ordered:
@@ -221,6 +223,7 @@ class AlphaBetaSearcher:
                         ply=ply + 1,
                         stats=stats,
                         downf=local_downf,
+                        root_depth=root_depth,
                     )
                     score = -atdown - score
                     if alpha < score < beta:
@@ -236,6 +239,7 @@ class AlphaBetaSearcher:
                             ply=ply + 1,
                             stats=stats,
                             downf=local_downf,
+                            root_depth=root_depth,
                         )
                         score = -atdown - score
                 else:
@@ -251,6 +255,7 @@ class AlphaBetaSearcher:
                         ply=ply + 1,
                         stats=stats,
                         downf=local_downf,
+                        root_depth=root_depth,
                     )
                     score = -atdown - score
                 if score >= WIN:

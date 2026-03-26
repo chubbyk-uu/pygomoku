@@ -160,7 +160,7 @@ POSITIONS: dict[str, list[tuple[int, int, int]]] = {
 }
 
 SEARCH_DEPTH = 3
-SEARCH_WIDTH = 8
+SEARCH_WIDTH = 10
 
 # ---------------------------------------------------------------------------
 # Reference C++ trace program

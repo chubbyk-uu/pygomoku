@@ -29,6 +29,7 @@ class SearchParameters:
 class RuntimeOptions:
     read_config_each_move: bool
     compute_vcf: bool
+    nonroot_vcf: bool
     static_board: bool
     dynamic_board_margin: int
 
@@ -163,6 +164,7 @@ def _default_runtime_options(para: tuple[float, ...]) -> RuntimeOptions:
     return RuntimeOptions(
         read_config_each_move=bool(para[offset + 5]),
         compute_vcf=True,
+        nonroot_vcf=False,
         static_board=True,
         dynamic_board_margin=4,
     )
