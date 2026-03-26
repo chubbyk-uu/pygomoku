@@ -13,6 +13,26 @@
 - working pygame GUI
 - benchmark/profile helpers
 
+Recent audit update:
+
+- another model added a git repository and committed the then-current project state
+- three additional reference-alignment fixes were reviewed and confirmed as correct:
+  - alpha-beta empty-candidate return uses `-INF-1`
+  - VCF memo is cleared once per begin-depth layer
+  - protocol edge cases now match reference source semantics more closely
+- a systematic 16-position comparison script was added:
+  - [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
+- current comparison result is:
+  - 14/16 positions aligned
+  - `open_center` is a reference-trace construction artifact, not a `pyslow` bug
+  - `mid_ladder` still has a real score mismatch to investigate
+
+Current confidence level:
+
+- branch alignment is strong, but not yet complete enough to declare full reference equivalence
+- do not treat the previous “all items verified” commit message as final truth
+- the remaining work should continue from the unresolved comparison residuals, not from broad re-analysis
+
 The most important result is that alignment work is now driven by:
 
 - direct reference traces
@@ -39,16 +59,17 @@ Primary source of truth:
 
 Continue from the remaining unchecked items, with this priority:
 
-1. `VCF` repeated-state / `hm` / `Reorder` equivalent branches
-2. remaining root / alpha-beta stop interaction edge cases
-3. remaining protocol/runtime behavior against a compiled reference engine process
-4. if needed, more extreme movegen branch cases that do not naturally appear in random freestyle positions
+1. investigate the systematic-compare residual `mid_ladder`
+2. re-check any checklist item whose confidence came only from local reasoning rather than corrected reference trace
+3. continue branch-level comparison for root / alpha-beta / movegen edge paths
+4. continue protocol/runtime comparison only after search-score residuals are understood
 
 Method:
 
 - prefer corrected minimal reference trace harnesses
 - fix the earliest diverging layer
 - add one regression test for each non-obvious branch
+- when a systematic compare mismatch is found, do not mark any surrounding checklist item as complete until that mismatch is explained
 
 Reference harness helper:
 
@@ -58,6 +79,8 @@ Important note:
 
 - temporary `/tmp/slowrenju-trace-*` build directories are disposable
 - only the methodology in the repo should be treated as persistent
+- the harness itself must set `S=15; boardSize=15;`
+- the `open_center` mismatch in [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py) is caused by reference compile-time `N==20`, so that one opening shortcut is intentionally not treated as a `pyslow` bug
 
 ### 2. Performance Analysis And Acceleration
 
@@ -112,6 +135,7 @@ When resuming work later, do not start by re-analyzing the whole project.
 Start here:
 
 1. read [branch-alignment-checklist.md](/home/jerry/python-test/gomoku/slow_temp/docs/branch-alignment-checklist.md)
-2. continue from the first unchecked item
+2. run [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py) and start from `mid_ladder`
 3. use [reference_trace.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/reference_trace.py) when branch semantics are uncertain
-4. after checklist work is stable, switch to [acceleration-plan.md](/home/jerry/python-test/gomoku/slow_temp/docs/acceleration-plan.md)
+4. after the remaining comparison residuals are explained, continue from the first unchecked or downgraded checklist item
+5. after checklist work is stable, switch to [acceleration-plan.md](/home/jerry/python-test/gomoku/slow_temp/docs/acceleration-plan.md)

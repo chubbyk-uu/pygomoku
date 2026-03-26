@@ -12,6 +12,27 @@ This checklist is for verifying that `pyslow` is aligned with `SlowRenju` not on
 
 The goal is to avoid a false sense of alignment caused by only checking the "normal" search flow.
 
+## Current Audit Status
+
+The checklist is strong evidence of branch-level progress, but it is not the final source of truth by itself.
+
+Most recent systematic comparison status:
+
+- [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py) compares 16 fixed positions
+- current result: `14/16`
+- one mismatch is a known harness artifact:
+  - `open_center`
+  - reference harness is compiled with `N==20`, so the `if (N==15)` one-move opening shortcut is skipped
+- one mismatch is still unresolved and must be treated as a real open item until explained:
+  - `mid_ladder`
+  - move matches: `(7,5)`
+  - score differs: `reference=45`, `pyslow=19988`
+
+Therefore:
+
+- do not interpret all checked items below as proof of complete reference equivalence
+- until `mid_ladder` is explained, branch alignment is "high confidence but not closed"
+
 ## Rules
 
 1. Do not mark a branch as aligned only because the surrounding main logic looks similar.
@@ -81,6 +102,7 @@ Current `pyslow` status:
 - [x] verify remaining stop interaction around root return against reference trace
   verified: with nodelimit=50 on fallback position, both engines return move=68 via AIs() fallback.
   pyslow detects empty candidates earlier (before iteration) while reference enters one iteration; end result identical.
+- [ ] explain the remaining systematic-compare score residual on `mid_ladder`
 
 ### Alpha-Beta
 
@@ -92,6 +114,7 @@ Current `pyslow` status:
 - [x] verify stop/node-limit/time-stop return path against reference trace
   verified: node-limit triggers gvstop/stats.stop, alphabeta returns (0,-1) in both engines,
   root breaks iteration and falls back to AIs()/_fallback_ai_move() identically.
+- [ ] verify whether `mid_ladder` score divergence comes from alpha-beta propagation, window behavior, or search-extension semantics
 
 ### Candidate Generation
 
@@ -114,6 +137,7 @@ Current `pyslow` status:
   and reference tie-break keeps `(6,6)`
   `pyslow` now matches this corrected root result when called with `SearchLimits(max_depth=3, root_width=8)`
 - [x] corrected simple TT-alpha seeded two-stone root result aligned
+- [ ] verify whether `mid_ladder` score divergence depends on candidate ordering / top-width retention under depth=3,width=8
 
 ### ValueWide
 
@@ -123,12 +147,14 @@ Current `pyslow` status:
 - [x] verify `ComputeValue1b` bucket outputs against reference trace on handpicked points
 - [x] verify `attack1bWide` outputs on threat/fork/four positions against reference trace
 - [x] verify `ValueWideCompute` incremental update path against reference snapshots
+- [ ] rule out `ValueWide` / eval mismatch as the cause of `mid_ladder` score divergence by pointwise trace on that exact position
 
 ### Global Eval
 
 - [x] main `LAST5`/`NEXT43` structure present
 - [x] verify recursive branch returns on handpicked forced positions
 - [x] verify extreme-value and terminal-return edge cases against reference trace
+- [ ] rule out `global_eval` branch mismatch as the cause of `mid_ladder` score divergence on the exact ladder position
 
 ### VCF / Threat Board
 
@@ -142,6 +168,7 @@ Current `pyslow` status:
   All 5 positions produce identical VCF results and matching memo entry counts.
 - [x] verify begin/finish/unsolved semantics against reference trace
 - [x] verify remaining `line4v` tactical predicates on handpicked positions
+- [ ] determine whether `mid_ladder` enters a tactical / VCF path in `pyslow` but not in reference
 
 ### Protocol / Runtime
 
@@ -176,6 +203,20 @@ For any suspected mismatch:
 6. Add:
 - one regression test in `tests/`
 - one checklist note here if the branch was non-obvious
+
+For the current open residual `mid_ladder`, use this stricter workflow:
+
+1. Run `alignment_compare.py` and confirm the mismatch still reproduces.
+2. Trace the exact position in both engines at `depth=3,width=8`.
+3. Compare, in order:
+- root exit path
+- whether VCF/special path fired
+- root candidate list and scores
+- child alpha-beta return values
+- leaf/global eval values
+4. Only mark the related checklist item complete after the residual is either:
+- eliminated, or
+- proven to be a harness/trace artifact
 
 ## Notes
 

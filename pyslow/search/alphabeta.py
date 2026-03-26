@@ -167,7 +167,7 @@ class AlphaBetaSearcher:
         if not generated.win_priority and not generated.single_forcing:
             ordered = ordered[:wide]
         if not ordered:
-            return -INF, -1
+            return -INF - 1, -1
 
         current = -INF - 1
         best_move = -1

@@ -416,7 +416,7 @@ def test_alphabeta_returns_negative_inf_when_candidate_list_is_empty(monkeypatch
         8,
         stats=SearchStats(),
     )
-    assert (score, move) == (-INF, -1)
+    assert (score, move) == (-INF - 1, -1)
 
 
 def test_alphabeta_leaf_matches_reference_sign_convention_on_simple_child_board() -> None:

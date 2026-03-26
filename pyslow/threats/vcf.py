@@ -38,7 +38,6 @@ class VCFSearcher:
         return tuple(sorted(attacker_moves)), tuple(sorted(defender_moves))
 
     def search(self, board: Board, side: int, depth: int) -> VCFResult:
-        self._memo.clear()
         effective_depth = self._normalize_begin_depth(depth)
         return self._search_begin(ThreatBoardView.from_board(board.copy()), side, effective_depth)
 
@@ -53,6 +52,7 @@ class VCFSearcher:
     def _search_begin(self, view: ThreatBoardView, side: int, depth: int) -> VCFResult:
         if depth <= 0:
             return VCFResult(move=NO_MOVE, found=False, solved=False)
+        self._memo.clear()
         shallower = self._search_begin(view, side, depth - 1)
         if shallower.found:
             return shallower

@@ -125,3 +125,27 @@ def test_protocol_search_move_falls_back_if_engine_returns_illegal_move(monkeypa
     monkeypatch.setattr(proto.searcher, "search", lambda board, limits: FakeResult())
     response = proto._search_move()
     assert response != "7,7"
+
+
+def test_protocol_unknown_command_silently_ignored_like_reference() -> None:
+    proto = _proto()
+    assert proto.handle_line("FOOBAR") == []
+    assert proto.handle_line("XYZZY 123") == []
+
+
+def test_protocol_takeback_on_empty_board_returns_ok() -> None:
+    proto = _proto()
+    proto.handle_line("START 15")
+    assert proto.handle_line("TAKEBACK") == ["OK"]
+
+
+def test_protocol_board_sfn_equals_opn_minus_one_plays_as_white() -> None:
+    proto = _proto()
+    proto.handle_line("START 15")
+    proto.handle_line("BOARD")
+    proto.handle_line("7,7,2")
+    proto.handle_line("6,7,1")
+    response = proto.handle_line("DONE")
+    assert len(response) == 1
+    assert "," in response[0]
+    assert proto.board.move_count == 3

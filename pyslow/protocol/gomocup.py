@@ -92,9 +92,8 @@ class GomocupProtocol:
             return []
 
         if command == "TAKEBACK":
-            if not self.board.move_history:
-                return ["ERROR Takeback error."]
-            self.board.undo()
+            if self.board.move_history:
+                self.board.undo()
             return ["OK"]
 
         if command == "ABOUT":
@@ -104,7 +103,7 @@ class GomocupProtocol:
             self.ended = True
             return []
 
-        return [f"UNKNOWN {command}"]
+        return []
 
     def _reset_engine(self) -> None:
         self.board = Board()
@@ -119,23 +118,30 @@ class GomocupProtocol:
     def _handle_board_done(self) -> list[str]:
         black_moves = [(x, y) for x, y, side in self.board_lines if side == 1]
         white_moves = [(x, y) for x, y, side in self.board_lines if side != 1]
-        if not (len(black_moves) == len(white_moves) or len(black_moves) == len(white_moves) + 1):
+        sfn = len(black_moves)
+        opn = len(white_moves)
+
+        if sfn == opn:
+            # Engine plays as black (side 1, first mover)
+            first_side_moves = black_moves
+            second_side_moves = white_moves
+        elif sfn == opn - 1:
+            # Engine plays as white (side -1, second mover)
+            # Reference: sfn==opn-1 means opponent (white/side=2) moved first
+            first_side_moves = white_moves
+            second_side_moves = black_moves
+        else:
             self.board_lines.clear()
             return ["ERROR Board error."]
 
         self.board = Board()
-        move_pairs: list[tuple[int, int, int]] = []
-        move_pairs.extend((x, y, 1) for x, y in black_moves)
-        move_pairs.extend((x, y, -1) for x, y in white_moves)
-        move_pairs.sort(key=lambda item: (0 if item[2] == 1 else 1, item[1], item[0]))
-
-        for idx in range(max(len(black_moves), len(white_moves))):
-            if idx < len(black_moves):
-                x, y = black_moves[idx]
-                self._play_xy(x, y, 1)
-            if idx < len(white_moves):
-                x, y = white_moves[idx]
-                self._play_xy(x, y, -1)
+        for idx in range(max(len(first_side_moves), len(second_side_moves))):
+            if idx < len(first_side_moves):
+                x, y = first_side_moves[idx]
+                self._play_xy(x, y, self.board.side_to_move)
+            if idx < len(second_side_moves):
+                x, y = second_side_moves[idx]
+                self._play_xy(x, y, self.board.side_to_move)
 
         self.board_lines.clear()
         return [self._search_move()]
