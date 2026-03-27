@@ -63,7 +63,7 @@ def compute_direction_shape(board: Board, x: int, y: int, direction: int, side: 
             point_index = BOARD_SIZE - 1 - y
         else:
             raise ValueError(f"invalid direction: {direction}")
-        return Line.from_board(board, pivot, direction).shape(point_index).raw
+        return Line.from_board(board, pivot, direction).shape_raw(point_index)
     finally:
         grid[y][x] = EMPTY
 

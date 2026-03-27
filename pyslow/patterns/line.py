@@ -30,7 +30,7 @@ def _comd(x: int, y: int, z: int, w: int) -> int:
     return _comb(_comc(x, y, z), w)
 
 
-@dataclass
+@dataclass(slots=True)
 class Line:
     cells: list[int]
 
@@ -67,17 +67,20 @@ class Line:
         return cls(cells=cells)
 
     def shape(self, point_index: int, freestyle: bool = True) -> PackedShape:
+        return PackedShape(self.shape_raw(point_index, freestyle))
+
+    def shape_raw(self, point_index: int, freestyle: bool = True) -> int:
         """Return the packed directional shape for an occupied point on this line."""
         p = point_index + 2
         stone = self.cells[p]
         if stone not in (BLACK, WHITE):
-            return PackedShape(0)
+            return 0
 
         if stone == BLACK:
             trt = self._shape_table_lookup(p, BLACK, foul_or_nosix=not freestyle)
         else:
             trt = self._shape_table_lookup(p, WHITE, foul_or_nosix=False)
-        return PackedShape(((trt & 0xF0) << 12) | (trt & 0xF))
+        return ((trt & 0xF0) << 12) | (trt & 0xF)
 
     def _shape_table_lookup(self, p: int, stone: int, foul_or_nosix: bool) -> int:
         ssp = 0
