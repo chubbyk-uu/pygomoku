@@ -7,6 +7,7 @@ from pyslow.board import Board, xy_to_move
 from pyslow.config import load_default_config
 from pyslow.constants import BOARD_SIZE
 from pyslow.eval.caches import EvalCaches
+from pyslow.eval.caches import caches_backend_name
 from pyslow.eval.global_eval import _evaluate_last5_branch, _evaluate_next43_branch, _find_last5_target, evaluate_board
 from pyslow.eval.local import (
     attack_level,
@@ -33,6 +34,10 @@ def test_eval_caches_start_with_zeroed_storage() -> None:
 
 def test_local_backend_name_is_supported() -> None:
     assert local_backend_name() in {"python", "cython"}
+
+
+def test_caches_backend_name_is_supported() -> None:
+    assert caches_backend_name() in {"python", "cython"}
 
 
 def test_eval_caches_reset_restores_zero_state() -> None:

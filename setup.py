@@ -10,6 +10,7 @@ def build_extensions() -> list[Extension]:
     pyx_files = [
         ("pyslow.patterns._line_cy", Path("pyslow/patterns/_line_cy.pyx")),
         ("pyslow.eval._local_cy", Path("pyslow/eval/_local_cy.pyx")),
+        ("pyslow.eval._caches_cy", Path("pyslow/eval/_caches_cy.pyx")),
     ]
     for module_name, pyx in pyx_files:
         if pyx.exists():

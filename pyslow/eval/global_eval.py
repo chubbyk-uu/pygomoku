@@ -48,8 +48,9 @@ def _find_last5_target(board: Board, caches: EvalCaches, side: int, config: Engi
     last_eval = config.eval_tables.last_eval
     threshold = LAST5 * 65536 / 2
     for x in range(size):
+        value_col = value_cache[x]
         for y in range(size):
-            if grid[y][x] == 0 and last_eval[value_cache[x][y]] >= threshold:
+            if grid[y][x] == 0 and last_eval[value_col[y]] >= threshold:
                 return (x, y)
     return None
 
@@ -74,8 +75,9 @@ def _evaluate_next43_branch(board: Board, caches: EvalCaches, side: int, config:
     opponent_cache = caches.value_cache[0 if side == WHITE else 1]
     threshold = NEXT43 * 65536 / 2
     for x in range(size):
+        opponent_value_col = opponent_cache[x]
         for y in range(size):
-            if grid[y][x] != 0 or next_eval[opponent_cache[x][y]] < threshold:
+            if grid[y][x] != 0 or next_eval[opponent_value_col[y]] < threshold:
                 continue
             board_copy = board.copy()
             board_copy.side_to_move = -side

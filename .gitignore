@@ -39,3 +39,4 @@ Thumbs.db
 # Generated optional native sources
 pyslow/patterns/_line_cy.c
 pyslow/eval/_local_cy.c
+pyslow/eval/_caches_cy.c

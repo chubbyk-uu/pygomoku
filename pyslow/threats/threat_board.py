@@ -58,20 +58,22 @@ class ThreatBoardView:
 
     @classmethod
     def from_board(cls, board: Board) -> "ThreatBoardView":
-        x1 = [[board.at(x, y) for y in range(board.size)] for x in range(board.size)]
-        x2 = [[board.at(x, y) for x in range(board.size)] for y in range(board.size)]
+        size = board.size
+        grid = board.grid
+        x1 = [[grid[y][x] for y in range(size)] for x in range(size)]
+        x2 = [[grid[y][x] for x in range(size)] for y in range(size)]
         width = 2 * board.size - 1
-        x3 = [[1024 for _ in range(board.size)] for _ in range(width)]
-        x4 = [[1024 for _ in range(board.size)] for _ in range(width)]
+        x3 = [[1024 for _ in range(size)] for _ in range(width)]
+        x4 = [[1024 for _ in range(size)] for _ in range(width)]
         for p in range(width):
-            if p < board.size:
+            if p < size:
                 for i in range(p + 1):
-                    x3[p][i] = board.at(p - i, i)
-                    x4[p][i] = board.at(p - i, board.size - 1 - i)
+                    x3[p][i] = grid[i][p - i]
+                    x4[p][i] = grid[size - 1 - i][p - i]
             else:
-                for i in range(p - board.size + 1, board.size):
-                    x3[p][i] = board.at(p - i, i)
-                    x4[p][i] = board.at(p - i, board.size - 1 - i)
+                for i in range(p - size + 1, size):
+                    x3[p][i] = grid[i][p - i]
+                    x4[p][i] = grid[size - 1 - i][p - i]
         return cls(board=board, x1=x1, x2=x2, x3=x3, x4=x4)
 
     def _lines_for(self, x: int, y: int) -> tuple[Line, Line, Line, Line, int, int, int, int]:
@@ -115,15 +117,17 @@ class ThreatBoardView:
         self._set_point(x, y, 0)
 
     def threat_moves(self, side: int) -> tuple[int, ...]:
+        size = self.board.size
+        grid = self.board.grid
         candidates: list[int] = []
-        for x in range(self.board.size):
-            for y in range(self.board.size):
-                if self.board.at(x, y) != 0:
+        for x in range(size):
+            for y in range(size):
+                if grid[y][x] != 0:
                     continue
                 for dx, dy in THREAT_DIRS:
                     xx = x + dx
                     yy = y + dy
-                    if 0 <= xx < self.board.size and 0 <= yy < self.board.size and self.board.at(xx, yy) == side:
+                    if 0 <= xx < size and 0 <= yy < size and grid[yy][xx] == side:
                         candidates.append(xy_to_move(x, y))
                         break
         return tuple(candidates)
@@ -133,21 +137,22 @@ class ThreatBoardView:
         return bool(l1.a4(p1) or l2.a4(p2) or l3.a4(p3) or l4.a4(p4))
 
     def has_a6(self, x: int, y: int) -> bool:
-        if self.board.at(x, y) == 0:
+        if self.board.grid[y][x] == 0:
             return False
         l1, l2, l3, l4, p1, p2, p3, p4 = self._lines_for(x, y)
         return bool(l1.a6(p1) or l2.a6(p2) or l3.a6(p3) or l4.a6(p4))
 
     def has_a5(self, x: int, y: int) -> bool:
-        if self.board.at(x, y) == 0:
+        if self.board.grid[y][x] == 0:
             return False
         l1, l2, l3, l4, p1, p2, p3, p4 = self._lines_for(x, y)
         return bool(l1.a5(p1) or l2.a5(p2) or l3.a5(p3) or l4.a5(p4))
 
     def a5test(self, x: int, y: int, side: int) -> bool:
-        if self.board.at(x, y) == side:
+        point = self.board.grid[y][x]
+        if point == side:
             return self.has_a5(x, y)
-        if self.board.at(x, y) != 0:
+        if point != 0:
             return False
         move = xy_to_move(x, y)
         self.play(move, side)
@@ -157,15 +162,16 @@ class ThreatBoardView:
             self.undo()
 
     def b4_count(self, x: int, y: int) -> int:
-        if self.board.at(x, y) == 0:
+        if self.board.grid[y][x] == 0:
             return 0
         l1, l2, l3, l4, p1, p2, p3, p4 = self._lines_for(x, y)
         return l1.b4(p1) + l2.b4(p2) + l3.b4(p3) + l4.b4(p4)
 
     def a3r_count(self, x: int, y: int) -> int:
-        if self.board.at(x, y) == 0:
+        point = self.board.grid[y][x]
+        if point == 0:
             return 0
-        side = self.board.at(x, y)
+        side = point
         l1, l2, l3, l4, p1, p2, p3, p4 = self._lines_for(x, y)
         count = 0
         line_specs = (
@@ -239,10 +245,12 @@ class ThreatBoardView:
         return None, False
 
     def broken_four_point_for_side(self, side: int) -> tuple[int | None, bool]:
+        grid = self.board.grid
+        size = self.board.size
         first_reply: int | None = None
-        for x in range(self.board.size):
-            for y in range(self.board.size):
-                if self.board.at(x, y) != side:
+        for x in range(size):
+            for y in range(size):
+                if grid[y][x] != side:
                     continue
                 reply, local_ambiguous = self._broken_four_reply_with_ambiguity(x, y)
                 if reply is None:

@@ -99,15 +99,24 @@ def covered_moves(board: Board) -> tuple[int, ...]:
     if board.move_count == 0:
         return (xy_to_move(BOARD_SIZE // 2, BOARD_SIZE // 2),)
 
-    covered: set[int] = set()
-    for move in board.occupied_moves():
-        x, y = move_to_xy(move)
+    size = board.size
+    grid = board.grid
+    seen = bytearray(size * size)
+    covered: list[int] = []
+    for played in board.move_history:
+        move = played.move
+        x = move % size
+        y = move // size
         for dx, dy in _COVER_DIRS:
             xx = x + dx
             yy = y + dy
-            if 0 <= xx < board.size and 0 <= yy < board.size and board.at(xx, yy) == EMPTY:
-                covered.add(xy_to_move(xx, yy))
-    return tuple(sorted(covered))
+            if 0 <= xx < size and 0 <= yy < size and grid[yy][xx] == EMPTY:
+                candidate = yy * size + xx
+                if not seen[candidate]:
+                    seen[candidate] = 1
+                    covered.append(candidate)
+    covered.sort()
+    return tuple(covered)
 
 
 def generate_candidates(
@@ -126,18 +135,21 @@ def generate_candidates(
 
     vbw_map: dict[int, int] = {}
     self_attack_map: dict[int, int] = {}
+    opp_attack_map: dict[int, int] = {}
     at1pri = 0
     at2pri = 0
     sglflag = 0
     hsflag = 0
 
     for move in moves:
-        x, y = move_to_xy(move)
+        x = move % BOARD_SIZE
+        y = move // BOARD_SIZE
         vbw = int(move_value(caches, x, y, side, config))
         att1 = attack_level(caches, x, y, side)
         att2 = attack_level(caches, x, y, -side)
         vbw_map[move] = vbw
         self_attack_map[move] = att1
+        opp_attack_map[move] = att2
         if vbw <= 0:
             at2pri = max(at2pri, att2)
             continue
@@ -154,7 +166,6 @@ def generate_candidates(
     candidates: list[Candidate] = []
 
     for move in moves:
-        x, y = move_to_xy(move)
         vbw = vbw_map[move]
         if root_allowed_moves is not None and move not in root_allowed_moves:
             vbw -= 5000
@@ -168,7 +179,14 @@ def generate_candidates(
         if move == preferred_move:
             score = 100
         if score >= WIN:
-            candidates = [Candidate(move=move, order_score=score, self_attack=attack_level(caches, x, y, side), opp_attack=attack_level(caches, x, y, -side))]
+            candidates = [
+                Candidate(
+                    move=move,
+                    order_score=score,
+                    self_attack=self_attack_map[move],
+                    opp_attack=opp_attack_map[move],
+                )
+            ]
             break
         if score <= -WIN and score >= -200000000:
             continue
@@ -177,8 +195,8 @@ def generate_candidates(
                 Candidate(
                     move=move,
                     order_score=score,
-                    self_attack=attack_level(caches, x, y, side),
-                    opp_attack=attack_level(caches, x, y, -side),
+                    self_attack=self_attack_map[move],
+                    opp_attack=opp_attack_map[move],
                 )
             )
 

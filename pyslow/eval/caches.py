@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 
 from pyslow.constants import BOARD_SIZE
@@ -29,6 +30,61 @@ def _new_value_cache() -> list[list[list[int]]]:
     ]
 
 
+def _copy_board_shadow(board_shadow: list[list[int]]) -> list[list[int]]:
+    return [column[:] for column in board_shadow]
+
+
+def _copy_shape_cache(shape_cache: list[list[list[list[int]]]]) -> list[list[list[list[int]]]]:
+    return [
+        [[direction[:] for direction in row] for row in player]
+        for player in shape_cache
+    ]
+
+
+def _copy_value_cache(cache: list[list[list[int]]]) -> list[list[list[int]]]:
+    return [[row[:] for row in player] for player in cache]
+
+
+_CACHES_BACKEND_MODE = os.getenv("PYSLOW_CACHES_BACKEND", "auto").lower()
+if _CACHES_BACKEND_MODE != "python":
+    try:
+        from pyslow.eval._caches_cy import copy_board_shadow as _copy_board_shadow_native
+        from pyslow.eval._caches_cy import copy_shape_cache as _copy_shape_cache_native
+        from pyslow.eval._caches_cy import copy_value_cache as _copy_value_cache_native
+    except ImportError:
+        if _CACHES_BACKEND_MODE == "cython":
+            raise
+        _copy_board_shadow_native = None
+        _copy_shape_cache_native = None
+        _copy_value_cache_native = None
+else:
+    _copy_board_shadow_native = None
+    _copy_shape_cache_native = None
+    _copy_value_cache_native = None
+
+
+def caches_backend_name() -> str:
+    return "cython" if _copy_board_shadow_native is not None else "python"
+
+
+def _copy_board_shadow_any(board_shadow: list[list[int]]) -> list[list[int]]:
+    if _copy_board_shadow_native is not None:
+        return _copy_board_shadow_native(board_shadow)
+    return _copy_board_shadow(board_shadow)
+
+
+def _copy_shape_cache_any(shape_cache: list[list[list[list[int]]]]) -> list[list[list[list[int]]]]:
+    if _copy_shape_cache_native is not None:
+        return _copy_shape_cache_native(shape_cache)
+    return _copy_shape_cache(shape_cache)
+
+
+def _copy_value_cache_any(cache: list[list[list[int]]]) -> list[list[list[int]]]:
+    if _copy_value_cache_native is not None:
+        return _copy_value_cache_native(cache)
+    return _copy_value_cache(cache)
+
+
 @dataclass
 class EvalCaches:
     initialized: bool = False
@@ -46,13 +102,10 @@ class EvalCaches:
     ]:
         return (
             self.initialized,
-            [column[:] for column in self.board_shadow],
-            [
-                [[direction[:] for direction in row] for row in player]
-                for player in self.shape_cache
-            ],
-            [[row[:] for row in player] for player in self.value_cache],
-            [[row[:] for row in player] for player in self.attack_cache],
+            _copy_board_shadow_any(self.board_shadow),
+            _copy_shape_cache_any(self.shape_cache),
+            _copy_value_cache_any(self.value_cache),
+            _copy_value_cache_any(self.attack_cache),
         )
 
     def restore_snapshot(
@@ -67,13 +120,10 @@ class EvalCaches:
     ) -> None:
         initialized, board_shadow, shape_cache, value_cache, attack_cache = snapshot
         self.initialized = initialized
-        self.board_shadow = [column[:] for column in board_shadow]
-        self.shape_cache = [
-            [[direction[:] for direction in row] for row in player]
-            for player in shape_cache
-        ]
-        self.value_cache = [[row[:] for row in player] for player in value_cache]
-        self.attack_cache = [[row[:] for row in player] for player in attack_cache]
+        self.board_shadow = _copy_board_shadow_any(board_shadow)
+        self.shape_cache = _copy_shape_cache_any(shape_cache)
+        self.value_cache = _copy_value_cache_any(value_cache)
+        self.attack_cache = _copy_value_cache_any(attack_cache)
 
     def copy(self) -> "EvalCaches":
         initialized, board_shadow, shape_cache, value_cache, attack_cache = self.snapshot()
