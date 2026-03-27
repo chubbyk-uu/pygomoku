@@ -18,16 +18,21 @@ The checklist is strong evidence of branch-level progress, but it is not the fin
 
 Most recent systematic comparison status:
 
-- [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py) compares 16 fixed positions
-- current result: `16/16`
-- the previous two residuals are now closed:
-  - `mid_ladder` was caused by a real search-semantic bug in `pyslow`
-  - `open_center` was resolved by aligning root behavior with the compiled
-    reference path instead of keeping a Python-only one-move shortcut
+- [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py) now compares 70 fixed positions
+- current result: `70/70`
+- the compare set now includes:
+  - opening
+  - midgame
+  - tactical / VCF-first
+  - edge / corner
+  - fallback / `rootsplit`
+  - dense positions
+- transformed positions in the set were mechanically checked against their base
+  positions to eliminate hand-copy drift
 
 Therefore:
 
-- branch-level alignment is now closed for the current 16-position compare set
+- branch-level alignment is now closed for the current 70-position compare set
 - future work should treat semantic alignment as a regression target, not as an
   open investigation item
 

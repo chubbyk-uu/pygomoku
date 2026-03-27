@@ -30,12 +30,13 @@ This audit used four sources of evidence:
 Fresh machine evidence gathered in this audit:
 
 - `python benchmarks/alignment_compare.py`
-  - result: `20/20`
+  - current result: `70/70`
   - baseline: `depth=3`, `width=10`
   - trace harness now seeds `srand(1232356)` like reference `main.cpp`
+  - compare set is now grouped and can run in parallel
 - `python benchmarks/semantic_audit.py`
   - alignment compare return code `0`
-  - `nonroot_vcf` enabled vs disabled caused no change on the 20 fixed audit
+  - `nonroot_vcf` enabled vs disabled caused no change on the original fixed audit
     positions
   - protocol snapshot matched current intended behavior
 - `pytest -q tests/test_config.py tests/test_search.py tests/test_movegen.py tests/test_protocol.py`
@@ -57,7 +58,7 @@ baseline engine behavior.
 
 ### Strongest positive evidence
 
-- fixed-position compare is now `20/20`
+- fixed-position compare is now `70/70`
 - recent root and non-root search residuals have been closed with reference
   traces, not by local guesswork
 - protocol/config/search/movegen regression suites all passed in this audit
@@ -82,8 +83,8 @@ baseline.
 
 ### Evidence
 
-- `alignment_compare.py` at `depth=3`, `width=10` returns `20/20`
-- no changed positions when `nonroot_vcf` was toggled on for the 20 fixed audit
+- `alignment_compare.py` at `depth=3`, `width=10` now returns `70/70`
+- no changed positions when `nonroot_vcf` was toggled on for the original fixed audit
   positions
 - search and protocol regression suites passed
 
@@ -182,7 +183,7 @@ Evidence:
   - [`pyslow/config.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/config.py)
 - if enabled manually, `pyslow` now follows reference-style formula and
   opponent-pressure filtering semantics
-- audit script found no fixed-position changes when enabling it on the 20 audit
+- audit script found no fixed-position changes when enabling it on the original audit
   positions
 
 Status:
@@ -251,7 +252,7 @@ for future regressions:
 1. any future decision to enable `static_board=False` by default
 2. any future decision to enable `nonroot_vcf=True` by default
 3. any future benchmark set that includes fallback-heavy or protocol-edge cases
-   beyond the current 20-position compare
+   beyond the current 70-position compare
 
 ## Recommended Repair Priority
 

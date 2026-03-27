@@ -197,6 +197,12 @@ Current alignment baseline:
 Notes:
 
 - the fixed-position compare script should use this baseline
+- the current compare set contains `70` positions
+- [`alignment_compare.py`](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
+  now supports:
+  - grouped runs via `--group`
+  - grouped parallel execution via `--jobs`
+  - default grouped parallel execution with `jobs=6`
 - if a benchmark or test intentionally uses a different setting, it should say
   so explicitly
 - because `static_board=True`, `dynamic_board_margin` is inactive in this

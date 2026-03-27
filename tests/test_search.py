@@ -231,6 +231,29 @@ def test_root_returns_only_safe_move_when_vcf_filter_leaves_single_choice(monkey
     monkeypatch.setattr(searcher.vcf, "search", fake_search)
     result = searcher.search(board, SearchLimits(max_depth=4, root_width=8))
     assert result.move == safe
+    assert result.score == 0
+    assert result.depth == 0
+
+
+def test_root_single_safe_move_matches_reference_score_semantics(monkeypatch) -> None:
+    board = Board()
+    seq = [
+        (14, 14, 1),
+        (0, 0, -1),
+        (14, 13, 1),
+        (1, 0, -1),
+        (13, 14, 1),
+        (2, 0, -1),
+        (13, 13, 1),
+        (3, 0, -1),
+    ]
+    for x, y, side in seq:
+        assert board.side_to_move == side
+        board.play(xy_to_move(x, y))
+    searcher = RootSearcher(load_default_config())
+    result = searcher.search(board, SearchLimits(max_depth=3, root_width=10))
+    assert result.move == xy_to_move(4, 0)
+    assert result.score == 0
     assert result.depth == 0
 
 

@@ -16,21 +16,28 @@
 Recent audit update:
 
 - another model added a git repository and committed the then-current project state
-- three additional reference-alignment fixes were reviewed and confirmed as correct:
-  - alpha-beta empty-candidate return uses `-INF-1`
-  - VCF memo is cleared once per begin-depth layer
-  - protocol edge cases now match reference source semantics more closely
-- a systematic 16-position comparison script was added:
+- the fixed-position reference compare has been expanded and mechanically checked:
   - [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
 - current comparison result is:
-  - 16/16 positions aligned
-- the last two alignment issues are now closed:
-  - `mid_ladder` was a real bug in `pyslow`
-  - `open_center` was a Python-only shortcut mismatch against the compiled reference path
+  - `70/70` positions aligned at `depth=3`, `width=10`
+- the compare set now covers:
+  - opening
+  - midgame
+  - tactical / VCF-first
+  - edge / corner
+  - fallback / `rootsplit`
+  - dense positions
+- all hand-written transformed positions in the compare set were mechanically rechecked for:
+  - bounds
+  - duplicate coordinates
+  - alternating side order
+  - exact transform consistency against the base position
 - concrete root causes fixed:
   - `para[263]` in [`config.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/config.py) was corrected from `6000.0` to the reference value `1000000.0`
   - non-root alpha-beta `downf` handling now matches reference sibling-accumulation semantics
   - the one-move center opening shortcut was removed from [`root.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/root.py) so the one-stone position follows the verified reference search path
+  - root `rootsplit==1` now matches reference `abval.first` return semantics
+  - root VCF-filter single-safe-move path no longer returns the wrong Python-only `-INF`
 - exact regression coverage was added for the resolved non-root ladder case:
   - [`tests/test_search.py`](/home/jerry/python-test/gomoku/slow_temp/tests/test_search.py)
   - `mid_ladder + (7,5)` now matches reference with `score=-47`, `move=(7,9)`
@@ -38,8 +45,17 @@ Recent audit update:
 Current confidence level:
 
 - for the current freestyle 15x15 scope and current compare set, branch alignment is closed
+- the current compare set is large enough to treat further semantic expansion as optional, not blocking
 - treat the current search/eval semantics as the reference-aligned baseline
 - subsequent work should focus on speed and search reach without changing behavior
+
+Practical stage summary:
+
+- semantic alignment is no longer the active bottleneck
+- the current project phase has moved from branch-level reference alignment to
+  performance analysis and acceleration
+- new semantic cases can still be added later, but they are no longer the
+  default next task
 
 The most important result is that alignment work is now driven by:
 
@@ -59,7 +75,7 @@ Relevant documents:
 
 ## Work Order
 
-### 1. Performance Analysis And Acceleration
+### 1. Current Priority: Performance Analysis And Acceleration
 
 Primary source of truth:
 
@@ -79,6 +95,16 @@ Execution order:
 2. optimize pure Python implementation first
 3. increase practical root depth / width only after measuring post-optimization gains
 4. only then consider native replacements for proven hotspots
+
+Immediate deliverables:
+
+1. produce an updated hotspot report on the current `70/70` aligned baseline
+2. rank the hottest Python call paths by total time and call count
+3. choose the first optimization target set
+   - likely `board` access
+   - `patterns/line`
+   - `eval/local`
+4. keep semantic regressions frozen while optimizing
 
 Likely hotspots:
 
@@ -127,7 +153,10 @@ When resuming work later, do not start by re-analyzing the whole project.
 
 Start here:
 
-1. run [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py) to confirm the baseline still stays `16/16`
+1. run [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py) to confirm the baseline still stays `70/70`
+   - default now runs grouped parallel compare with `jobs=6`
+   - use `--group <name>` for targeted checks during optimization
 2. read [acceleration-plan.md](/home/jerry/python-test/gomoku/slow_temp/docs/acceleration-plan.md)
 3. profile the aligned baseline before changing any default search limits
-4. after each speedup, re-run the alignment and regression suites
+4. optimize the first confirmed hotspot set
+5. after each speedup, re-run the alignment and regression suites

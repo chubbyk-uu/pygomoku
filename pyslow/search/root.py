@@ -352,7 +352,15 @@ class RootSearcher:
                     nodes=0,
                 )
             if len(root_legal_moves) == 1:
-                return SearchResult(move=root_legal_moves[0], score=-INF, depth=0, nodes=0)
+                # Reference rootsearch short-circuits here: after VCF root filtering leaves
+                # a single legal move, alphabeta returns the previous outer-iteration score
+                # (`abval.first`), which is still 0 before the first completed iteration.
+                return SearchResult(
+                    move=root_legal_moves[0],
+                    score=0,
+                    depth=0,
+                    nodes=0,
+                )
 
         for depth in range(1, limits.max_depth + 2):
             stats = SearchStats(node_limit=limits.node_limit)
