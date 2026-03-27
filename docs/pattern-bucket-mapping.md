@@ -6,9 +6,9 @@ This document specifies the pattern labels, directional shape flow, bucket compr
 
 Primary references:
 
-- [`SlowRenju/Headers/game.h`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Headers/game.h#L124)
-- [`SlowRenju/Shape/line.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Shape/line.cpp)
-- [`SlowRenju/Value/ValueWide.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueWide.cpp#L296)
+- [`SlowRenju/Headers/game.h`](../SlowRenju/Headers/game.h#L124)
+- [`SlowRenju/Shape/line.cpp`](../SlowRenju/Shape/line.cpp)
+- [`SlowRenju/Value/ValueWide.cpp`](../SlowRenju/Value/ValueWide.cpp#L296)
 
 ## Shape Label Set
 
@@ -78,7 +78,7 @@ where:
 
 Reference function:
 
-- [`ValueWide.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueWide.cpp#L296)
+- [`ValueWide.cpp`](../SlowRenju/Value/ValueWide.cpp#L296)
 
 Flow:
 
@@ -136,7 +136,7 @@ In `ComputeValue1b()`, each directional shape contributes to:
 
 Relevant logic in:
 
-- [`ValueWide.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueWide.cpp#L357)
+- [`ValueWide.cpp`](../SlowRenju/Value/ValueWide.cpp#L357)
 
 Meaning by label in this context:
 
@@ -190,7 +190,7 @@ Instead it:
 
 Relevant code:
 
-- [`ValueWide.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueWide.cpp#L382)
+- [`ValueWide.cpp`](../SlowRenju/Value/ValueWide.cpp#L382)
 
 This is the critical compression rule behind `valueM`.
 
@@ -198,7 +198,7 @@ This is the critical compression rule behind `valueM`.
 
 Reference table:
 
-- [`ValueWide.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueWide.cpp#L327)
+- [`ValueWide.cpp`](../SlowRenju/Value/ValueWide.cpp#L327)
 
 The table is triangular and yields bucket ids `1..91`.
 

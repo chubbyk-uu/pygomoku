@@ -17,7 +17,7 @@
 
 Current verified baseline:
 
-- [`alignment_compare.py`](/home/jerry/gomoku/slow_temp/benchmarks/alignment_compare.py)
+- [`alignment_compare.py`](../benchmarks/alignment_compare.py)
   - `70/70` aligned at `depth=3`, `width=10`
 - `pytest -q`
   - `155 passed`
@@ -75,6 +75,10 @@ Important protocol conclusion:
 - fresh-per-move Gomocup replay is not equivalent to a real match
 - restarting the engine before every move changes searcher lifecycle and TT reuse
 - opponent and GUI validation must use persistent engine sessions across a whole game
+- treat the persistent-session `depth=5 width=15` external-play result as the
+  protocol-correct baseline for current `pyslow` strength
+- do not compare later opponent results against the discarded fresh-per-move
+  runner, even if that runner happened to score better in a small sample
 
 ## Work Order
 
@@ -82,7 +86,7 @@ Important protocol conclusion:
 
 Primary source of truth:
 
-- [acceleration-plan.md](/home/jerry/gomoku/slow_temp/docs/acceleration-plan.md)
+- [acceleration-plan.md](./acceleration-plan.md)
 
 Rules:
 
@@ -165,10 +169,10 @@ When resuming work later, do not start by re-analyzing the whole project.
 
 Start here:
 
-1. run [alignment_compare.py](/home/jerry/gomoku/slow_temp/benchmarks/alignment_compare.py) and confirm `70/70`
+1. run [alignment_compare.py](../benchmarks/alignment_compare.py) and confirm `70/70`
 2. run `pytest -q` and confirm the current regression baseline
-3. read [acceleration-plan.md](/home/jerry/gomoku/slow_temp/docs/acceleration-plan.md)
+3. read [acceleration-plan.md](./acceleration-plan.md)
 4. profile the aligned baseline before changing default search limits
-5. read [performance-roadmap.md](/home/jerry/gomoku/slow_temp/docs/performance-roadmap.md) for the native priority order
+5. read [performance-roadmap.md](./performance-roadmap.md) for the native priority order
 6. implement or measure only one hotspot family at a time
 7. after each speedup, re-run alignment, regression, fixed search timing, and short selfplay

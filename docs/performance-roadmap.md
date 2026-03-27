@@ -4,7 +4,7 @@
 
 Semantic stability:
 
-- [`alignment_compare.py`](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
+- [`alignment_compare.py`](../benchmarks/alignment_compare.py)
   stays `70/70`
 - current broad regression pass is `155 passed`
 
@@ -43,22 +43,22 @@ These are no longer “planned”; they are part of the current baseline.
 
 The remaining wall is no longer generic Python overhead. It is concentrated in:
 
-1. [`pyslow/eval/local.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/eval/local.py)
+1. [`pyslow/eval/local.py`](../pyslow/eval/local.py)
    - `value_wide_compute`
    - `compute_bucket_and_attack`
    - `compute_direction_shape`
 
-2. [`pyslow/search/movegen.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/movegen.py)
+2. [`pyslow/search/movegen.py`](../pyslow/search/movegen.py)
    - `generate_candidates`
 
-3. [`pyslow/eval/global_eval.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/eval/global_eval.py)
+3. [`pyslow/eval/global_eval.py`](../pyslow/eval/global_eval.py)
    - `evaluate_board`
    - `last5 / next43` related paths
 
-4. [`pyslow/eval/caches.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/eval/caches.py)
+4. [`pyslow/eval/caches.py`](../pyslow/eval/caches.py)
    - remaining snapshot / restore work outside the resolved `shape_cache` copy path
 
-5. [`pyslow/threats/vcf.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/threats/vcf.py)
+5. [`pyslow/threats/vcf.py`](../pyslow/threats/vcf.py)
    - recursive tactical search
 
 `VCF` is no longer the first wall after the landed attacker-scan and threat-board wins.
@@ -149,7 +149,7 @@ Current best candidate family:
 
 Every performance change must keep all of these green:
 
-- [`alignment_compare.py`](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
+- [`alignment_compare.py`](../benchmarks/alignment_compare.py)
   at `70/70`
 - current regression suite
 - fixed search timing:

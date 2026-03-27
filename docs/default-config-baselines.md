@@ -18,9 +18,9 @@ the compiled reference path we currently align against.
 
 Primary references:
 
-- [`SlowRenju/Common/main.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Common/main.cpp)
-- [`SlowRenju/Common/global_value.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Common/global_value.cpp)
-- [`SlowRenju/AI/AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp)
+- [`SlowRenju/Common/main.cpp`](../SlowRenju/Common/main.cpp)
+- [`SlowRenju/Common/global_value.cpp`](../SlowRenju/Common/global_value.cpp)
+- [`SlowRenju/AI/AIx.cpp`](../SlowRenju/AI/AIx.cpp)
 
 ### Root Search Defaults
 
@@ -33,7 +33,7 @@ Reference command-line entry launches:
 
 Source:
 
-- [`main.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Common/main.cpp#L527)
+- [`main.cpp`](../SlowRenju/Common/main.cpp#L527)
 
 ### Runtime Defaults
 
@@ -48,7 +48,7 @@ Reference globals initialize to:
 
 Source:
 
-- [`global_value.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Common/global_value.cpp#L20)
+- [`global_value.cpp`](../SlowRenju/Common/global_value.cpp#L20)
 
 ### Root VCF Defaults
 
@@ -60,9 +60,9 @@ Reference root search uses:
 
 Source:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L306)
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L320)
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L364)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L306)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L320)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L364)
 
 ### Non-root RTVCF Defaults
 
@@ -76,9 +76,9 @@ the default checked build path.
 
 Source:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L634)
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L913)
-- [`SlowRenju/VCF/VCF.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/VCF/VCF.cpp#L22)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L634)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L913)
+- [`SlowRenju/VCF/VCF.cpp`](../SlowRenju/VCF/VCF.cpp#L22)
 
 ### Opening Special Cases
 
@@ -101,7 +101,7 @@ This section describes the current code defaults in `pyslow`.
 
 Primary reference:
 
-- [`pyslow/config.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/config.py)
+- [`pyslow/config.py`](../pyslow/config.py)
 
 ### Root Search Defaults
 
@@ -114,7 +114,7 @@ Primary reference:
 
 Source:
 
-- [`config.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/config.py#L171)
+- [`config.py`](../pyslow/config.py#L171)
 
 ### Runtime Defaults
 
@@ -136,7 +136,7 @@ Notes:
 
 Source:
 
-- [`config.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/config.py#L161)
+- [`config.py`](../pyslow/config.py#L161)
 
 ### Root VCF Defaults
 
@@ -147,8 +147,8 @@ Current `pyslow` root VCF behavior matches the reference baseline:
 
 Source:
 
-- [`root.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/root.py#L188)
-- [`root.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/root.py#L255)
+- [`root.py`](../pyslow/search/root.py#L188)
+- [`root.py`](../pyslow/search/root.py#L255)
 
 ### Non-root RTVCF Behavior
 
@@ -162,7 +162,7 @@ Current `pyslow` behavior:
 
 Source:
 
-- [`alphabeta.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/alphabeta.py)
+- [`alphabeta.py`](../pyslow/search/alphabeta.py)
 
 ### Parameter Table Defaults
 
@@ -174,8 +174,8 @@ Important confirmed point:
 
 Primary references:
 
-- [`config.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/config.py)
-- [`global_value.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Common/global_value.cpp)
+- [`config.py`](../pyslow/config.py)
+- [`global_value.cpp`](../SlowRenju/Common/global_value.cpp)
 
 ## Current Alignment And Audit Baseline
 
@@ -199,7 +199,7 @@ Notes:
 
 - the fixed-position compare script should use this baseline
 - the current compare set contains `70` positions
-- [`alignment_compare.py`](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
+- [`alignment_compare.py`](../benchmarks/alignment_compare.py)
   now supports:
   - grouped runs via `--group`
   - grouped parallel execution via `--jobs`
@@ -229,8 +229,8 @@ Current interactive entry defaults:
 
 Source:
 
-- [`pyslow/gomocup_engine.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/gomocup_engine.py)
-- [`pyslow/gui.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/gui.py)
+- [`pyslow/gomocup_engine.py`](../pyslow/gomocup_engine.py)
+- [`pyslow/gui.py`](../pyslow/gui.py)
 
 Reason:
 

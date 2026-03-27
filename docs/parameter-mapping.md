@@ -12,8 +12,8 @@ Project constraint:
 
 Reference definitions:
 
-- [`SlowRenju/Headers/game.h`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Headers/game.h#L99)
-- [`SlowRenju/Common/global_value.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Common/global_value.cpp#L45)
+- [`SlowRenju/Headers/game.h`](../SlowRenju/Headers/game.h#L99)
+- [`SlowRenju/Common/global_value.cpp`](../SlowRenju/Common/global_value.cpp#L45)
 
 ## Source Layout
 
@@ -78,8 +78,8 @@ Important:
 
 Used in:
 
-- [`ValueWide.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueWide.cpp#L283)
-- [`ValueW.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueW.cpp#L120)
+- [`ValueWide.cpp`](../SlowRenju/Value/ValueWide.cpp#L283)
+- [`ValueW.cpp`](../SlowRenju/Value/ValueW.cpp#L120)
 
 Meaning:
 
@@ -95,8 +95,8 @@ Python field:
 
 Used in:
 
-- [`ValueWide.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueWide.cpp#L277)
-- [`ValueW.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueW.cpp#L121)
+- [`ValueWide.cpp`](../SlowRenju/Value/ValueWide.cpp#L277)
+- [`ValueW.cpp`](../SlowRenju/Value/ValueW.cpp#L121)
 
 Meaning:
 
@@ -112,8 +112,8 @@ Python field:
 
 Used in:
 
-- [`ValueWide.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueWide.cpp#L271)
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L705)
+- [`ValueWide.cpp`](../SlowRenju/Value/ValueWide.cpp#L271)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L705)
 
 Meaning:
 
@@ -127,8 +127,8 @@ Python field:
 
 Used in:
 
-- [`ValueWide.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueWide.cpp#L271)
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L705)
+- [`ValueWide.cpp`](../SlowRenju/Value/ValueWide.cpp#L271)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L705)
 
 Meaning:
 
@@ -142,8 +142,8 @@ Python field:
 
 Used in:
 
-- [`ValueW.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueW.cpp#L128)
-- [`ValueW.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueW.cpp#L278)
+- [`ValueW.cpp`](../SlowRenju/Value/ValueW.cpp#L128)
+- [`ValueW.cpp`](../SlowRenju/Value/ValueW.cpp#L278)
 
 Meaning:
 
@@ -158,8 +158,8 @@ Python field:
 
 Used in:
 
-- [`ValueW.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueW.cpp#L128)
-- [`ValueW.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueW.cpp#L278)
+- [`ValueW.cpp`](../SlowRenju/Value/ValueW.cpp#L128)
+- [`ValueW.cpp`](../SlowRenju/Value/ValueW.cpp#L278)
 
 Meaning:
 
@@ -174,7 +174,7 @@ Python field:
 
 Used in:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L1121)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L1121)
 
 Meaning:
 
@@ -188,7 +188,7 @@ Python field:
 
 Used in:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L1117)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L1117)
 
 Meaning:
 
@@ -202,7 +202,7 @@ Python field:
 
 Current observation:
 
-- defined in [`game.h`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Headers/game.h#L108)
+- defined in [`game.h`](../SlowRenju/Headers/game.h#L108)
 - not obviously used in the current checked files
 
 Meaning:
@@ -218,7 +218,7 @@ Python field:
 
 Used in:
 
-- [`main.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Common/main.cpp#L394)
+- [`main.cpp`](../SlowRenju/Common/main.cpp#L394)
 
 Meaning:
 
@@ -240,7 +240,7 @@ Python field:
 
 Used in:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L1106)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L1106)
 
 Meaning:
 
@@ -254,7 +254,7 @@ Python field:
 
 The default values must come directly from:
 
-- [`SlowRenju/Common/global_value.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Common/global_value.cpp#L45)
+- [`SlowRenju/Common/global_value.cpp`](../SlowRenju/Common/global_value.cpp#L45)
 
 Implementation rule:
 

@@ -13,7 +13,7 @@ Scope of this audit:
 - `15x15` freestyle Gomoku only
 - current alignment baseline: `depth=3`, `width=10`
 - reference-aligned defaults documented in
-  [`default-config-baselines.md`](/home/jerry/python-test/gomoku/slow_temp/docs/default-config-baselines.md)
+  [`default-config-baselines.md`](./default-config-baselines.md)
 - no code changes to core engine logic during the audit itself
 
 ## Audit Method
@@ -22,9 +22,9 @@ This audit used four sources of evidence:
 
 1. existing branch checklist and reference-analysis documents
 2. current fixed-position compare via
-   [`alignment_compare.py`](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
+   [`alignment_compare.py`](../benchmarks/alignment_compare.py)
 3. fresh audit script output from
-   [`semantic_audit.py`](/home/jerry/python-test/gomoku/slow_temp/benchmarks/semantic_audit.py)
+   [`semantic_audit.py`](../benchmarks/semantic_audit.py)
 4. fresh regression test run on key config/search/movegen/protocol suites
 
 Fresh machine evidence gathered in this audit:
@@ -105,9 +105,9 @@ Reference supports a range of board sizes.
 Evidence:
 
 - reference START path accepts `size<=N && size>=5`
-  - [`SlowRenju/Common/main.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Common/main.cpp#L93)
+  - [`SlowRenju/Common/main.cpp`](../SlowRenju/Common/main.cpp#L93)
 - `pyslow` rejects any size other than `15`
-  - [`pyslow/protocol/gomocup.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/protocol/gomocup.py#L50)
+  - [`pyslow/protocol/gomocup.py`](../pyslow/protocol/gomocup.py#L50)
 - audit protocol snapshot:
   - `START 15 -> OK`
   - `START 20 -> ERROR Size error.`
@@ -129,12 +129,12 @@ Reference contains Renju and foul-related branches.
 Evidence:
 
 - reference has `FOUL`, `fflag`, foul-related manual/opening code paths
-  - [`SlowRenju/Headers/game.h`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Headers/game.h#L39)
-  - [`SlowRenju/AI/AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L194)
-  - [`SlowRenju/Common/main.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Common/main.cpp#L248)
+  - [`SlowRenju/Headers/game.h`](../SlowRenju/Headers/game.h#L39)
+  - [`SlowRenju/AI/AIx.cpp`](../SlowRenju/AI/AIx.cpp#L194)
+  - [`SlowRenju/Common/main.cpp`](../SlowRenju/Common/main.cpp#L248)
 - project scope docs explicitly exclude Renju for phase 1
-  - [`reference-analysis.md`](/home/jerry/python-test/gomoku/slow_temp/docs/reference-analysis.md#L8)
-  - [`search-flow.md`](/home/jerry/python-test/gomoku/slow_temp/docs/search-flow.md#L9)
+  - [`reference-analysis.md`](./reference-analysis.md#L8)
+  - [`search-flow.md`](./search-flow.md#L9)
 
 Status:
 
@@ -153,10 +153,10 @@ that exact parameter in the same way.
 Evidence:
 
 - Python runtime defaults include `dynamic_board_margin = 4`
-  - [`pyslow/config.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/config.py)
+  - [`pyslow/config.py`](../pyslow/config.py)
 - but current default is also `static_board = True`
 - root code bypasses dynamic windowing entirely when `static_board=True`
-  - [`pyslow/search/root.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/root.py#L139)
+  - [`pyslow/search/root.py`](../pyslow/search/root.py#L139)
 
 Status:
 
@@ -177,10 +177,10 @@ build path does not enable it. `pyslow` now mirrors this by default.
 Evidence:
 
 - reference source keeps `RTVCF` disabled in the checked build path
-  - [`SlowRenju/AI/AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L36)
-  - [`SlowRenju/VCF/VCF.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/VCF/VCF.cpp#L22)
+  - [`SlowRenju/AI/AIx.cpp`](../SlowRenju/AI/AIx.cpp#L36)
+  - [`SlowRenju/VCF/VCF.cpp`](../SlowRenju/VCF/VCF.cpp#L22)
 - `pyslow` default runtime sets `nonroot_vcf = False`
-  - [`pyslow/config.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/config.py)
+  - [`pyslow/config.py`](../pyslow/config.py)
 - if enabled manually, `pyslow` now follows reference-style formula and
   opponent-pressure filtering semantics
 - audit script found no fixed-position changes when enabling it on the original audit
@@ -205,13 +205,13 @@ Evidence:
 
 - reference `AIs()` stores all equally best moves and then returns
   `move_temp[rand() % casen]`
-  - [`SlowRenju/AI/AIs.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIs.cpp#L24)
+  - [`SlowRenju/AI/AIs.cpp`](../SlowRenju/AI/AIs.cpp#L24)
 - the checked trace harness is built with local `g++`, so the effective tie-break
   behavior follows the host libc `rand()` state after `InitHash()` has consumed
   its initialization draws
 - Python fallback now mirrors that seeded libc-based tie-break state for the
   aligned harness path
-  - [`pyslow/search/root.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/root.py#L19)
+  - [`pyslow/search/root.py`](../pyslow/search/root.py#L19)
 - exact fallback positions now align:
   - `tact_defend4 -> (6,7)` in `alignment_compare.py`
   - fallback regression test for the two-way tie position passes
@@ -267,7 +267,7 @@ baseline.
 Proceed to performance optimization with the current semantic baseline frozen.
 Every speedup should re-run:
 
-- [`alignment_compare.py`](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
+- [`alignment_compare.py`](../benchmarks/alignment_compare.py)
 - `tests/test_config.py`
 - `tests/test_search.py`
 - `tests/test_movegen.py`

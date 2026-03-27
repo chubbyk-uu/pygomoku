@@ -12,8 +12,8 @@ Project rule already agreed:
 
 Primary reference:
 
-- [`SlowRenju/VCF/VCF.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/VCF/VCF.cpp)
-- [`SlowRenju/Shape/line4v.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Shape/line4v.cpp)
+- [`SlowRenju/VCF/VCF.cpp`](../SlowRenju/VCF/VCF.cpp)
+- [`SlowRenju/Shape/line4v.cpp`](../SlowRenju/Shape/line4v.cpp)
 
 ## What VCF Means Here
 
@@ -41,7 +41,7 @@ The project target in this repository still includes tactical enhancement up to 
 
 Reference:
 
-- [`VCF.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/VCF/VCF.cpp#L55)
+- [`VCF.cpp`](../SlowRenju/VCF/VCF.cpp#L55)
 
 Signature:
 
@@ -131,7 +131,7 @@ class ThreatBoardView:
 
 Reference:
 
-- [`VCF.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/VCF/VCF.cpp#L70)
+- [`VCF.cpp`](../SlowRenju/VCF/VCF.cpp#L70)
 
 It caps tactical depth using `VCFM`.
 
@@ -175,7 +175,7 @@ The reference tactical solver checks in this order.
 
 Reference:
 
-- [`VCF.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/VCF/VCF.cpp#L131)
+- [`VCF.cpp`](../SlowRenju/VCF/VCF.cpp#L131)
 
 If `B4p(c)` exists, return it immediately.
 
@@ -187,7 +187,7 @@ Meaning:
 
 Reference:
 
-- [`VCF.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/VCF/VCF.cpp#L137)
+- [`VCF.cpp`](../SlowRenju/VCF/VCF.cpp#L137)
 
 If opponent has a single broken-four response point, attacker may play there and try to turn it into `A4` or a recursive forcing branch.
 
@@ -195,7 +195,7 @@ If opponent has a single broken-four response point, attacker may play there and
 
 Reference:
 
-- [`VCF.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/VCF/VCF.cpp#L225)
+- [`VCF.cpp`](../SlowRenju/VCF/VCF.cpp#L225)
 
 For empty cells near existing attacker stones:
 
@@ -205,7 +205,7 @@ For empty cells near existing attacker stones:
 
 Reference:
 
-- [`VCF.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/VCF/VCF.cpp#L277)
+- [`VCF.cpp`](../SlowRenju/VCF/VCF.cpp#L277)
 
 These are not all normal neighborhood moves. They are tactical continuations only.
 
@@ -228,7 +228,7 @@ The reference uses a small fixed offset set `vec`:
 
 Reference:
 
-- [`VCF.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/VCF/VCF.cpp#L34)
+- [`VCF.cpp`](../SlowRenju/VCF/VCF.cpp#L34)
 
 This is much narrower than normal search coverage.
 

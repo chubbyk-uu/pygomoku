@@ -13,10 +13,10 @@ Scope:
 
 Primary references:
 
-- [`SlowRenju/AI/AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp)
-- [`SlowRenju/AI/Hash.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/Hash.cpp)
-- [`SlowRenju/Value/ValueWide.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueWide.cpp)
-- [`SlowRenju/Value/ValueW.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Value/ValueW.cpp)
+- [`SlowRenju/AI/AIx.cpp`](../SlowRenju/AI/AIx.cpp)
+- [`SlowRenju/AI/Hash.cpp`](../SlowRenju/AI/Hash.cpp)
+- [`SlowRenju/Value/ValueWide.cpp`](../SlowRenju/Value/ValueWide.cpp)
+- [`SlowRenju/Value/ValueW.cpp`](../SlowRenju/Value/ValueW.cpp)
 
 ## Core Search Model
 
@@ -35,7 +35,7 @@ The Python port should preserve this overall shape. Phase 1 should not substitut
 
 Reference entry:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L174)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L174)
 
 `rootsearch()` is responsible for:
 
@@ -113,7 +113,7 @@ class SearchLimits:
 
 Reference:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L279)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L279)
 
 The root search reconstructs `CurrentZobrist` from board state.
 
@@ -144,7 +144,7 @@ Python policy:
 
 Reference:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L306)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L306)
 
 If tactical search finds a winning VCF, root search returns it immediately.
 
@@ -156,7 +156,7 @@ Python requirement:
 
 Reference:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L320)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L320)
 
 If the opponent has a VCF threat, root search filters out moves that fail to address it.
 
@@ -166,7 +166,7 @@ This idea should be preserved in Python, including the root-side filtering behav
 
 Reference:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L390)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L390)
 
 Search pattern:
 
@@ -188,7 +188,7 @@ defaults.
 
 Reference:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L402)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L402)
 
 If the score or best move is unstable, the engine allows a larger time budget; otherwise it keeps a smaller target.
 
@@ -198,7 +198,7 @@ Python should preserve the capability that score and PV stability affect root ti
 
 Reference entry:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L519)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L519)
 
 At the beginning of each node, the search checks:
 
@@ -248,7 +248,7 @@ class TranspositionTable:
 
 Reference:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L596)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L596)
 
 At leaf:
 
@@ -277,7 +277,7 @@ def evaluate_leaf(ctx: SearchContext, ply: int, side: int) -> int:
 
 Reference:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L674)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L674)
 
 The move generator only considers empty cells reached by the fixed
 `coverdir[32]` template around existing stones. This is close to a "distance 3"
@@ -298,7 +298,7 @@ For each covered point:
 
 Reference:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L705)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L705)
 
 Recommended Python candidate object:
 
@@ -331,7 +331,7 @@ Python should preserve these concepts as real move-selection mechanisms, not pla
 
 Reference:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L738)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L738)
 
 There is an extra branch that boosts continuation points of certain active-three structures by `10000`.
 
@@ -343,7 +343,7 @@ Policy:
 
 Reference:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L897)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L897)
 
 If root filtering determined some moves are irrelevant, they get a penalty or are excluded.
 
@@ -397,7 +397,7 @@ def next_width(width: int, num: int, den: int) -> int:
 
 Reference:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L1106)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L1106)
 
 Depth reduction is driven by:
 
@@ -422,7 +422,7 @@ Python requirement:
 
 Reference:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L1133)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L1133)
 
 Pattern:
 
@@ -461,7 +461,7 @@ Python should preserve this.
 
 Reference:
 
-- [`AIx.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/AI/AIx.cpp#L89)
+- [`AIx.cpp`](../SlowRenju/AI/AIx.cpp#L89)
 
 This is a root-only positional bonus based on:
 

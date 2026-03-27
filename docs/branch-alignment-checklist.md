@@ -18,7 +18,7 @@ The checklist is strong evidence of branch-level progress, but it is not the fin
 
 Most recent systematic comparison status:
 
-- [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py) now compares 70 fixed positions
+- [alignment_compare.py](../benchmarks/alignment_compare.py) now compares 70 fixed positions
 - current result: `70/70`
 - the compare set now includes:
   - opening

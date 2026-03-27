@@ -25,13 +25,13 @@ Current measured timings:
 
 Representative search profiles:
 - `depth=5 width=15`
-  - total about `0.94s`
+  - total about `0.51s`
   - top hotspots:
     - `eval/local.py::value_wide_compute`
-    - `eval/global_eval.py::evaluate_board`
-    - `threats/vcf.py::*`
-    - remaining `eval/caches.py::{snapshot,restore}`
     - `search/movegen.py::generate_candidates`
+    - `eval/global_eval.py::evaluate_board`
+    - remaining `eval/caches.py::{snapshot,restore}`
+    - `threats/vcf.py::*`
 
 Gap to target:
 - target direction remains significantly stronger than the current practical
@@ -62,7 +62,7 @@ What recent experiments proved:
 Main conclusion:
 - the remaining performance wall is still mostly structural
 - the biggest stable bottleneck remains local eval, followed by movegen,
-  global eval, remaining cache work, and then `VCF`
+  global eval, remaining cache work, and then the now-smaller `VCF` layer
 - the next meaningful gains should come from cost-model-driven native work, not
   broad speculative refactors
 
@@ -88,9 +88,10 @@ Recommended next-stage strategy:
 
 1. Stop doing broad speculative refactors without a local cost model.
 
-2. Treat local eval and global eval as a measured subsystem.
+2. Treat local eval, movegen, and global eval as a measured subsystem.
    Prefer smaller kernels with verified wins over another large cache-layout
-   experiment.
+   experiment, and do not repeat nested-list Cython experiments that already
+   regressed total search time.
 
 3. Keep Python orchestration, but continue to move hot kernels together.
    The currently profitable grouping remains:
@@ -99,7 +100,8 @@ Recommended next-stage strategy:
    - incremental cache writes
 
 4. Revisit `VCF` only after the eval/cache layer is cheaper enough that
-   tactical recursion becomes the clear primary wall.
+   tactical recursion again becomes the clear primary wall. Recent `VCF` /
+   `threat_board` work already removed the worst duplicate scans.
 
 Execution order for the next phase:
 - Phase A: measure the next local/movegen/global-eval sub-cost before each change
