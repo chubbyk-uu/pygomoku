@@ -11,7 +11,7 @@ The goal is to answer one question clearly:
 Scope of this audit:
 
 - `15x15` freestyle Gomoku only
-- current development baseline: `depth=3`, `width=10`
+- current alignment baseline: `depth=3`, `width=10`
 - reference-aligned defaults documented in
   [`default-config-baselines.md`](/home/jerry/python-test/gomoku/slow_temp/docs/default-config-baselines.md)
 - no code changes to core engine logic during the audit itself
@@ -31,7 +31,7 @@ Fresh machine evidence gathered in this audit:
 
 - `python benchmarks/alignment_compare.py`
   - current result: `70/70`
-  - baseline: `depth=3`, `width=10`
+  - alignment baseline: `depth=3`, `width=10`
   - trace harness now seeds `srand(1232356)` like reference `main.cpp`
   - compare set is now grouped and can run in parallel
 - `python benchmarks/semantic_audit.py`
@@ -50,7 +50,7 @@ For the current in-scope target:
 
 - `15x15`
 - freestyle Gomoku
-- current development baseline
+- current alignment baseline
 - current fixed-position compare set
 
 there is no fresh evidence of an unresolved semantic mismatch affecting the

@@ -3,7 +3,7 @@
 
 This script does not change engine code. It collects a few focused signals:
 
-- current alignment_compare result on the agreed development baseline
+- current alignment_compare result on the agreed alignment baseline
 - current engine-default runtime options
 - whether enabling nonroot_vcf changes the fixed comparison set
 - protocol edge behaviors that are known to differ or be intentionally scoped
@@ -94,6 +94,10 @@ def main() -> None:
             "nonroot_vcf": False,
             "static_board": True,
             "dynamic_board_margin": cfg.runtime.dynamic_board_margin,
+        },
+        "interactive_entry_defaults": {
+            "root_depth": 5,
+            "root_width": 10,
         },
         "alignment_compare": {
             "returncode": align_code,

@@ -7,7 +7,7 @@ from pyslow.gui import GomokuGuiApp, GuiLayout, compute_undo_steps, default_sear
 
 def test_default_gui_search_limits_match_current_playable_settings() -> None:
     limits = default_search_limits()
-    assert limits.max_depth == 3
+    assert limits.max_depth == 5
     assert limits.root_width == 10
 
 
@@ -33,7 +33,7 @@ def test_pixel_to_cell_rejects_outside_positions() -> None:
 
 
 def test_gui_app_white_start_receives_engine_opening_move() -> None:
-    app = GomokuGuiApp()
+    app = GomokuGuiApp(depth=2, width=8)
     try:
         app.start_game(WHITE)
         deadline = time.time() + 3.0
@@ -47,7 +47,7 @@ def test_gui_app_white_start_receives_engine_opening_move() -> None:
 
 
 def test_gui_app_black_move_receives_engine_reply() -> None:
-    app = GomokuGuiApp()
+    app = GomokuGuiApp(depth=2, width=8)
     try:
         app.start_game(BLACK)
         assert app.human_play(7, 7)
@@ -62,7 +62,7 @@ def test_gui_app_black_move_receives_engine_reply() -> None:
 
 
 def test_gui_replay_black_sequence_does_not_stick_busy() -> None:
-    app = GomokuGuiApp()
+    app = GomokuGuiApp(depth=2, width=8)
     black_moves = [(7, 7), (7, 5), (8, 7), (6, 6), (8, 5), (8, 6)]
     try:
         app.start_game(BLACK)

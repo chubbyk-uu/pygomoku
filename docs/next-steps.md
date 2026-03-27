@@ -20,6 +20,8 @@ Recent audit update:
   - [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
 - current comparison result is:
   - `70/70` positions aligned at `depth=3`, `width=10`
+- interactive local entry defaults are now:
+  - `depth=5`, `width=10`
 - the compare set now covers:
   - opening
   - midgame
@@ -73,6 +75,7 @@ Relevant documents:
 - [branch-alignment-checklist.md](/home/jerry/python-test/gomoku/slow_temp/docs/branch-alignment-checklist.md)
 - [acceleration-plan.md](/home/jerry/python-test/gomoku/slow_temp/docs/acceleration-plan.md)
 - [performance-roadmap.md](/home/jerry/python-test/gomoku/slow_temp/docs/performance-roadmap.md)
+- [default-config-baselines.md](/home/jerry/python-test/gomoku/slow_temp/docs/default-config-baselines.md)
 
 ## Work Order
 

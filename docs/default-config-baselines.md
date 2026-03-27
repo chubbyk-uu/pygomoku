@@ -2,11 +2,12 @@
 
 ## Purpose
 
-This document separates three similar but different concepts:
+This document separates four similar but different concepts:
 
 - the reference engine's default behavior
 - `pyslow`'s engine-default behavior
-- the current development baseline used for alignment, testing, and profiling
+- the current alignment and audit baseline
+- the current interactive development entry defaults
 
 These must not be mixed together.
 
@@ -176,10 +177,10 @@ Primary references:
 - [`config.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/config.py)
 - [`global_value.cpp`](/home/jerry/python-test/gomoku/slow_temp/SlowRenju/Common/global_value.cpp)
 
-## Current Development Baseline
+## Current Alignment And Audit Baseline
 
-This section is not the engine default. It is the working baseline we use for
-development comparisons and local experiments.
+This section is not the engine default. It is the stable shallow baseline we use
+for reference alignment, semantic audit, and fast local regression.
 
 ### Alignment Baseline
 
@@ -210,21 +211,42 @@ Notes:
 
 ### Profiling Baseline
 
-Current profiling baseline should stay the same as the development alignment
+Current profiling baseline should stay the same as the alignment
 baseline unless a benchmark explicitly says otherwise:
 
 - `max_depth = 3`
 - `root_width = 10`
 
-CLI / GUI defaults are intentionally not treated as part of the development
-baseline yet. They can be revisited after performance work improves practical
-search reach.
+## Current Interactive Development Entry Defaults
+
+This section covers the defaults used by interactive entrypoints, not the
+reference-alignment baseline.
+
+Current interactive entry defaults:
+
+- `max_depth = 5`
+- `root_width = 10`
+
+Source:
+
+- [`pyslow/gomocup_engine.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/gomocup_engine.py)
+- [`pyslow/gui.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/gui.py)
+
+Reason:
+
+- current native acceleration makes `5/10` practical for interactive local use
+- `5/15` and above are still heavy enough to noticeably slow routine
+  development
+- the reference-alignment and semantic-audit baseline remains `3/10` on purpose
+  for faster feedback and stable trace comparison
 
 ## Rules For Future Changes
 
-1. Do not call the development baseline the engine default.
+1. Do not call the alignment baseline or interactive defaults the engine default.
 2. If root depth/width are changed for profiling or testing, record the exact
    values.
 3. If `nonroot_vcf` is enabled for experiments, say so explicitly.
-4. If a future `VCT` module is added, document its defaults separately. It does
+4. If interactive defaults are raised again, measure both fixed-search timing
+   and short selfplay timing before changing docs.
+5. If a future `VCT` module is added, document its defaults separately. It does
    not exist yet and therefore has no current default depth.
