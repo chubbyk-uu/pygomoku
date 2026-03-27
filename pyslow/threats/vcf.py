@@ -120,14 +120,9 @@ class VCFSearcher:
             self._memo[key] = _MemoEntry(depth=depth, result=result)
             return result
 
-        immediate = view.winning_threat_moves(side)
-        if immediate:
-            result = VCFResult(move=immediate[0], found=True, solved=True)
-            self._memo[key] = _MemoEntry(depth=depth, result=result)
-            return result
-
         solved = True
         ordered_moves = view.threat_moves(side)
+        forcing_moves: list[int] = []
         for move in ordered_moves:
             view.play(move, side)
             x, y = move_to_xy(move)
@@ -136,14 +131,12 @@ class VCFSearcher:
                 result = VCFResult(move=move, found=True, solved=True)
                 self._memo[key] = _MemoEntry(depth=depth, result=result)
                 return result
+            if view.broken_four_reply(x, y) is not None:
+                forcing_moves.append(move)
             view.undo()
 
-        for move in ordered_moves:
+        for move in forcing_moves:
             view.play(move, side)
-            x, y = move_to_xy(move)
-            if view.broken_four_reply(x, y) is None:
-                view.undo()
-                continue
             defender = self._search_defender(
                 view,
                 side,
@@ -173,7 +166,6 @@ class VCFSearcher:
         attacker_moves: tuple[int, ...],
         defender_moves: tuple[int, ...],
     ) -> VCFResult:
-        board = view.board
         if depth < 0:
             return VCFResult(move=NO_MOVE, found=False, solved=False)
 
