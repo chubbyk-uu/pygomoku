@@ -137,6 +137,35 @@ POSITIONS: dict[str, list[tuple[int, int, int]]] = {
         (0, 1, 1), (7, 13, -1),
         (14, 13, 1), (8, 13, -1),
     ],
+    "tact_vcf_first": [
+        # Black already has an immediate VCF completion
+        (3, 7, 1), (0, 0, -1),
+        (4, 7, 1), (1, 0, -1),
+        (5, 7, 1), (2, 0, -1),
+    ],
+    "tact_corner_open3": [
+        # Black extends from the top-left corner with a near-edge open three
+        (0, 0, 1), (14, 14, -1),
+        (1, 1, 1), (13, 14, -1),
+        (2, 2, 1), (14, 13, -1),
+    ],
+    "tact_corner_defend4": [
+        # Black has 4 on the top edge from the corner and should win immediately
+        (0, 0, 1), (14, 14, -1),
+        (1, 0, 1), (14, 13, -1),
+        (2, 0, 1), (13, 14, -1),
+        (3, 0, 1), (13, 13, -1),
+    ],
+    "dense_defense": [
+        # Dense center fight where the side to move must prioritize defense
+        (7, 7, 1), (8, 7, -1),
+        (7, 8, 1), (8, 8, -1),
+        (6, 7, 1), (9, 7, -1),
+        (6, 8, 1), (9, 8, -1),
+        (7, 6, 1), (8, 6, -1),
+        (7, 9, 1), (8, 9, -1),
+        (5, 7, 1), (10, 7, -1),
+    ],
     "fallback_missing_root": [
         # Known fallback-heavy position where root move can be missing
         (7, 7, 1), (7, 6, -1),
