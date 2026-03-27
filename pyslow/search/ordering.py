@@ -2,11 +2,34 @@
 
 from __future__ import annotations
 
+import os
+
 from pyslow.board import Board
 from pyslow.search.movegen import Candidate
 
+_ORDERING_BACKEND_MODE = os.getenv("PYSLOW_ORDERING_BACKEND", "auto").lower()
+_USING_CYTHON_ORDERING_BACKEND = False
+
+if _ORDERING_BACKEND_MODE != "python":
+    try:
+        from pyslow.search._ordering_cy import getmi_raw as _getmi_native
+    except ImportError:
+        if _ORDERING_BACKEND_MODE == "cython":
+            raise
+        _getmi_native = None
+    else:
+        _USING_CYTHON_ORDERING_BACKEND = True
+else:
+    _getmi_native = None
+
+
+def ordering_backend_name() -> str:
+    return "cython" if _USING_CYTHON_ORDERING_BACKEND else "python"
+
 
 def getmi(board: Board, x: int, y: int, c: int) -> int:
+    if _getmi_native is not None:
+        return _getmi_native(board.grid, x, y, c, board.size)
     ret = 1
     size = board.size
     grid = board.grid
