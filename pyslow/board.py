@@ -63,10 +63,10 @@ class Board:
         )
 
     def in_bounds(self, x: int, y: int) -> bool:
-        return 0 <= x < self.size and 0 <= y < self.size
+        return 0 <= x < BOARD_SIZE and 0 <= y < BOARD_SIZE
 
     def at(self, x: int, y: int) -> int:
-        if not self.in_bounds(x, y):
+        if not (0 <= x < BOARD_SIZE and 0 <= y < BOARD_SIZE):
             raise ValueError(f"coordinates out of range: {(x, y)}")
         return self.grid[y][x]
 
@@ -142,7 +142,8 @@ class Board:
         count = 0
         cx = x + dx
         cy = y + dy
-        while self.in_bounds(cx, cy) and self.grid[cy][cx] == side:
+        grid = self.grid
+        while 0 <= cx < BOARD_SIZE and 0 <= cy < BOARD_SIZE and grid[cy][cx] == side:
             count += 1
             cx += dx
             cy += dy

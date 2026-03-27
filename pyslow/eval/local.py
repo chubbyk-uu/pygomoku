@@ -34,21 +34,38 @@ def _pivot_and_point_index(x: int, y: int, direction: int) -> tuple[int, int]:
 
 
 def _copy_board_into_shadow(board: Board, caches: EvalCaches) -> None:
-    for x in range(board.size):
-        for y in range(board.size):
-            caches.board_shadow[x][y] = board.at(x, y)
+    size = board.size
+    grid = board.grid
+    shadow = caches.board_shadow
+    for x in range(size):
+        shadow_col = shadow[x]
+        for y in range(size):
+            shadow_col[y] = grid[y][x]
 
 
 def compute_direction_shape(board: Board, x: int, y: int, direction: int, side: int) -> int:
-    if board.at(x, y) != EMPTY:
+    grid = board.grid
+    if grid[y][x] != EMPTY:
         return 0
-    board.grid[y][x] = side
+    grid[y][x] = side
     try:
-        pivot, point_index = _pivot_and_point_index(x, y, direction)
-        line = Line.from_board(board, pivot, direction)
-        return line.shape(point_index).raw
+        if direction == HORIZONTAL:
+            pivot = x
+            point_index = y
+        elif direction == VERTICAL:
+            pivot = y
+            point_index = x
+        elif direction == DIAGONAL_DOWN:
+            pivot = x + y
+            point_index = y
+        elif direction == DIAGONAL_UP:
+            pivot = BOARD_SIZE - 1 - y + x
+            point_index = BOARD_SIZE - 1 - y
+        else:
+            raise ValueError(f"invalid direction: {direction}")
+        return Line.from_board(board, pivot, direction).shape(point_index).raw
     finally:
-        board.grid[y][x] = EMPTY
+        grid[y][x] = EMPTY
 
 
 def compute_bucket_and_attack(direction_shapes: tuple[int, int, int, int]) -> tuple[int, int]:
@@ -100,53 +117,63 @@ def compute_bucket_and_attack(direction_shapes: tuple[int, int, int, int]) -> tu
 
 
 def recompute_point_caches(board: Board, caches: EvalCaches, x: int, y: int) -> None:
-    if board.at(x, y) != EMPTY:
-        for player in range(2):
+    if board.grid[y][x] != EMPTY:
+        for player in (0, 1):
             caches.value_cache[player][x][y] = 0
             caches.attack_cache[player][x][y] = 0
-            for direction in _FOUR_DIRECTIONS:
-                caches.shape_cache[player][x][y][direction] = 0
+            shape_col = caches.shape_cache[player][x][y]
+            shape_col[HORIZONTAL] = 0
+            shape_col[VERTICAL] = 0
+            shape_col[DIAGONAL_DOWN] = 0
+            shape_col[DIAGONAL_UP] = 0
         return
 
-    for side in (BLACK, WHITE):
-        player = _side_index(side)
-        direction_shapes = []
-        for direction in _FOUR_DIRECTIONS:
-            shape = compute_direction_shape(board, x, y, direction, side)
-            caches.shape_cache[player][x][y][direction] = shape
-            direction_shapes.append(shape)
-        bucket, attack = compute_bucket_and_attack(tuple(direction_shapes))
+    for side, player in ((BLACK, 0), (WHITE, 1)):
+        shape_col = caches.shape_cache[player][x][y]
+        h_shape = compute_direction_shape(board, x, y, HORIZONTAL, side)
+        v_shape = compute_direction_shape(board, x, y, VERTICAL, side)
+        d_down_shape = compute_direction_shape(board, x, y, DIAGONAL_DOWN, side)
+        d_up_shape = compute_direction_shape(board, x, y, DIAGONAL_UP, side)
+        shape_col[HORIZONTAL] = h_shape
+        shape_col[VERTICAL] = v_shape
+        shape_col[DIAGONAL_DOWN] = d_down_shape
+        shape_col[DIAGONAL_UP] = d_up_shape
+        bucket, attack = compute_bucket_and_attack((h_shape, v_shape, d_down_shape, d_up_shape))
         caches.value_cache[player][x][y] = bucket
         caches.attack_cache[player][x][y] = attack
 
 
 def recompute_all(board: Board, caches: EvalCaches) -> None:
-    for x in range(board.size):
-        for y in range(board.size):
+    size = board.size
+    for x in range(size):
+        for y in range(size):
             recompute_point_caches(board, caches, x, y)
     _copy_board_into_shadow(board, caches)
     caches.initialized = True
 
 
 def value_wide_compute(board: Board, caches: EvalCaches) -> None:
+    size = board.size
+    grid = board.grid
+    shadow = caches.board_shadow
     if not caches.initialized:
-        if any(board.at(x, y) != EMPTY for x in range(board.size) for y in range(board.size)):
+        if any(grid[y][x] != EMPTY for x in range(size) for y in range(size)):
             recompute_all(board, caches)
             return
         caches.initialized = True
 
     ar = 4
-    comp = [[bytearray(4) for _ in range(board.size)] for _ in range(board.size)]
+    comp = [[bytearray(4) for _ in range(size)] for _ in range(size)]
 
-    for x in range(board.size):
-        for y in range(board.size):
-            if caches.board_shadow[x][y] != board.at(x, y):
+    for x in range(size):
+        for y in range(size):
+            if shadow[x][y] != grid[y][x]:
                 comp[x][y][:] = b"\x01\x01\x01\x01"
 
                 fixed = x
                 seen = 0
-                for yy in range(y + 1, min(board.size, y + ar + 1)):
-                    value = board.at(fixed, yy)
+                for yy in range(y + 1, min(size, y + ar + 1)):
+                    value = grid[yy][fixed]
                     if seen == 0:
                         seen = value
                     elif value != EMPTY and value != seen:
@@ -154,7 +181,7 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                     comp[fixed][yy][0] = 1
                 seen = 0
                 for yy in range(y - 1, max(-1, y - ar - 1), -1):
-                    value = board.at(fixed, yy)
+                    value = grid[yy][fixed]
                     if seen == 0:
                         seen = value
                     elif value != EMPTY and value != seen:
@@ -164,7 +191,7 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                 fixed = y
                 seen = 0
                 for xx in range(x + 1, min(board.size, x + ar + 1)):
-                    value = board.at(xx, fixed)
+                    value = grid[fixed][xx]
                     if seen == 0:
                         seen = value
                     elif value != EMPTY and value != seen:
@@ -172,7 +199,7 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                     comp[xx][fixed][1] = 1
                 seen = 0
                 for xx in range(x - 1, max(-1, x - ar - 1), -1):
-                    value = board.at(xx, fixed)
+                    value = grid[fixed][xx]
                     if seen == 0:
                         seen = value
                     elif value != EMPTY and value != seen:
@@ -182,8 +209,8 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                 seen = 0
                 xx = x - 1
                 yy = y + 1
-                while xx >= 0 and yy < board.size and xx >= x - ar and yy <= y + ar:
-                    value = board.at(xx, yy)
+                while xx >= 0 and yy < size and xx >= x - ar and yy <= y + ar:
+                    value = grid[yy][xx]
                     if seen == 0:
                         seen = value
                     elif value != EMPTY and value != seen:
@@ -194,8 +221,8 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                 seen = 0
                 xx = x + 1
                 yy = y - 1
-                while xx < board.size and yy >= 0 and xx <= x + ar and yy >= y - ar:
-                    value = board.at(xx, yy)
+                while xx < size and yy >= 0 and xx <= x + ar and yy >= y - ar:
+                    value = grid[yy][xx]
                     if seen == 0:
                         seen = value
                     elif value != EMPTY and value != seen:
@@ -207,8 +234,8 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                 seen = 0
                 xx = x + 1
                 yy = y + 1
-                while xx < board.size and yy < board.size and xx <= x + ar and yy <= y + ar:
-                    value = board.at(xx, yy)
+                while xx < size and yy < size and xx <= x + ar and yy <= y + ar:
+                    value = grid[yy][xx]
                     if seen == 0:
                         seen = value
                     elif value != EMPTY and value != seen:
@@ -220,7 +247,7 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                 xx = x - 1
                 yy = y - 1
                 while xx >= 0 and yy >= 0 and xx >= x - ar and yy >= y - ar:
-                    value = board.at(xx, yy)
+                    value = grid[yy][xx]
                     if seen == 0:
                         seen = value
                     elif value != EMPTY and value != seen:
@@ -229,28 +256,35 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                     xx -= 1
                     yy -= 1
 
-    for x in range(board.size):
-        for y in range(board.size):
-            caches.board_shadow[x][y] = board.at(x, y)
-            if any(comp[x][y]) and board.at(x, y) == EMPTY:
+    for x in range(size):
+        for y in range(size):
+            shadow[x][y] = grid[y][x]
+            if any(comp[x][y]) and grid[y][x] == EMPTY:
                 for direction in _FOUR_DIRECTIONS:
                     if comp[x][y][direction]:
-                        for side in (BLACK, WHITE):
-                            player = _side_index(side)
-                            caches.shape_cache[player][x][y][direction] = compute_direction_shape(
-                                board, x, y, direction, side
-                            )
-                for player in range(2):
-                    direction_shapes = tuple(caches.shape_cache[player][x][y][direction] for direction in _FOUR_DIRECTIONS)
-                    bucket, attack = compute_bucket_and_attack(direction_shapes)
+                        caches.shape_cache[0][x][y][direction] = compute_direction_shape(board, x, y, direction, BLACK)
+                        caches.shape_cache[1][x][y][direction] = compute_direction_shape(board, x, y, direction, WHITE)
+                for player in (0, 1):
+                    shape_col = caches.shape_cache[player][x][y]
+                    bucket, attack = compute_bucket_and_attack(
+                        (
+                            shape_col[HORIZONTAL],
+                            shape_col[VERTICAL],
+                            shape_col[DIAGONAL_DOWN],
+                            shape_col[DIAGONAL_UP],
+                        )
+                    )
                     caches.value_cache[player][x][y] = bucket
                     caches.attack_cache[player][x][y] = attack
-            elif board.at(x, y) != EMPTY:
-                for player in range(2):
+            elif grid[y][x] != EMPTY:
+                for player in (0, 1):
                     caches.value_cache[player][x][y] = 0
                     caches.attack_cache[player][x][y] = 0
-                    for direction in _FOUR_DIRECTIONS:
-                        caches.shape_cache[player][x][y][direction] = 0
+                    shape_col = caches.shape_cache[player][x][y]
+                    shape_col[HORIZONTAL] = 0
+                    shape_col[VERTICAL] = 0
+                    shape_col[DIAGONAL_DOWN] = 0
+                    shape_col[DIAGONAL_UP] = 0
 
 
 def move_value(caches: EvalCaches, x: int, y: int, side: int, config: EngineConfig) -> float:

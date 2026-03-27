@@ -36,38 +36,34 @@ class Line:
 
     @classmethod
     def from_board(cls, board: Board, pivot: int, direction: int) -> "Line":
-        cells = [_SENTINEL, _SENTINEL]
+        size = board.size
+        grid = board.grid
+        cells = [_SENTINEL] * (size + 4)
         if direction == HORIZONTAL:
-            for y in range(board.size):
-                cells.append(board.at(pivot, y))
+            for y in range(size):
+                cells[y + 2] = grid[y][pivot]
         elif direction == VERTICAL:
-            for x in range(board.size):
-                cells.append(board.at(x, pivot))
+            row = grid[pivot]
+            for x in range(size):
+                cells[x + 2] = row[x]
         elif direction == DIAGONAL_DOWN:
-            if pivot < board.size:
+            if pivot < size:
                 for i in range(pivot + 1):
-                    cells.append(board.at(pivot - i, i))
-                for _ in range(pivot + 1, board.size):
-                    cells.append(_SENTINEL)
+                    cells[i + 2] = grid[i][pivot - i]
             else:
-                for _ in range(pivot - board.size + 1):
-                    cells.append(_SENTINEL)
-                for i in range(pivot - board.size + 1, board.size):
-                    cells.append(board.at(pivot - i, i))
+                start = pivot - size + 1
+                for i in range(start, size):
+                    cells[i + 2] = grid[i][pivot - i]
         elif direction == DIAGONAL_UP:
-            if pivot < board.size:
+            if pivot < size:
                 for i in range(pivot + 1):
-                    cells.append(board.at(pivot - i, board.size - 1 - i))
-                for _ in range(pivot + 1, board.size):
-                    cells.append(_SENTINEL)
+                    cells[i + 2] = grid[size - 1 - i][pivot - i]
             else:
-                for _ in range(pivot - board.size + 1):
-                    cells.append(_SENTINEL)
-                for i in range(pivot - board.size + 1, board.size):
-                    cells.append(board.at(pivot - i, board.size - 1 - i))
+                start = pivot - size + 1
+                for i in range(start, size):
+                    cells[i + 2] = grid[size - 1 - i][pivot - i]
         else:
             raise ValueError(f"invalid direction: {direction}")
-        cells.extend([_SENTINEL, _SENTINEL])
         return cls(cells=cells)
 
     def shape(self, point_index: int, freestyle: bool = True) -> PackedShape:

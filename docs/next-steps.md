@@ -72,6 +72,7 @@ Relevant documents:
 - [vcf-design.md](/home/jerry/python-test/gomoku/slow_temp/docs/vcf-design.md)
 - [branch-alignment-checklist.md](/home/jerry/python-test/gomoku/slow_temp/docs/branch-alignment-checklist.md)
 - [acceleration-plan.md](/home/jerry/python-test/gomoku/slow_temp/docs/acceleration-plan.md)
+- [performance-roadmap.md](/home/jerry/python-test/gomoku/slow_temp/docs/performance-roadmap.md)
 
 ## Work Order
 
