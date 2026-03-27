@@ -6,7 +6,7 @@ Semantic stability:
 
 - [`alignment_compare.py`](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
   stays `70/70`
-- current broad regression pass is `118 passed`
+- current broad regression pass is `155 passed`
 
 Interactive defaults:
 
@@ -16,9 +16,9 @@ Interactive defaults:
 Representative current timings:
 
 - `PYTHONPATH=. python benchmarks/profile_search.py --depth 5 --width 15 --top 10`
-  - current stable search time is about `0.94s`
+  - current stable search time is about `0.51s`
 - `python benchmarks/selfplay_smoke.py --depth 5 --width 15 --plies 4`
-  - current average is about `2599 ms/ply`
+  - current average is about `1463 ms/ply`
 
 ## What Has Already Landed
 
@@ -48,17 +48,20 @@ The remaining wall is no longer generic Python overhead. It is concentrated in:
    - `compute_bucket_and_attack`
    - `compute_direction_shape`
 
-2. [`pyslow/eval/global_eval.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/eval/global_eval.py)
+2. [`pyslow/search/movegen.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/movegen.py)
+   - `generate_candidates`
+
+3. [`pyslow/eval/global_eval.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/eval/global_eval.py)
    - `evaluate_board`
    - `last5 / next43` related paths
 
-3. [`pyslow/eval/caches.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/eval/caches.py)
+4. [`pyslow/eval/caches.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/eval/caches.py)
    - remaining snapshot / restore work outside the resolved `shape_cache` copy path
 
-4. [`pyslow/threats/vcf.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/threats/vcf.py)
+5. [`pyslow/threats/vcf.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/threats/vcf.py)
    - recursive tactical search
 
-`movegen` is no longer the primary bottleneck after the landed native work.
+`VCF` is no longer the first wall after the landed attacker-scan and threat-board wins.
 
 ## Cost-Model Rules
 
@@ -82,21 +85,22 @@ Do not repeat these now-invalid patterns:
 - `flat + nested` double-write cache experiments
 - lazy-property cache rebuild experiments
 - fresh isolated replay used as a substitute for in-game persistent search
+- Gomocup runners that `RESTART` the engine before every move
 
 ## Priority Order
 
-### Priority 1: Local Eval / Global Eval Subsystem
+### Priority 1: Local Eval / Movegen / Ordering Subsystem
 
 Primary target:
 
-- reduce the remaining cost of local cache updates and downstream global eval
+- reduce the remaining cost of local cache updates and root candidate generation
 
 Near-term focus:
 
 - inspect `value_wide_compute` sub-costs before each new native step
-- keep `global_eval` changes tied to measured wins, not guesswork
+- keep `movegen / ordering` changes tied to measured wins, not guesswork
 
-### Priority 2: Remaining Cache Strategy
+### Priority 2: Global Eval / Remaining Cache Strategy
 
 Primary target:
 
@@ -137,8 +141,9 @@ Prefer:
 Current best candidate family:
 
 1. local-eval kernels
-2. global-eval helpers only if they still remain large after local-eval work
-3. VCF / threat helpers after that
+2. movegen / ordering kernels where measurable gains still remain
+3. global-eval helpers only if they still remain large after local-eval work
+4. VCF / threat helpers after that
 
 ## Validation Rules
 
@@ -162,3 +167,13 @@ When checking GUI or protocol behavior:
 
 Fresh replay is still useful, but it is not a drop-in substitute for the GUI's
 real search path once TT and persistent search state are involved.
+
+## Search-Reach Goal
+
+The next practical acceleration target is not just “a bit faster”.
+
+The current goal is:
+
+1. keep `depth=5 width=15` comfortably practical
+2. move the stable Python engine toward at least `depth=8 width=20`
+3. compare practical opponent results only under protocol-correct persistent engine sessions

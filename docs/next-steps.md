@@ -10,82 +10,71 @@
 - normal move generation, TT, iterative deepening alpha-beta, root control
 - working `VCF` and `ThreatBoardView`
 - working Gomocup protocol adapter
-- working pygame GUI
+- working pygame GUI with local and Gomocup engine modes
 - benchmark/profile helpers
+- opponent benchmark scripts for `zhou`, `pyslow`, and `SlowRenju`
+- Linux-buildable `SlowRenju/slowrenju_linux`
 
-Recent audit update:
+Current verified baseline:
 
-- another model added a git repository and committed the then-current project state
-- the fixed-position reference compare has been expanded and mechanically checked:
-  - [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
-- current comparison result is:
-  - `70/70` positions aligned at `depth=3`, `width=10`
-- interactive local entry defaults are now:
+- [`alignment_compare.py`](/home/jerry/gomoku/slow_temp/benchmarks/alignment_compare.py)
+  - `70/70` aligned at `depth=3`, `width=10`
+- `pytest -q`
+  - `155 passed`
+- interactive defaults
   - `depth=5`, `width=15`
-- current broad regression pass is:
-  - `118 passed`
-- current representative search timing is about:
-  - `profile_search --depth 5 --width 15` -> `0.94s`
-- current short selfplay timing is about:
-  - `selfplay_smoke --depth 5 --width 15 --plies 4` -> `2599 ms/ply`
-- the compare set now covers:
-  - opening
-  - midgame
-  - tactical / VCF-first
-  - edge / corner
-  - fallback / `rootsplit`
-  - dense positions
-- all hand-written transformed positions in the compare set were mechanically rechecked for:
-  - bounds
-  - duplicate coordinates
-  - alternating side order
-  - exact transform consistency against the base position
-- concrete root causes fixed:
-  - `para[263]` in [`config.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/config.py) was corrected from `6000.0` to the reference value `1000000.0`
-  - non-root alpha-beta `downf` handling now matches reference sibling-accumulation semantics
-  - the one-move center opening shortcut was removed from [`root.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/root.py) so the one-stone position follows the verified reference search path
-  - root `rootsplit==1` now matches reference `abval.first` return semantics
-  - root VCF-filter single-safe-move path no longer returns the wrong Python-only `-INF`
-- exact regression coverage was added for the resolved non-root ladder case:
-  - [`tests/test_search.py`](/home/jerry/python-test/gomoku/slow_temp/tests/test_search.py)
-  - `mid_ladder + (7,5)` now matches reference with `score=-47`, `move=(7,9)`
-- recent additional progress:
-  - optional native backends landed for `line`, `movegen`, `ordering`, `threat_board`
-  - local-eval native kernel landed and is part of the stable baseline
-  - `shape_cache` snapshot/restore now uses undo-log instead of whole-cache deep copy
+- representative fixed search timing
+  - `PYTHONPATH=. python benchmarks/profile_search.py --depth 5 --width 15 --top 10`
+  - about `0.51s`
+- representative short selfplay timing
+  - `PYTHONPATH=. python benchmarks/selfplay_smoke.py --depth 5 --width 15 --plies 4`
+  - about `1463 ms/ply`
 
-Current confidence level:
+Recent stable wins already landed:
 
-- for the current freestyle 15x15 scope and current compare set, branch alignment is closed
-- the current compare set is large enough to treat further semantic expansion as optional, not blocking
-- treat the current search/eval semantics as the reference-aligned baseline
-- subsequent work should focus on speed and search reach without changing behavior
+- optional native backends for `line`, `movegen`, `ordering`, `threat_board`
+- local-eval native kernel in the stable baseline
+- `shape_cache` snapshot/restore changed from whole-cache deep copy to undo-log
+- `VCF` attacker duplicate-scan removal
+- native `broken_four_reply` / `broken_four_point_for_side` helpers in `threat_board`
 
-Practical stage summary:
+Recent conclusions already validated:
 
-- semantic alignment is no longer the active bottleneck
-- the current project phase has moved from branch-level reference alignment to
-  performance analysis and acceleration
-- new semantic cases can still be added later, but they are no longer the
-  default next task
+- semantic alignment is closed enough for current freestyle `15x15` scope
+- `pyslow` and `SlowRenju` remain aligned on the current `70/70` compare set
+- the current project phase has moved from branch-level alignment to:
+  - performance analysis
+  - protocol correctness
+  - practical search reach
 
-The most important result is that alignment work is now driven by:
+## External Play Status
 
-- direct reference traces
-- branch-level checklist verification
+Current opponent benchmark results:
 
-Instead of relying only on “main flow looks similar”.
+- `pyslow` via Gomocup, protocol-correct persistent session
+  - 5-openings vs `zhou`, `depth=5 width=15`
+    - black: `5-0`
+    - white: `2-3`
+- `pyslow` via Gomocup, reduced search
+  - 5-openings vs `zhou`, `depth=3 width=15`
+    - black: `5-0`
+    - white: `4-1`
+  - 9-openings vs `zhou`, `depth=3 width=15`
+    - black: `8-1`
+    - white: `8-1`
+- `SlowRenju` via Gomocup, default time settings
+  - 5-openings vs `zhou`
+    - black: `5-0`
+    - white: `5-0`
+  - 9-openings vs `zhou`
+    - black: `9-0`
+    - white: `9-0`
 
-Relevant documents:
+Important protocol conclusion:
 
-- [AGENTS.md](/home/jerry/python-test/gomoku/slow_temp/AGENTS.md)
-- [reference-analysis.md](/home/jerry/python-test/gomoku/slow_temp/docs/reference-analysis.md)
-- [search-flow.md](/home/jerry/python-test/gomoku/slow_temp/docs/search-flow.md)
-- [vcf-design.md](/home/jerry/python-test/gomoku/slow_temp/docs/vcf-design.md)
-- [branch-alignment-checklist.md](/home/jerry/python-test/gomoku/slow_temp/docs/branch-alignment-checklist.md)
-- [acceleration-plan.md](/home/jerry/python-test/gomoku/slow_temp/docs/acceleration-plan.md)
-- [performance-roadmap.md](/home/jerry/python-test/gomoku/slow_temp/docs/performance-roadmap.md)
-- [default-config-baselines.md](/home/jerry/python-test/gomoku/slow_temp/docs/default-config-baselines.md)
+- fresh-per-move Gomocup replay is not equivalent to a real match
+- restarting the engine before every move changes searcher lifecycle and TT reuse
+- opponent and GUI validation must use persistent engine sessions across a whole game
 
 ## Work Order
 
@@ -93,7 +82,7 @@ Relevant documents:
 
 Primary source of truth:
 
-- [acceleration-plan.md](/home/jerry/python-test/gomoku/slow_temp/docs/acceleration-plan.md)
+- [acceleration-plan.md](/home/jerry/gomoku/slow_temp/docs/acceleration-plan.md)
 
 Rules:
 
@@ -106,40 +95,46 @@ Rules:
 Execution order:
 
 1. keep the current stable baseline frozen
-2. continue cost-model-driven performance work on local eval / global eval
-3. revisit remaining cache work only when measurements justify it
-4. revisit `VCF` after eval/cache costs come down further
-5. increase practical root depth / width only after measuring post-optimization gains
+2. continue cost-model-driven work on `eval/local`, `movegen`, `ordering`
+3. revisit `global_eval` only with a clearly profitable kernel boundary
+4. revisit remaining cache work only when measurements justify it
+5. revisit `VCF` after eval/cache costs come down further
+6. increase practical root depth / width only after post-optimization measurements
 
 Immediate deliverables:
 
-1. measure the next remaining `local/global eval` hot path before changing code
+1. measure the next remaining `local / movegen / global_eval` hot path before changing code
 2. keep semantic regressions frozen while optimizing
 3. prefer small profitable kernels over broad speculative refactors
 4. benchmark both fixed search and short selfplay after each speedup
+5. use persistent-session opponent matches as practical validation after larger search-reach gains
 
 Likely hotspots:
 
 - `eval/local`
+- `search/movegen`
 - `eval/global_eval`
 - `eval/caches`
-- `threats/threat_board`
 - `threats/vcf`
-- residual `movegen` work only after the above
 
 Current recommendation:
 
 - keep Python as the semantic reference path
 - keep native optional and narrow
-- do not repeat failed wrapper-style or dual-write cache experiments
+- do not repeat:
+  - wrapper-style native experiments around Python object graphs
+  - `flat + nested` dual-write cache experiments
+  - fresh-per-move Gomocup replay as a proxy for engine strength
 
 ### 2. Search Reach Upgrade
 
-After each performance round:
+The next practical target is no longer “a bit faster”.
 
-1. benchmark achievable `depth` / `width` increases under fixed time budgets
-2. keep `alignment_compare.py` and targeted regression tests green
-3. expand benchmark coverage before changing default limits
+Current goal:
+
+1. keep `depth=5 width=15` comfortably practical
+2. move the stable Python engine toward at least `depth=8 width=20`
+3. compare practical opponent results only under persistent Gomocup sessions
 
 Immediate likely knobs:
 
@@ -156,15 +151,13 @@ Only after:
 - VCF semantics are trusted
 - current hotspots are understood
 
-This is intentionally after alignment and acceleration preparation.
-
 ### 4. Continue Product-Level Work
 
 After the above:
 
 - improve GUI usability
-- possibly add stronger selfplay / benchmark suites
-- plan native backend boundaries more concretely
+- extend opponent benchmark suites
+- plan the next native boundaries more concretely
 
 ## Resume Advice
 
@@ -172,11 +165,10 @@ When resuming work later, do not start by re-analyzing the whole project.
 
 Start here:
 
-1. run [alignment_compare.py](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py) to confirm the baseline still stays `70/70`
-   - default now runs grouped parallel compare with `jobs=6`
-   - use `--group <name>` for targeted checks during optimization
-2. read [acceleration-plan.md](/home/jerry/python-test/gomoku/slow_temp/docs/acceleration-plan.md)
-3. profile the aligned baseline before changing any default search limits
-4. read [performance-roadmap.md](/home/jerry/python-test/gomoku/slow_temp/docs/performance-roadmap.md) for the native priority order
-5. implement or measure only one hotspot boundary at a time
-6. after each speedup, re-run the alignment and regression suites
+1. run [alignment_compare.py](/home/jerry/gomoku/slow_temp/benchmarks/alignment_compare.py) and confirm `70/70`
+2. run `pytest -q` and confirm the current regression baseline
+3. read [acceleration-plan.md](/home/jerry/gomoku/slow_temp/docs/acceleration-plan.md)
+4. profile the aligned baseline before changing default search limits
+5. read [performance-roadmap.md](/home/jerry/gomoku/slow_temp/docs/performance-roadmap.md) for the native priority order
+6. implement or measure only one hotspot family at a time
+7. after each speedup, re-run alignment, regression, fixed search timing, and short selfplay

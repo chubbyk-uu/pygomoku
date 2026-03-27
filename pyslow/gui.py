@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import argparse
+from pathlib import Path
 import queue
+import shlex
+import subprocess
 import threading
-from typing import Sequence
+from typing import Protocol, Sequence
 
 from pyslow.board import Board, move_to_xy, xy_to_move
 from pyslow.config import load_default_config
@@ -16,6 +20,15 @@ from pyslow.search.root import RootSearcher
 
 DEFAULT_DEPTH = 5
 DEFAULT_WIDTH = 15
+DEFAULT_GOMOCUP_TIMEOUT_TURN_MS = 1500
+DEFAULT_GOMOCUP_TIME_LEFT_MS = 30000
+DEFAULT_GOMOCUP_CANDIDATES = (
+    Path("SlowRenju/slowrenju_linux"),
+)
+GOMOCUP_TIME_PRESETS: tuple[tuple[int, int], ...] = (
+    (1500, 30000),
+    (3000, 60000),
+)
 
 
 @dataclass(frozen=True)
@@ -70,6 +83,13 @@ def default_search_limits() -> SearchLimits:
     return SearchLimits(max_depth=DEFAULT_DEPTH, root_width=DEFAULT_WIDTH)
 
 
+def detect_default_gomocup_command() -> str | None:
+    for candidate in DEFAULT_GOMOCUP_CANDIDATES:
+        if candidate.exists() and candidate.is_file():
+            return str(candidate)
+    return None
+
+
 def compute_undo_steps(move_sides: Sequence[int], human_side: int) -> int:
     if not move_sides:
         return 0
@@ -103,13 +123,12 @@ def last_move_cell(board: Board) -> tuple[int, int] | None:
 
 
 class EngineWorker:
-    def __init__(self) -> None:
+    def __init__(self, backend: "EngineBackend") -> None:
         self._queue: queue.Queue[tuple[int, str, object]] = queue.Queue()
         self._lock = threading.Lock()
         self._generation = 0
         self._active_threads = 0
-        self._config = load_default_config()
-        self._searcher = RootSearcher(self._config)
+        self._backend = backend
 
     def _clear_queue(self) -> None:
         while True:
@@ -137,8 +156,8 @@ class EngineWorker:
 
     def _run_search(self, generation: int, board: Board, limits: SearchLimits) -> None:
         try:
-            result = self._searcher.search(board, limits)
-            self._queue.put((generation, "move", result.move))
+            move = self._backend.find_best_move(board, limits)
+            self._queue.put((generation, "move", move))
         except Exception as exc:  # pragma: no cover - defensive guard for GUI runtime
             self._queue.put((generation, "error", str(exc)))
         finally:
@@ -156,18 +175,171 @@ class EngineWorker:
 
     def close(self) -> None:
         self.new_generation()
+        self._backend.close()
+
+
+class EngineBackend(Protocol):
+    def find_best_move(self, board: Board, limits: SearchLimits) -> int: ...
+
+    def close(self) -> None: ...
+
+
+class LocalEngineBackend:
+    def __init__(self) -> None:
+        self._config = load_default_config()
+        self._searcher = RootSearcher(self._config)
+
+    def find_best_move(self, board: Board, limits: SearchLimits) -> int:
+        return self._searcher.search(board, limits).move
+
+    def close(self) -> None:
+        return
+
+
+class GomocupEngineBackend:
+    def __init__(self, command: str, *, timeout_turn_ms: int, time_left_ms: int) -> None:
+        self._command = command
+        self._timeout_turn_ms = timeout_turn_ms
+        self._time_left_ms = time_left_ms
+        self._proc: subprocess.Popen[str] | None = None
+        self._lock = threading.Lock()
+
+    def _ensure_process(self) -> subprocess.Popen[str]:
+        proc = self._proc
+        if proc is not None and proc.poll() is None:
+            return proc
+        argv = shlex.split(self._command)
+        if not argv:
+            raise ValueError("empty Gomocup command")
+        self._proc = subprocess.Popen(
+            argv,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+        )
+        self._send_line("START 15")
+        self._read_meaningful_line()
+        return self._proc
+
+    def _send_line(self, line: str) -> None:
+        proc = self._ensure_process()
+        assert proc.stdin is not None
+        proc.stdin.write(line + "\n")
+        proc.stdin.flush()
+
+    def _read_meaningful_line(self) -> str:
+        proc = self._ensure_process()
+        assert proc.stdout is not None
+        while True:
+            line = proc.stdout.readline()
+            if not line:
+                stderr = ""
+                if proc.stderr is not None:
+                    stderr = proc.stderr.read()
+                raise RuntimeError(f"Gomocup engine exited unexpectedly: {stderr.strip()}")
+            text = line.strip()
+            if not text:
+                continue
+            if text.upper().startswith("MESSAGE"):
+                continue
+            return text
+
+    def find_best_move(self, board: Board, limits: SearchLimits) -> int:
+        with self._lock:
+            self._send_line("RESTART")
+            self._read_meaningful_line()
+            self._send_line(f"INFO timeout_turn {self._timeout_turn_ms}")
+            self._send_line(f"INFO time_left {self._time_left_ms}")
+            self._send_line(f"INFO max_node {limits.node_limit or 0}")
+            self._send_line("BOARD")
+            engine_side = board.side_to_move
+            for index, played in enumerate(board.move_history):
+                x, y = move_to_xy(played.move)
+                side = 1 if played.side == engine_side else 2
+                self._send_line(f"{x},{y},{side}")
+            self._send_line("DONE")
+            response = self._read_meaningful_line()
+            if "," not in response:
+                raise RuntimeError(f"unexpected Gomocup move response: {response}")
+            x_str, y_str = response.split(",", 1)
+            return xy_to_move(int(x_str), int(y_str))
+
+    def close(self) -> None:
+        proc = self._proc
+        if proc is None:
+            return
+        if proc.poll() is None:
+            try:
+                self._send_line("END")
+            except Exception:
+                pass
+            try:
+                proc.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+        self._proc = None
 
 
 class GomokuGuiApp:
-    def __init__(self, *, depth: int = DEFAULT_DEPTH, width: int = DEFAULT_WIDTH) -> None:
+    def __init__(
+        self,
+        *,
+        depth: int = DEFAULT_DEPTH,
+        width: int = DEFAULT_WIDTH,
+        gomocup_command: str | None = None,
+    ) -> None:
         self.layout = GuiLayout()
         self.board = Board()
         self.human_side: int | None = None
         self.search_limits = SearchLimits(max_depth=depth, root_width=width)
         self.status_text = "Choose black or white to start."
         self.engine_busy = False
-        self.engine = EngineWorker()
+        self.gomocup_command = gomocup_command or detect_default_gomocup_command()
+        self.gomocup_timeout_turn_ms = DEFAULT_GOMOCUP_TIMEOUT_TURN_MS
+        self.gomocup_time_left_ms = DEFAULT_GOMOCUP_TIME_LEFT_MS
+        self.engine_mode = "local"
+        self.engine = EngineWorker(self._build_backend())
         self._engine_generation = 0
+
+    def _build_backend(self) -> EngineBackend:
+        if self.engine_mode == "gomocup":
+            if not self.gomocup_command:
+                raise ValueError("Gomocup command is not configured")
+            return GomocupEngineBackend(
+                self.gomocup_command,
+                timeout_turn_ms=self.gomocup_timeout_turn_ms,
+                time_left_ms=self.gomocup_time_left_ms,
+            )
+        return LocalEngineBackend()
+
+    def switch_engine_mode(self) -> None:
+        if not self.gomocup_command:
+            self.status_text = "No Gomocup command configured."
+            return
+        self.engine.close()
+        self.engine_mode = "gomocup" if self.engine_mode == "local" else "local"
+        self.engine = EngineWorker(self._build_backend())
+        self._engine_generation = self.engine.new_generation()
+        self.engine_busy = False
+        self.status_text = f"Engine mode: {self.engine_mode}."
+
+    def cycle_gomocup_time_preset(self) -> None:
+        current = (self.gomocup_timeout_turn_ms, self.gomocup_time_left_ms)
+        try:
+            index = GOMOCUP_TIME_PRESETS.index(current)
+        except ValueError:
+            index = -1
+        next_timeout, next_time_left = GOMOCUP_TIME_PRESETS[(index + 1) % len(GOMOCUP_TIME_PRESETS)]
+        self.gomocup_timeout_turn_ms = next_timeout
+        self.gomocup_time_left_ms = next_time_left
+        if self.engine_mode == "gomocup":
+            self.engine.close()
+            self.engine = EngineWorker(self._build_backend())
+            self._engine_generation = self.engine.new_generation()
+            self.engine_busy = False
+        self.status_text = f"Gomocup time set to {next_timeout}/{next_time_left} ms."
 
     def close(self) -> None:
         self.engine.close()
@@ -250,6 +422,12 @@ class GomokuGuiApp:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--depth", type=int, default=DEFAULT_DEPTH)
+    parser.add_argument("--width", type=int, default=DEFAULT_WIDTH)
+    parser.add_argument("--gomocup-cmd", type=str, default=None)
+    args = parser.parse_args()
+
     try:
         import pygame
     except ModuleNotFoundError as exc:
@@ -258,7 +436,7 @@ def main() -> None:
     pygame.init()
     pygame.display.set_caption("pyslow Gomoku")
 
-    app = GomokuGuiApp()
+    app = GomokuGuiApp(depth=args.depth, width=args.width, gomocup_command=args.gomocup_cmd)
     layout = app.layout
     screen = pygame.display.set_mode((layout.width, layout.height))
     clock = pygame.time.Clock()
@@ -284,6 +462,8 @@ def main() -> None:
         button_left = layout.board_left + (layout.board_pixels - total_button_width) // 2
         black_button = pygame.Rect(button_left, 18, button_width, 36)
         white_button = pygame.Rect(button_left + button_width + button_gap, 18, button_width, 36)
+        engine_button = pygame.Rect(layout.left_margin + layout.board_pixels + 34, 20, 220, 28)
+        time_button = pygame.Rect(layout.left_margin + layout.board_pixels + 34, 52, 220, 28)
         pygame.draw.rect(
             screen,
             panel,
@@ -330,22 +510,27 @@ def main() -> None:
             pygame.draw.circle(screen, red, (cx, cy), layout.cell_size // 2 - 1, 3)
 
         header = title_font.render("pyslow Gomoku", True, text)
-        screen.blit(header, (layout.left_margin + layout.board_pixels + 34, 76))
+        screen.blit(header, (layout.left_margin + layout.board_pixels + 34, 92))
 
         lines = [
-            f"Engine: depth={app.search_limits.max_depth}",
+            f"Engine mode: {app.engine_mode}",
+            f"Depth: {app.search_limits.max_depth}",
             f"Width: {app.search_limits.root_width}",
             f"Side: {'Black' if app.human_side == BLACK else 'White' if app.human_side == WHITE else '-'}",
+            f"Gomocup: {'ready' if app.gomocup_command else 'missing'}",
+            f"G-time: {app.gomocup_timeout_turn_ms}/{app.gomocup_time_left_ms}",
             "Left top is (0,0)",
             "",
             "Controls:",
             "U: undo",
             "R: restart",
+            "E: switch engine",
+            "T: gomocup time",
             "",
         ]
         lines.extend(_wrap_text(app.status_text, 22))
         base_x = layout.left_margin + layout.board_pixels + 34
-        base_y = 128
+        base_y = 144
         for idx, line in enumerate(lines):
             surf = body_font.render(line, True, red if "win" in line.lower() else text)
             screen.blit(surf, (base_x, base_y + idx * 28))
@@ -358,13 +543,23 @@ def main() -> None:
         white_label = body_font.render("Play White", True, black_color)
         screen.blit(black_label, (black_button.centerx - black_label.get_width() // 2, black_button.centery - black_label.get_height() // 2))
         screen.blit(white_label, (white_button.centerx - white_label.get_width() // 2, white_button.centery - white_label.get_height() // 2))
+        pygame.draw.rect(screen, blue if app.engine_mode == "gomocup" else panel, engine_button, border_radius=6)
+        pygame.draw.rect(screen, grid_color, engine_button, 1, border_radius=6)
+        engine_text = "Switch to Gomocup" if app.engine_mode == "local" else "Switch to Local"
+        engine_label = small_font.render(engine_text, True, text)
+        screen.blit(engine_label, (engine_button.centerx - engine_label.get_width() // 2, engine_button.centery - engine_label.get_height() // 2))
+        pygame.draw.rect(screen, panel, time_button, border_radius=6)
+        pygame.draw.rect(screen, grid_color, time_button, 1, border_radius=6)
+        time_text = f"Time {app.gomocup_timeout_turn_ms}/{app.gomocup_time_left_ms}"
+        time_label = small_font.render(time_text, True, text)
+        screen.blit(time_label, (time_button.centerx - time_label.get_width() // 2, time_button.centery - time_label.get_height() // 2))
 
-        return black_button, white_button
+        return black_button, white_button, engine_button, time_button
 
     running = True
     try:
         while running:
-            black_button, white_button = draw_board()
+            black_button, white_button, engine_button, time_button = draw_board()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
@@ -373,11 +568,19 @@ def main() -> None:
                         app.undo()
                     elif event.key == pygame.K_r:
                         app.restart()
+                    elif event.key == pygame.K_e:
+                        app.switch_engine_mode()
+                    elif event.key == pygame.K_t:
+                        app.cycle_gomocup_time_preset()
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if black_button.collidepoint(event.pos):
                         app.start_game(BLACK)
                     elif white_button.collidepoint(event.pos):
                         app.start_game(WHITE)
+                    elif engine_button.collidepoint(event.pos):
+                        app.switch_engine_mode()
+                    elif time_button.collidepoint(event.pos):
+                        app.cycle_gomocup_time_preset()
                     else:
                         cell = pixel_to_cell(event.pos, layout)
                         if cell is not None:

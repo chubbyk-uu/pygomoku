@@ -4,7 +4,7 @@ Date: `2026-03-27`
 
 Current semantic baseline:
 - `python benchmarks/alignment_compare.py` -> `70/70`
-- current broad regression pass -> `118 passed`
+- current broad regression pass -> `155 passed`
 
 Current stable native wins already landed:
 - `line` backend
@@ -19,9 +19,9 @@ Current stable Python-side structural win:
 
 Current measured timings:
 - `PYTHONPATH=. python benchmarks/profile_search.py --depth 5 --width 15 --top 10`
-  - current stable search time about `0.94s`
+  - current stable search time about `0.51s`
 - `python benchmarks/selfplay_smoke.py --depth 5 --width 15 --plies 4`
-  - current average about `2599 ms/ply`
+  - current average about `1463 ms/ply`
 
 Representative search profiles:
 - `depth=5 width=15`
@@ -46,6 +46,9 @@ What recent experiments proved:
   inputs/outputs are flat and their control flow is simple
 - local-eval work only paid off once the kernel boundary was made narrower and
   the cost model was clearer
+- the best recent practical win came from `VCF` / `threat_board`:
+  - attacker duplicate-scan removal
+  - native `broken_four_reply` / `broken_four_point_for_side`
 - several attempted optimizations were reverted because they did not show
   stable net wins:
   - thin wrapper `value_wide_compute` Cythonization
@@ -53,11 +56,13 @@ What recent experiments proved:
   - cache owned-restore shortcut
   - lightweight `ThreatBoardView` play/undo experiments
   - several partial `VCF` flow tweaks
+  - nested-list based `global_eval` Cython helper experiments
+  - fresh-per-move Gomocup replay used as a proxy for real game strength
 
 Main conclusion:
 - the remaining performance wall is still mostly structural
-- the biggest stable bottleneck remains local eval, followed by global eval,
-  remaining cache work, and `VCF`
+- the biggest stable bottleneck remains local eval, followed by movegen,
+  global eval, remaining cache work, and then `VCF`
 - the next meaningful gains should come from cost-model-driven native work, not
   broad speculative refactors
 
@@ -66,6 +71,7 @@ Priority tiers:
 Tier 1:
 - `eval/local.py::value_wide_compute`
 - `eval/local.py::{compute_direction_shape, compute_bucket_and_attack}`
+- `search/movegen.py::generate_candidates`
 - `eval/global_eval.py::{evaluate_board, _evaluate_last5_branch, _evaluate_next43_branch}`
 - `eval/caches.py::{snapshot, restore_snapshot}`
 
@@ -96,7 +102,7 @@ Recommended next-stage strategy:
    tactical recursion becomes the clear primary wall.
 
 Execution order for the next phase:
-- Phase A: measure the next local/global-eval sub-cost before each change
+- Phase A: measure the next local/movegen/global-eval sub-cost before each change
 - Phase B: keep iterating on profitable local-eval kernels
 - Phase C: benchmark again at `depth=5 width=15` and stronger fixed searches
 - Phase D: only then decide whether the next module is `vcf` or broader cache work
@@ -104,4 +110,5 @@ Execution order for the next phase:
 Decision:
 - do not go back to wrapper-style native experiments that already failed
 - keep semantics frozen
+- keep Gomocup / GUI / external-match validation on persistent engine sessions
 - push the next acceleration work where measured cost still remains largest

@@ -89,28 +89,30 @@
 - 在没有 benchmark 证据前，提前引入复杂 native 工程
 - 移除纯 Python 基线实现
 - 用“更快但不完全一样”的近似算法替代参考项目语义
+- 用 fresh-per-move Gomocup replay 代替真实整局持久引擎会话，再据此判断棋力
 
 ## 当前热点结论
 
 基于当前 benchmark/profile，主要热点集中在：
 
-1. `pyslow/threats/vcf.py`
-2. `pyslow/threats/threat_board.py`
-3. `pyslow/eval/local.py`
-4. `pyslow/patterns/line.py`
-5. `pyslow/board.py`
+1. `pyslow/eval/local.py`
+2. `pyslow/search/movegen.py`
+3. `pyslow/eval/global_eval.py`
+4. `pyslow/eval/caches.py`
+5. `pyslow/threats/vcf.py`
 
 其中最值得优先处理的具体函数包括：
 
-- `threat_board.threat_moves`
-- `threat_board._broken_four_reply_with_ambiguity`
-- `vcf._search_attacker`
-- `vcf._search_defender`
 - `local.value_wide_compute`
 - `local.compute_direction_shape`
-- `line.from_board`
-- `line.b4p`
-- `board.at`
+- `local.compute_bucket_and_attack`
+- `movegen.generate_candidates`
+- `global_eval.evaluate_board`
+- `global_eval._evaluate_last5_branch`
+- `global_eval._evaluate_next43_branch`
+- `caches.restore_snapshot`
+- `vcf._search_attacker`
+- `vcf._search_defender`
 
 ## 优先级
 
@@ -120,10 +122,10 @@
 
 先处理这些模块：
 
-1. `pyslow/patterns/line.py`
-2. `pyslow/eval/local.py`
-3. `pyslow/threats/threat_board.py`
-4. `pyslow/board.py`
+1. `pyslow/eval/local.py`
+2. `pyslow/search/movegen.py`
+3. `pyslow/eval/global_eval.py`
+4. `pyslow/eval/caches.py`
 
 原因：
 
@@ -135,7 +137,8 @@
 目标：
 
 - 先把明显的 Python 层开销打掉
-- 再重新测 `depth=3/6`
+- 再重新测 `depth=5`
+- 再判断是否能把实际可用搜索规模推向 `depth=8 width=20`
 - 判断是否还必须上 native
 
 ### 第二优先级：再做局部 native
@@ -144,9 +147,9 @@
 
 native 第一批候选模块：
 
-1. `pyslow/patterns/line.py`
-2. `pyslow/eval/local.py`
-3. `pyslow/threats/threat_board.py`
+1. `pyslow/eval/local.py`
+2. `pyslow/search/movegen.py`
+3. `pyslow/eval/global_eval.py`
 4. `pyslow/threats/vcf.py`
 
 native 最后才考虑的模块：
@@ -227,6 +230,26 @@ native 路线必须满足：
 - `python`：强制纯 Python
 - `native`：强制 native，不可用则报错
 - `auto`：优先 native，不可用则 fallback
+
+## 协议与对战验证规则
+
+对于 Gomocup 引擎、GUI 和外部对战脚本：
+
+- 必须优先使用整局持久引擎会话
+- 一局只初始化一次引擎
+- 后续逐手应优先使用 `TURN`
+- 只有在状态无法保证一致时，才允许退回 `BOARD` 全量同步
+
+禁止：
+
+- 每走一步就 `RESTART`
+- 用 fresh-per-move 协议驱动结果替代真实对战结果
+
+原因：
+
+- 这会改变 searcher 生命周期
+- 会改变 TT / 持久搜索状态
+- 会导致结果和真实协议使用方式不等价
 
 ## 语义验证规则
 
