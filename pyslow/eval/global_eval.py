@@ -8,7 +8,7 @@ from pyslow.board import Board
 from pyslow.config import EngineConfig
 from pyslow.constants import BLACK, LAST5, NEXT4, NEXT43, NEXT5, WHITE, WIN
 from pyslow.eval.caches import EvalCaches
-from pyslow.eval.local import recompute_all
+from pyslow.eval.local import value_wide_compute
 from pyslow.patterns.line import Line
 from pyslow.patterns.shapes import DIAGONAL_DOWN, DIAGONAL_UP, HORIZONTAL, VERTICAL
 
@@ -60,12 +60,15 @@ def _evaluate_last5_branch(board: Board, caches: EvalCaches, side: int, opo: int
     if target is None:
         return WIN
     x, y = target
-    board_copy = board.copy()
-    board_copy.side_to_move = -side
-    board_copy.play(y * board.size + x, -side)
-    new_caches = EvalCaches()
-    recompute_all(board_copy, new_caches)
-    return -evaluate_board(board_copy, new_caches, -side, 1 - opo, config)
+    snapshot = caches.snapshot()
+    grid = board.grid
+    grid[y][x] = -side
+    try:
+        value_wide_compute(board, caches)
+        return -evaluate_board(board, caches, -side, 1 - opo, config)
+    finally:
+        grid[y][x] = 0
+        caches.restore_snapshot(snapshot)
 
 
 def _evaluate_next43_branch(board: Board, caches: EvalCaches, side: int, config: EngineConfig) -> bool:
@@ -79,34 +82,37 @@ def _evaluate_next43_branch(board: Board, caches: EvalCaches, side: int, config:
         for y in range(size):
             if grid[y][x] != 0 or next_eval[opponent_value_col[y]] < threshold:
                 continue
-            board_copy = board.copy()
-            board_copy.side_to_move = -side
-            board_copy.play(y * size + x, -side)
             line_specs = (
-                (Line.from_board(board_copy, x, HORIZONTAL), y, 1),
-                (Line.from_board(board_copy, y, VERTICAL), x, 2),
-                (Line.from_board(board_copy, x + y, DIAGONAL_DOWN), y, 3),
-                (Line.from_board(board_copy, size - 1 - y + x, DIAGONAL_UP), size - 1 - y, 4),
+                (x, HORIZONTAL, y, 1),
+                (y, VERTICAL, x, 2),
+                (x + y, DIAGONAL_DOWN, y, 3),
+                (size - 1 - y + x, DIAGONAL_UP, size - 1 - y, 4),
             )
+            grid[y][x] = -side
             encoded = 0
             direction = 0
-            for line, point_index, direction_id in line_specs:
-                encoded = line.b4p(point_index)
-                if encoded > 0:
-                    direction = direction_id
-                    break
-            if direction == 0:
-                continue
-            reply = _decode_b4_reply(board.size, x, y, direction, encoded)
-            if reply is None:
-                continue
-            rx, ry = reply
-            if not (0 <= rx < size and 0 <= ry < size) or board_copy.grid[ry][rx] != 0:
-                continue
-            board_copy.side_to_move = side
-            board_copy.play(ry * size + rx, side)
-            if not _has_b4p_after_move(board_copy, rx, ry):
-                return True
+            try:
+                for pivot, direction_value, point_index, direction_id in line_specs:
+                    encoded = Line.from_board(board, pivot, direction_value).b4p(point_index)
+                    if encoded > 0:
+                        direction = direction_id
+                        break
+                if direction == 0:
+                    continue
+                reply = _decode_b4_reply(board.size, x, y, direction, encoded)
+                if reply is None:
+                    continue
+                rx, ry = reply
+                if not (0 <= rx < size and 0 <= ry < size) or grid[ry][rx] != 0:
+                    continue
+                grid[ry][rx] = side
+                try:
+                    if not _has_b4p_after_move(board, rx, ry):
+                        return True
+                finally:
+                    grid[ry][rx] = 0
+            finally:
+                grid[y][x] = 0
     return False
 
 

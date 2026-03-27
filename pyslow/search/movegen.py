@@ -19,6 +19,16 @@ _COVER_DIRS: tuple[tuple[int, int], ...] = (
     (-3, -3), (-3, 0), (-3, 3), (0, -3), (0, 3), (3, -3), (3, 0), (3, 3),
 )
 
+_COVER_NEIGHBORS: tuple[tuple[int, ...], ...] = tuple(
+    tuple(
+        yy * BOARD_SIZE + xx
+        for dx, dy in _COVER_DIRS
+        for xx, yy in ((move % BOARD_SIZE + dx, move // BOARD_SIZE + dy),)
+        if 0 <= xx < BOARD_SIZE and 0 <= yy < BOARD_SIZE
+    )
+    for move in range(BOARD_SIZE * BOARD_SIZE)
+)
+
 
 def _ga(value: int) -> int:
     return value & 0xFF
@@ -99,20 +109,15 @@ def covered_moves(board: Board) -> tuple[int, ...]:
     if board.move_count == 0:
         return (xy_to_move(BOARD_SIZE // 2, BOARD_SIZE // 2),)
 
-    size = board.size
     grid = board.grid
-    seen = bytearray(size * size)
+    seen = bytearray(BOARD_SIZE * BOARD_SIZE)
     covered: list[int] = []
     for played in board.move_history:
-        move = played.move
-        x = move % size
-        y = move // size
-        for dx, dy in _COVER_DIRS:
-            xx = x + dx
-            yy = y + dy
-            if 0 <= xx < size and 0 <= yy < size and grid[yy][xx] == EMPTY:
-                candidate = yy * size + xx
-                if not seen[candidate]:
+        for candidate in _COVER_NEIGHBORS[played.move]:
+            if not seen[candidate]:
+                x = candidate % BOARD_SIZE
+                y = candidate // BOARD_SIZE
+                if grid[y][x] == EMPTY:
                     seen[candidate] = 1
                     covered.append(candidate)
     covered.sort()

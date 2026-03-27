@@ -50,7 +50,7 @@ def getmi(board: Board, x: int, y: int, c: int) -> int:
 
     ii, jj = x - 1, y - 1
     while ii >= x - 4 and ii >= 0 and jj >= 0:
-        if board.at(ii, jj) == -c:
+        if grid[jj][ii] == opponent:
             break
         ret += 1
         ii -= 1
@@ -65,8 +65,8 @@ def getmi(board: Board, x: int, y: int, c: int) -> int:
         jj += 1
 
     ii, jj = x + 1, y - 1
-    while ii <= x + 4 and ii < board.size and jj >= 0:
-        if board.at(ii, jj) == -c:
+    while ii <= x + 4 and ii < size and jj >= 0:
+        if grid[jj][ii] == opponent:
             break
         ret += 1
         ii += 1

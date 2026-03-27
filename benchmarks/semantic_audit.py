@@ -97,7 +97,7 @@ def main() -> None:
         },
         "interactive_entry_defaults": {
             "root_depth": 5,
-            "root_width": 10,
+            "root_width": 15,
         },
         "alignment_compare": {
             "returncode": align_code,

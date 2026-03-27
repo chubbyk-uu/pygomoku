@@ -15,7 +15,7 @@ from pyslow.search.root import RootSearcher
 
 
 DEFAULT_DEPTH = 5
-DEFAULT_WIDTH = 10
+DEFAULT_WIDTH = 15
 
 
 @dataclass(frozen=True)

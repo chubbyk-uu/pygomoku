@@ -225,7 +225,7 @@ reference-alignment baseline.
 Current interactive entry defaults:
 
 - `max_depth = 5`
-- `root_width = 10`
+- `root_width = 15`
 
 Source:
 
@@ -234,9 +234,9 @@ Source:
 
 Reason:
 
-- current native acceleration makes `5/10` practical for interactive local use
-- `5/15` and above are still heavy enough to noticeably slow routine
-  development
+- current acceleration now makes `5/15` just acceptable for interactive local use
+- `5/15` remains noticeably heavier than `5/10`, so it is an interactive
+  strength default, not an alignment or audit baseline
 - the reference-alignment and semantic-audit baseline remains `3/10` on purpose
   for faster feedback and stable trace comparison
 

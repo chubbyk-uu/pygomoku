@@ -8,7 +8,7 @@ from pyslow.gui import GomokuGuiApp, GuiLayout, compute_undo_steps, default_sear
 def test_default_gui_search_limits_match_current_playable_settings() -> None:
     limits = default_search_limits()
     assert limits.max_depth == 5
-    assert limits.root_width == 10
+    assert limits.root_width == 15
 
 
 def test_compute_undo_steps_rewinds_full_pair_after_ai_move() -> None:

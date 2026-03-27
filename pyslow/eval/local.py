@@ -209,12 +209,16 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
         caches.initialized = True
 
     ar = 4
-    comp = [[bytearray(4) for _ in range(size)] for _ in range(size)]
+    comp = [bytearray(size) for _ in range(size)]
+    horizontal_flag = 1
+    vertical_flag = 2
+    diag_down_flag = 4
+    diag_up_flag = 8
 
     for x in range(size):
         for y in range(size):
             if shadow[x][y] != grid[y][x]:
-                comp[x][y][:] = b"\x01\x01\x01\x01"
+                comp[x][y] = 15
 
                 fixed = x
                 seen = 0
@@ -224,7 +228,7 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                         seen = value
                     elif value != EMPTY and value != seen:
                         break
-                    comp[fixed][yy][0] = 1
+                    comp[fixed][yy] |= horizontal_flag
                 seen = 0
                 for yy in range(y - 1, max(-1, y - ar - 1), -1):
                     value = grid[yy][fixed]
@@ -232,7 +236,7 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                         seen = value
                     elif value != EMPTY and value != seen:
                         break
-                    comp[fixed][yy][0] = 1
+                    comp[fixed][yy] |= horizontal_flag
 
                 fixed = y
                 seen = 0
@@ -242,7 +246,7 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                         seen = value
                     elif value != EMPTY and value != seen:
                         break
-                    comp[xx][fixed][1] = 1
+                    comp[xx][fixed] |= vertical_flag
                 seen = 0
                 for xx in range(x - 1, max(-1, x - ar - 1), -1):
                     value = grid[fixed][xx]
@@ -250,7 +254,7 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                         seen = value
                     elif value != EMPTY and value != seen:
                         break
-                    comp[xx][fixed][1] = 1
+                    comp[xx][fixed] |= vertical_flag
 
                 seen = 0
                 xx = x - 1
@@ -261,7 +265,7 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                         seen = value
                     elif value != EMPTY and value != seen:
                         break
-                    comp[xx][yy][2] = 1
+                    comp[xx][yy] |= diag_down_flag
                     xx -= 1
                     yy += 1
                 seen = 0
@@ -273,7 +277,7 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                         seen = value
                     elif value != EMPTY and value != seen:
                         break
-                    comp[xx][yy][2] = 1
+                    comp[xx][yy] |= diag_down_flag
                     xx += 1
                     yy -= 1
 
@@ -286,7 +290,7 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                         seen = value
                     elif value != EMPTY and value != seen:
                         break
-                    comp[xx][yy][3] = 1
+                    comp[xx][yy] |= diag_up_flag
                     xx += 1
                     yy += 1
                 seen = 0
@@ -298,39 +302,81 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                         seen = value
                     elif value != EMPTY and value != seen:
                         break
-                    comp[xx][yy][3] = 1
+                    comp[xx][yy] |= diag_up_flag
                     xx -= 1
                     yy -= 1
 
+    shape_cache_black = caches.shape_cache[0]
+    shape_cache_white = caches.shape_cache[1]
+    value_cache_black = caches.value_cache[0]
+    value_cache_white = caches.value_cache[1]
+    attack_cache_black = caches.attack_cache[0]
+    attack_cache_white = caches.attack_cache[1]
     for x in range(size):
+        shadow_col = shadow[x]
+        comp_col = comp[x]
+        black_shape_col = shape_cache_black[x]
+        white_shape_col = shape_cache_white[x]
+        black_value_col = value_cache_black[x]
+        white_value_col = value_cache_white[x]
+        black_attack_col = attack_cache_black[x]
+        white_attack_col = attack_cache_white[x]
         for y in range(size):
-            shadow[x][y] = grid[y][x]
-            if any(comp[x][y]) and grid[y][x] == EMPTY:
-                for direction in _FOUR_DIRECTIONS:
-                    if comp[x][y][direction]:
-                        caches.shape_cache[0][x][y][direction] = compute_direction_shape(board, x, y, direction, BLACK)
-                        caches.shape_cache[1][x][y][direction] = compute_direction_shape(board, x, y, direction, WHITE)
-                for player in (0, 1):
-                    shape_col = caches.shape_cache[player][x][y]
-                    bucket, attack = compute_bucket_and_attack(
-                        (
-                            shape_col[HORIZONTAL],
-                            shape_col[VERTICAL],
-                            shape_col[DIAGONAL_DOWN],
-                            shape_col[DIAGONAL_UP],
-                        )
+            row = grid[y]
+            cell = row[x]
+            shadow_col[y] = cell
+            flags = comp_col[y]
+            if flags and cell == EMPTY:
+                black_shape = black_shape_col[y]
+                white_shape = white_shape_col[y]
+                if flags & horizontal_flag:
+                    black_shape[HORIZONTAL] = compute_direction_shape(board, x, y, HORIZONTAL, BLACK)
+                    white_shape[HORIZONTAL] = compute_direction_shape(board, x, y, HORIZONTAL, WHITE)
+                if flags & vertical_flag:
+                    black_shape[VERTICAL] = compute_direction_shape(board, x, y, VERTICAL, BLACK)
+                    white_shape[VERTICAL] = compute_direction_shape(board, x, y, VERTICAL, WHITE)
+                if flags & diag_down_flag:
+                    black_shape[DIAGONAL_DOWN] = compute_direction_shape(board, x, y, DIAGONAL_DOWN, BLACK)
+                    white_shape[DIAGONAL_DOWN] = compute_direction_shape(board, x, y, DIAGONAL_DOWN, WHITE)
+                if flags & diag_up_flag:
+                    black_shape[DIAGONAL_UP] = compute_direction_shape(board, x, y, DIAGONAL_UP, BLACK)
+                    white_shape[DIAGONAL_UP] = compute_direction_shape(board, x, y, DIAGONAL_UP, WHITE)
+
+                bucket, attack = compute_bucket_and_attack(
+                    (
+                        black_shape[HORIZONTAL],
+                        black_shape[VERTICAL],
+                        black_shape[DIAGONAL_DOWN],
+                        black_shape[DIAGONAL_UP],
                     )
-                    caches.value_cache[player][x][y] = bucket
-                    caches.attack_cache[player][x][y] = attack
-            elif grid[y][x] != EMPTY:
-                for player in (0, 1):
-                    caches.value_cache[player][x][y] = 0
-                    caches.attack_cache[player][x][y] = 0
-                    shape_col = caches.shape_cache[player][x][y]
-                    shape_col[HORIZONTAL] = 0
-                    shape_col[VERTICAL] = 0
-                    shape_col[DIAGONAL_DOWN] = 0
-                    shape_col[DIAGONAL_UP] = 0
+                )
+                black_value_col[y] = bucket
+                black_attack_col[y] = attack
+                bucket, attack = compute_bucket_and_attack(
+                    (
+                        white_shape[HORIZONTAL],
+                        white_shape[VERTICAL],
+                        white_shape[DIAGONAL_DOWN],
+                        white_shape[DIAGONAL_UP],
+                    )
+                )
+                white_value_col[y] = bucket
+                white_attack_col[y] = attack
+            elif cell != EMPTY:
+                black_value_col[y] = 0
+                white_value_col[y] = 0
+                black_attack_col[y] = 0
+                white_attack_col[y] = 0
+                black_shape = black_shape_col[y]
+                white_shape = white_shape_col[y]
+                black_shape[HORIZONTAL] = 0
+                black_shape[VERTICAL] = 0
+                black_shape[DIAGONAL_DOWN] = 0
+                black_shape[DIAGONAL_UP] = 0
+                white_shape[HORIZONTAL] = 0
+                white_shape[VERTICAL] = 0
+                white_shape[DIAGONAL_DOWN] = 0
+                white_shape[DIAGONAL_UP] = 0
 
 
 def move_value(caches: EvalCaches, x: int, y: int, side: int, config: EngineConfig) -> float:

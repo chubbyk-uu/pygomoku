@@ -21,7 +21,7 @@ Recent audit update:
 - current comparison result is:
   - `70/70` positions aligned at `depth=3`, `width=10`
 - interactive local entry defaults are now:
-  - `depth=5`, `width=10`
+  - `depth=5`, `width=15`
 - the compare set now covers:
   - opening
   - midgame
