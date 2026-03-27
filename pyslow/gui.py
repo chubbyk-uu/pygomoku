@@ -96,6 +96,12 @@ def pixel_to_cell(pos: tuple[int, int], layout: GuiLayout) -> tuple[int, int] | 
     return None
 
 
+def last_move_cell(board: Board) -> tuple[int, int] | None:
+    if not board.move_history:
+        return None
+    return move_to_xy(board.move_history[-1].move)
+
+
 class EngineWorker:
     def __init__(self) -> None:
         self._queue: queue.Queue[tuple[int, str, object]] = queue.Queue()
@@ -315,6 +321,13 @@ def main() -> None:
             num_color = white_color if played.side == BLACK else black_color
             label = small_font.render(str(move_index), True, num_color)
             screen.blit(label, (cx - label.get_width() // 2, cy - label.get_height() // 2))
+
+        marked = last_move_cell(app.board)
+        if marked is not None:
+            mx, my = marked
+            cx = x0 + mx * layout.cell_size
+            cy = y0 + my * layout.cell_size
+            pygame.draw.circle(screen, red, (cx, cy), layout.cell_size // 2 - 1, 3)
 
         header = title_font.render("pyslow Gomoku", True, text)
         screen.blit(header, (layout.left_margin + layout.board_pixels + 34, 76))

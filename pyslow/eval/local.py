@@ -158,19 +158,39 @@ def compute_bucket_and_attack(direction_shapes: tuple[int, int, int, int]) -> tu
 
 
 def recompute_point_caches(board: Board, caches: EvalCaches, x: int, y: int) -> None:
+    active_snapshots = caches._active_snapshot_count
+    shape_log_append = caches._shape_log.append
+    shape_cache = caches.shape_cache
+
     if board.grid[y][x] != EMPTY:
         for player in (0, 1):
             caches.value_cache[player][x][y] = 0
             caches.attack_cache[player][x][y] = 0
-            shape_col = caches.shape_cache[player][x][y]
-            shape_col[HORIZONTAL] = 0
-            shape_col[VERTICAL] = 0
-            shape_col[DIAGONAL_DOWN] = 0
-            shape_col[DIAGONAL_UP] = 0
+            shape_col = shape_cache[player][x][y]
+            old = shape_col[HORIZONTAL]
+            if old != 0:
+                if active_snapshots:
+                    shape_log_append((player, x, y, HORIZONTAL, old))
+                shape_col[HORIZONTAL] = 0
+            old = shape_col[VERTICAL]
+            if old != 0:
+                if active_snapshots:
+                    shape_log_append((player, x, y, VERTICAL, old))
+                shape_col[VERTICAL] = 0
+            old = shape_col[DIAGONAL_DOWN]
+            if old != 0:
+                if active_snapshots:
+                    shape_log_append((player, x, y, DIAGONAL_DOWN, old))
+                shape_col[DIAGONAL_DOWN] = 0
+            old = shape_col[DIAGONAL_UP]
+            if old != 0:
+                if active_snapshots:
+                    shape_log_append((player, x, y, DIAGONAL_UP, old))
+                shape_col[DIAGONAL_UP] = 0
         return
 
     for side, player in ((BLACK, 0), (WHITE, 1)):
-        shape_col = caches.shape_cache[player][x][y]
+        shape_col = shape_cache[player][x][y]
         if _compute_point_cache_entry_native is not None:
             h_shape, v_shape, d_down_shape, d_up_shape, bucket, attack = _compute_point_cache_entry_native(
                 board.grid, x, y, side, board.size
@@ -181,10 +201,26 @@ def recompute_point_caches(board: Board, caches: EvalCaches, x: int, y: int) -> 
             d_down_shape = compute_direction_shape(board, x, y, DIAGONAL_DOWN, side)
             d_up_shape = compute_direction_shape(board, x, y, DIAGONAL_UP, side)
             bucket, attack = compute_bucket_and_attack((h_shape, v_shape, d_down_shape, d_up_shape))
-        shape_col[HORIZONTAL] = h_shape
-        shape_col[VERTICAL] = v_shape
-        shape_col[DIAGONAL_DOWN] = d_down_shape
-        shape_col[DIAGONAL_UP] = d_up_shape
+        old = shape_col[HORIZONTAL]
+        if old != h_shape:
+            if active_snapshots:
+                shape_log_append((player, x, y, HORIZONTAL, old))
+            shape_col[HORIZONTAL] = h_shape
+        old = shape_col[VERTICAL]
+        if old != v_shape:
+            if active_snapshots:
+                shape_log_append((player, x, y, VERTICAL, old))
+            shape_col[VERTICAL] = v_shape
+        old = shape_col[DIAGONAL_DOWN]
+        if old != d_down_shape:
+            if active_snapshots:
+                shape_log_append((player, x, y, DIAGONAL_DOWN, old))
+            shape_col[DIAGONAL_DOWN] = d_down_shape
+        old = shape_col[DIAGONAL_UP]
+        if old != d_up_shape:
+            if active_snapshots:
+                shape_log_append((player, x, y, DIAGONAL_UP, old))
+            shape_col[DIAGONAL_UP] = d_up_shape
         caches.value_cache[player][x][y] = bucket
         caches.attack_cache[player][x][y] = attack
 
@@ -312,6 +348,8 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
     value_cache_white = caches.value_cache[1]
     attack_cache_black = caches.attack_cache[0]
     attack_cache_white = caches.attack_cache[1]
+    active_snapshots = caches._active_snapshot_count
+    shape_log_append = caches._shape_log.append
     for x in range(size):
         shadow_col = shadow[x]
         comp_col = comp[x]
@@ -327,37 +365,83 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
             shadow_col[y] = cell
             flags = comp_col[y]
             if flags and cell == EMPTY:
-                black_shape = black_shape_col[y]
-                white_shape = white_shape_col[y]
                 if flags & horizontal_flag:
-                    black_shape[HORIZONTAL] = compute_direction_shape(board, x, y, HORIZONTAL, BLACK)
-                    white_shape[HORIZONTAL] = compute_direction_shape(board, x, y, HORIZONTAL, WHITE)
+                    black_shape = black_shape_col[y]
+                    white_shape = white_shape_col[y]
+                    new_black = compute_direction_shape(board, x, y, HORIZONTAL, BLACK)
+                    old = black_shape[HORIZONTAL]
+                    if old != new_black:
+                        if active_snapshots:
+                            shape_log_append((0, x, y, HORIZONTAL, old))
+                        black_shape[HORIZONTAL] = new_black
+                    new_white = compute_direction_shape(board, x, y, HORIZONTAL, WHITE)
+                    old = white_shape[HORIZONTAL]
+                    if old != new_white:
+                        if active_snapshots:
+                            shape_log_append((1, x, y, HORIZONTAL, old))
+                        white_shape[HORIZONTAL] = new_white
                 if flags & vertical_flag:
-                    black_shape[VERTICAL] = compute_direction_shape(board, x, y, VERTICAL, BLACK)
-                    white_shape[VERTICAL] = compute_direction_shape(board, x, y, VERTICAL, WHITE)
+                    black_shape = black_shape_col[y]
+                    white_shape = white_shape_col[y]
+                    new_black = compute_direction_shape(board, x, y, VERTICAL, BLACK)
+                    old = black_shape[VERTICAL]
+                    if old != new_black:
+                        if active_snapshots:
+                            shape_log_append((0, x, y, VERTICAL, old))
+                        black_shape[VERTICAL] = new_black
+                    new_white = compute_direction_shape(board, x, y, VERTICAL, WHITE)
+                    old = white_shape[VERTICAL]
+                    if old != new_white:
+                        if active_snapshots:
+                            shape_log_append((1, x, y, VERTICAL, old))
+                        white_shape[VERTICAL] = new_white
                 if flags & diag_down_flag:
-                    black_shape[DIAGONAL_DOWN] = compute_direction_shape(board, x, y, DIAGONAL_DOWN, BLACK)
-                    white_shape[DIAGONAL_DOWN] = compute_direction_shape(board, x, y, DIAGONAL_DOWN, WHITE)
+                    black_shape = black_shape_col[y]
+                    white_shape = white_shape_col[y]
+                    new_black = compute_direction_shape(board, x, y, DIAGONAL_DOWN, BLACK)
+                    old = black_shape[DIAGONAL_DOWN]
+                    if old != new_black:
+                        if active_snapshots:
+                            shape_log_append((0, x, y, DIAGONAL_DOWN, old))
+                        black_shape[DIAGONAL_DOWN] = new_black
+                    new_white = compute_direction_shape(board, x, y, DIAGONAL_DOWN, WHITE)
+                    old = white_shape[DIAGONAL_DOWN]
+                    if old != new_white:
+                        if active_snapshots:
+                            shape_log_append((1, x, y, DIAGONAL_DOWN, old))
+                        white_shape[DIAGONAL_DOWN] = new_white
                 if flags & diag_up_flag:
-                    black_shape[DIAGONAL_UP] = compute_direction_shape(board, x, y, DIAGONAL_UP, BLACK)
-                    white_shape[DIAGONAL_UP] = compute_direction_shape(board, x, y, DIAGONAL_UP, WHITE)
+                    black_shape = black_shape_col[y]
+                    white_shape = white_shape_col[y]
+                    new_black = compute_direction_shape(board, x, y, DIAGONAL_UP, BLACK)
+                    old = black_shape[DIAGONAL_UP]
+                    if old != new_black:
+                        if active_snapshots:
+                            shape_log_append((0, x, y, DIAGONAL_UP, old))
+                        black_shape[DIAGONAL_UP] = new_black
+                    new_white = compute_direction_shape(board, x, y, DIAGONAL_UP, WHITE)
+                    old = white_shape[DIAGONAL_UP]
+                    if old != new_white:
+                        if active_snapshots:
+                            shape_log_append((1, x, y, DIAGONAL_UP, old))
+                        white_shape[DIAGONAL_UP] = new_white
 
                 bucket, attack = compute_bucket_and_attack(
                     (
-                        black_shape[HORIZONTAL],
-                        black_shape[VERTICAL],
-                        black_shape[DIAGONAL_DOWN],
-                        black_shape[DIAGONAL_UP],
+                        black_shape_col[y][HORIZONTAL],
+                        black_shape_col[y][VERTICAL],
+                        black_shape_col[y][DIAGONAL_DOWN],
+                        black_shape_col[y][DIAGONAL_UP],
                     )
                 )
                 black_value_col[y] = bucket
                 black_attack_col[y] = attack
                 bucket, attack = compute_bucket_and_attack(
                     (
-                        white_shape[HORIZONTAL],
-                        white_shape[VERTICAL],
-                        white_shape[DIAGONAL_DOWN],
-                        white_shape[DIAGONAL_UP],
+                        white_shape_col[y][HORIZONTAL],
+                        white_shape_col[y][VERTICAL],
+                        white_shape_col[y][DIAGONAL_DOWN],
+                        white_shape_col[y][DIAGONAL_UP],
                     )
                 )
                 white_value_col[y] = bucket
@@ -369,14 +453,46 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                 white_attack_col[y] = 0
                 black_shape = black_shape_col[y]
                 white_shape = white_shape_col[y]
-                black_shape[HORIZONTAL] = 0
-                black_shape[VERTICAL] = 0
-                black_shape[DIAGONAL_DOWN] = 0
-                black_shape[DIAGONAL_UP] = 0
-                white_shape[HORIZONTAL] = 0
-                white_shape[VERTICAL] = 0
-                white_shape[DIAGONAL_DOWN] = 0
-                white_shape[DIAGONAL_UP] = 0
+                old = black_shape[HORIZONTAL]
+                if old != 0:
+                    if active_snapshots:
+                        shape_log_append((0, x, y, HORIZONTAL, old))
+                    black_shape[HORIZONTAL] = 0
+                old = black_shape[VERTICAL]
+                if old != 0:
+                    if active_snapshots:
+                        shape_log_append((0, x, y, VERTICAL, old))
+                    black_shape[VERTICAL] = 0
+                old = black_shape[DIAGONAL_DOWN]
+                if old != 0:
+                    if active_snapshots:
+                        shape_log_append((0, x, y, DIAGONAL_DOWN, old))
+                    black_shape[DIAGONAL_DOWN] = 0
+                old = black_shape[DIAGONAL_UP]
+                if old != 0:
+                    if active_snapshots:
+                        shape_log_append((0, x, y, DIAGONAL_UP, old))
+                    black_shape[DIAGONAL_UP] = 0
+                old = white_shape[HORIZONTAL]
+                if old != 0:
+                    if active_snapshots:
+                        shape_log_append((1, x, y, HORIZONTAL, old))
+                    white_shape[HORIZONTAL] = 0
+                old = white_shape[VERTICAL]
+                if old != 0:
+                    if active_snapshots:
+                        shape_log_append((1, x, y, VERTICAL, old))
+                    white_shape[VERTICAL] = 0
+                old = white_shape[DIAGONAL_DOWN]
+                if old != 0:
+                    if active_snapshots:
+                        shape_log_append((1, x, y, DIAGONAL_DOWN, old))
+                    white_shape[DIAGONAL_DOWN] = 0
+                old = white_shape[DIAGONAL_UP]
+                if old != 0:
+                    if active_snapshots:
+                        shape_log_append((1, x, y, DIAGONAL_UP, old))
+                    white_shape[DIAGONAL_UP] = 0
 
 
 def move_value(caches: EvalCaches, x: int, y: int, side: int, config: EngineConfig) -> float:

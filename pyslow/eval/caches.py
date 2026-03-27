@@ -85,6 +85,15 @@ def _copy_value_cache_any(cache: list[list[list[int]]]) -> list[list[list[int]]]
     return _copy_value_cache(cache)
 
 
+@dataclass(frozen=True)
+class EvalSnapshot:
+    initialized: bool
+    board_shadow: list[list[int]]
+    shape_log_len: int
+    value_cache: list[list[list[int]]]
+    attack_cache: list[list[list[int]]]
+
+
 @dataclass
 class EvalCaches:
     initialized: bool = False
@@ -92,51 +101,56 @@ class EvalCaches:
     shape_cache: list[list[list[list[int]]]] = field(default_factory=_new_shape_cache)
     value_cache: list[list[list[int]]] = field(default_factory=_new_value_cache)
     attack_cache: list[list[list[int]]] = field(default_factory=_new_value_cache)
+    _shape_log: list[tuple[int, int, int, int, int]] = field(default_factory=list, repr=False)
+    _active_snapshot_count: int = field(default=0, repr=False)
 
-    def snapshot(self) -> tuple[
-        bool,
-        list[list[int]],
-        list[list[list[list[int]]]],
-        list[list[list[int]]],
-        list[list[list[int]]],
-    ]:
-        return (
-            self.initialized,
-            _copy_board_shadow_any(self.board_shadow),
-            _copy_shape_cache_any(self.shape_cache),
-            _copy_value_cache_any(self.value_cache),
-            _copy_value_cache_any(self.attack_cache),
+    def set_shape_value(self, player: int, x: int, y: int, direction: int, value: int) -> None:
+        shape_col = self.shape_cache[player][x][y]
+        old_value = shape_col[direction]
+        if old_value == value:
+            return
+        if self._active_snapshot_count:
+            self._shape_log.append((player, x, y, direction, old_value))
+        shape_col[direction] = value
+
+    def snapshot(self) -> EvalSnapshot:
+        self._active_snapshot_count += 1
+        return EvalSnapshot(
+            initialized=self.initialized,
+            board_shadow=_copy_board_shadow_any(self.board_shadow),
+            shape_log_len=len(self._shape_log),
+            value_cache=_copy_value_cache_any(self.value_cache),
+            attack_cache=_copy_value_cache_any(self.attack_cache),
         )
 
-    def restore_snapshot(
-        self,
-        snapshot: tuple[
-            bool,
-            list[list[int]],
-            list[list[list[list[int]]]],
-            list[list[list[int]]],
-            list[list[list[int]]],
-        ],
-    ) -> None:
-        initialized, board_shadow, shape_cache, value_cache, attack_cache = snapshot
-        self.initialized = initialized
-        self.board_shadow = _copy_board_shadow_any(board_shadow)
-        self.shape_cache = _copy_shape_cache_any(shape_cache)
-        self.value_cache = _copy_value_cache_any(value_cache)
-        self.attack_cache = _copy_value_cache_any(attack_cache)
+    def restore_snapshot(self, snapshot: EvalSnapshot) -> None:
+        self.initialized = snapshot.initialized
+        self.board_shadow = _copy_board_shadow_any(snapshot.board_shadow)
+        self.value_cache = _copy_value_cache_any(snapshot.value_cache)
+        self.attack_cache = _copy_value_cache_any(snapshot.attack_cache)
+        while len(self._shape_log) > snapshot.shape_log_len:
+            player, x, y, direction, old_value = self._shape_log.pop()
+            self.shape_cache[player][x][y][direction] = old_value
+        if self._active_snapshot_count:
+            self._active_snapshot_count -= 1
 
     def copy(self) -> "EvalCaches":
-        initialized, board_shadow, shape_cache, value_cache, attack_cache = self.snapshot()
         return EvalCaches(
-            initialized=initialized,
-            board_shadow=board_shadow,
-            shape_cache=shape_cache,
-            value_cache=value_cache,
-            attack_cache=attack_cache,
+            initialized=self.initialized,
+            board_shadow=_copy_board_shadow_any(self.board_shadow),
+            shape_cache=_copy_shape_cache_any(self.shape_cache),
+            value_cache=_copy_value_cache_any(self.value_cache),
+            attack_cache=_copy_value_cache_any(self.attack_cache),
         )
 
     def restore_from(self, other: "EvalCaches") -> None:
-        self.restore_snapshot(other.snapshot())
+        self.initialized = other.initialized
+        self.board_shadow = _copy_board_shadow_any(other.board_shadow)
+        self.shape_cache = _copy_shape_cache_any(other.shape_cache)
+        self.value_cache = _copy_value_cache_any(other.value_cache)
+        self.attack_cache = _copy_value_cache_any(other.attack_cache)
+        self._shape_log.clear()
+        self._active_snapshot_count = 0
 
     def reset(self) -> None:
         self.initialized = False
@@ -144,3 +158,5 @@ class EvalCaches:
         self.shape_cache = _new_shape_cache()
         self.value_cache = _new_value_cache()
         self.attack_cache = _new_value_cache()
+        self._shape_log.clear()
+        self._active_snapshot_count = 0

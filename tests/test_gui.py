@@ -1,8 +1,16 @@
 """GUI helper tests that do not require pygame."""
 
 import time
+from pyslow.board import xy_to_move
 from pyslow.constants import BLACK, WHITE
-from pyslow.gui import GomokuGuiApp, GuiLayout, compute_undo_steps, default_search_limits, pixel_to_cell
+from pyslow.gui import (
+    GomokuGuiApp,
+    GuiLayout,
+    compute_undo_steps,
+    default_search_limits,
+    last_move_cell,
+    pixel_to_cell,
+)
 
 
 def test_default_gui_search_limits_match_current_playable_settings() -> None:
@@ -30,6 +38,16 @@ def test_pixel_to_cell_maps_board_centers() -> None:
 def test_pixel_to_cell_rejects_outside_positions() -> None:
     layout = GuiLayout()
     assert pixel_to_cell((10, 10), layout) is None
+
+
+def test_last_move_cell_returns_latest_played_coordinate() -> None:
+    app = GomokuGuiApp(depth=2, width=8)
+    try:
+        assert last_move_cell(app.board) is None
+        app.board.play(xy_to_move(7, 8))
+        assert last_move_cell(app.board) == (7, 8)
+    finally:
+        app.close()
 
 
 def test_gui_app_white_start_receives_engine_opening_move() -> None:

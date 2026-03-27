@@ -59,12 +59,12 @@ def test_eval_caches_snapshot_restore_roundtrip() -> None:
     caches = EvalCaches()
     caches.initialized = True
     caches.board_shadow[0][0] = 1
-    caches.shape_cache[0][1][1][2] = 99
+    caches.set_shape_value(0, 1, 1, 2, 99)
     caches.value_cache[1][2][2] = 7
     caches.attack_cache[1][3][3] = 5
     snapshot = caches.snapshot()
     caches.board_shadow[0][0] = 0
-    caches.shape_cache[0][1][1][2] = 0
+    caches.set_shape_value(0, 1, 1, 2, 0)
     caches.value_cache[1][2][2] = 0
     caches.attack_cache[1][3][3] = 0
     caches.restore_snapshot(snapshot)
@@ -155,7 +155,49 @@ def test_value_wide_compute_roundtrip_after_play_and_undo() -> None:
     board.undo()
     value_wide_compute(board, caches)
 
-    assert caches.snapshot() == snapshot
+    expected = EvalCaches()
+    recompute_all(board, expected)
+    assert caches.board_shadow == expected.board_shadow
+    assert caches.shape_cache == expected.shape_cache
+    assert caches.value_cache == expected.value_cache
+    assert caches.attack_cache == expected.attack_cache
+    caches.restore_snapshot(snapshot)
+
+
+def test_nested_snapshots_restore_shape_cache_in_lifo_order() -> None:
+    board = Board()
+    board.play(xy_to_move(7, 7))
+    board.play(xy_to_move(8, 7))
+    caches = EvalCaches()
+    recompute_all(board, caches)
+
+    outer = caches.snapshot()
+    board.play(xy_to_move(7, 8))
+    value_wide_compute(board, caches)
+    after_outer = caches.copy()
+
+    inner = caches.snapshot()
+    board.play(xy_to_move(8, 8))
+    value_wide_compute(board, caches)
+
+    board.undo()
+    value_wide_compute(board, caches)
+    caches.restore_snapshot(inner)
+    assert caches.board_shadow == after_outer.board_shadow
+    assert caches.shape_cache == after_outer.shape_cache
+    assert caches.value_cache == after_outer.value_cache
+    assert caches.attack_cache == after_outer.attack_cache
+
+    board.undo()
+    value_wide_compute(board, caches)
+    caches.restore_snapshot(outer)
+
+    full = EvalCaches()
+    recompute_all(board, full)
+    assert caches.board_shadow == full.board_shadow
+    assert caches.shape_cache == full.shape_cache
+    assert caches.value_cache == full.value_cache
+    assert caches.attack_cache == full.attack_cache
 
 
 def test_value_wide_compute_matches_full_recompute_after_multiple_steps() -> None:
