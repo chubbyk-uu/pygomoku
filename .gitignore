@@ -40,3 +40,4 @@ Thumbs.db
 pyslow/patterns/_line_cy.c
 pyslow/eval/_local_cy.c
 pyslow/eval/_caches_cy.c
+pyslow/search/_movegen_cy.c

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 from pyslow.board import Board, move_to_xy, xy_to_move
@@ -29,6 +30,24 @@ _COVER_NEIGHBORS: tuple[tuple[int, ...], ...] = tuple(
     for move in range(BOARD_SIZE * BOARD_SIZE)
 )
 
+_MOVEGEN_BACKEND_MODE = os.getenv("PYSLOW_MOVEGEN_BACKEND", "auto").lower()
+_USING_CYTHON_MOVEGEN_BACKEND = False
+
+if _MOVEGEN_BACKEND_MODE != "python":
+    try:
+        from pyslow.search._movegen_cy import candidate_stats_raw as _candidate_stats_native
+        from pyslow.search._movegen_cy import covered_moves_raw as _covered_moves_native
+    except ImportError:
+        if _MOVEGEN_BACKEND_MODE == "cython":
+            raise
+        _candidate_stats_native = None
+        _covered_moves_native = None
+    else:
+        _USING_CYTHON_MOVEGEN_BACKEND = True
+else:
+    _candidate_stats_native = None
+    _covered_moves_native = None
+
 
 def _ga(value: int) -> int:
     return value & 0xFF
@@ -40,6 +59,10 @@ def _gb(value: int) -> int:
 
 def _gc(value: int) -> int:
     return (value >> 16) & 0xFF
+
+
+def movegen_backend_name() -> str:
+    return "cython" if _USING_CYTHON_MOVEGEN_BACKEND else "python"
 
 
 def _decode_bonus_targets(move: int, direction_index: int, encoded: int) -> tuple[int, ...]:
@@ -109,6 +132,9 @@ def covered_moves(board: Board) -> tuple[int, ...]:
     if board.move_count == 0:
         return (xy_to_move(BOARD_SIZE // 2, BOARD_SIZE // 2),)
 
+    if _covered_moves_native is not None:
+        return _covered_moves_native(board.move_history, board.grid, _COVER_NEIGHBORS)
+
     grid = board.grid
     seen = bytearray(BOARD_SIZE * BOARD_SIZE)
     covered: list[int] = []
@@ -138,32 +164,53 @@ def generate_candidates(
     if wide is None:
         wide = config.root_search.wide
 
-    vbw_map: dict[int, int] = {}
-    self_attack_map: dict[int, int] = {}
-    opp_attack_map: dict[int, int] = {}
-    at1pri = 0
-    at2pri = 0
-    sglflag = 0
-    hsflag = 0
+    player = 0 if side > 0 else 1
+    opponent = 1 - player
+    if _candidate_stats_native is not None:
+        (
+            vbw_map,
+            self_attack_map,
+            opp_attack_map,
+            at1pri,
+            at2pri,
+            sglflag,
+            hsflag,
+        ) = _candidate_stats_native(
+            moves,
+            caches.value_cache[player],
+            caches.value_cache[opponent],
+            caches.attack_cache[player],
+            caches.attack_cache[opponent],
+            config.eval_tables.attack_value,
+            config.eval_tables.defend_value,
+        )
+    else:
+        vbw_map = {}
+        self_attack_map = {}
+        opp_attack_map = {}
+        at1pri = 0
+        at2pri = 0
+        sglflag = 0
+        hsflag = 0
 
-    for move in moves:
-        x = move % BOARD_SIZE
-        y = move // BOARD_SIZE
-        vbw = int(move_value(caches, x, y, side, config))
-        att1 = attack_level(caches, x, y, side)
-        att2 = attack_level(caches, x, y, -side)
-        vbw_map[move] = vbw
-        self_attack_map[move] = att1
-        opp_attack_map[move] = att2
-        if vbw <= 0:
+        for move in moves:
+            x = move % BOARD_SIZE
+            y = move // BOARD_SIZE
+            vbw = int(move_value(caches, x, y, side, config))
+            att1 = attack_level(caches, x, y, side)
+            att2 = attack_level(caches, x, y, -side)
+            vbw_map[move] = vbw
+            self_attack_map[move] = att1
+            opp_attack_map[move] = att2
+            if vbw <= 0:
+                at2pri = max(at2pri, att2)
+                continue
+            if att2 == 6 or att1 >= 5:
+                sglflag += 1
+            elif att2 == 5:
+                hsflag = move + 1
+            at1pri = max(at1pri, att1)
             at2pri = max(at2pri, att2)
-            continue
-        if att2 == 6 or att1 >= 5:
-            sglflag += 1
-        elif att2 == 5:
-            hsflag = move + 1
-        at1pri = max(at1pri, att1)
-        at2pri = max(at2pri, att2)
 
     winpri = at1pri == 6 or (at1pri == 5 and at2pri <= 5)
     if not sglflag and hsflag:

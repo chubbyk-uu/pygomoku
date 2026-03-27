@@ -4,7 +4,16 @@ from pyslow.board import Board, move_to_xy, xy_to_move
 from pyslow.config import load_default_config
 from pyslow.eval.caches import EvalCaches
 from pyslow.eval.local import attack_level, move_value, recompute_all
-from pyslow.search.movegen import _apply_hostile_three_extension, covered_moves, generate_candidates
+from pyslow.search.movegen import (
+    _apply_hostile_three_extension,
+    covered_moves,
+    generate_candidates,
+    movegen_backend_name,
+)
+
+
+def test_movegen_backend_name_is_supported() -> None:
+    assert movegen_backend_name() in {"python", "cython"}
 
 
 def test_covered_moves_uses_reference_template() -> None:
