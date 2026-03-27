@@ -240,6 +240,12 @@ Reason:
 - the reference-alignment and semantic-audit baseline remains `3/10` on purpose
   for faster feedback and stable trace comparison
 
+Coordinate convention for GUI / protocol / logs:
+
+- coordinates are `(x, y)` = `(column, row)`
+- this matches both current `pyslow` output and the checked reference trace
+- do not read logged coordinates as `(row, column)`
+
 ## Rules For Future Changes
 
 1. Do not call the alignment baseline or interactive defaults the engine default.

@@ -1,562 +1,164 @@
 # Performance Roadmap
 
-## Purpose
+## Current Stable Baseline
 
-This document turns the current profiling evidence into an execution plan.
-
-It answers three questions:
-
-1. how complete the current profiling evidence is
-2. which hotspots should be optimized first, and how
-3. which native path is the best fallback if pure Python optimization is not enough
-
-This document is intentionally stricter than the generic
-[`acceleration-plan.md`](/home/jerry/python-test/gomoku/slow_temp/docs/acceleration-plan.md).
-`acceleration-plan.md` defines rules. This file defines the concrete next
-execution order.
-
-## Current Baseline
-
-Semantic baseline:
-
-- [`alignment_compare.py`](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
-  currently matches `70/70`
-- development baseline remains:
-  - `max_depth = 3`
-  - `root_width = 10`
-  - `compute_vcf = True`
-  - `nonroot_vcf = False`
-
-Current performance evidence:
-
-- `python benchmarks/hotspot_report.py --top 30`
-- `PYTHONPATH=. python benchmarks/profile_search.py --depth 3 --width 10 --top 40`
-
-Observed timing:
-
-- initial pre-optimization timing:
-  - `depth=2 width=8 plies=6` -> about `197 ms/ply`
-  - `depth=3 width=10 plies=6` -> about `741 ms/ply`
-  - `depth=6 width=10 plies=4` -> about `12922 ms/ply`
-- after two pure-Python optimization rounds:
-  - `depth=2 width=8 plies=6` -> about `138 ms/ply`
-  - `depth=3 width=10 plies=6` -> about `510 ms/ply`
-  - `depth=6 width=10 plies=4` -> about `9425 ms/ply`
-
-Observed direction:
-
-- pure Python optimization is clearly worthwhile
-- pure Python optimization is no longer enough by itself to justify an ambitious
-  search-depth target
-- the remaining top cost is concentrated in line scanning and local evaluation,
-  which makes those modules the strongest native candidates
-
-## How Complete The Current Profiling Is
-
-## Short Answer
-
-Useful, but not complete.
-
-The current profiling is good enough to choose the first optimization batch.
-It is not yet complete enough to justify a native rewrite.
-
-## What The Current Profiling Covers Well
-
-### 1. Root-to-leaf search on a real in-scope workload
-
-[`profile_search.py`](/home/jerry/python-test/gomoku/slow_temp/benchmarks/profile_search.py)
-profiles a full root search on a fixed midgame board. This is a valid search
-workload, not a synthetic microbenchmark.
-
-It is good for identifying:
-
-- hottest call paths under real search
-- interaction between search, local eval, global eval, VCF, movegen and board
-  access
-- cumulative cost concentration
-
-### 2. Shallow-to-deeper timing trend
-
-[`hotspot_report.py`](/home/jerry/python-test/gomoku/slow_temp/benchmarks/hotspot_report.py)
-runs several depth/width settings and gives a rough growth curve.
-
-It is good for identifying:
-
-- how fast cost explodes as search depth rises
-- whether the engine is still dominated by Python overhead at practical depths
-
-## What The Current Profiling Does Not Cover Well
-
-### 1. It is cProfile-only
-
-`cProfile` is useful for cumulative call cost, but weak for:
-
-- line-level attribution
-- allocation pressure
-- branch-specific cold/hot split
-- distinguishing interpreter overhead from real algorithmic work
-
-### 2. It uses very few boards
-
-Current profiling is mainly built around:
-
-- one fixed midgame board
-- one small selfplay timing loop
-
-This is enough to choose a first batch, but not enough to claim that later
-optimization decisions are globally optimal.
-
-### 3. It does not isolate TT-heavy or fallback-heavy workloads
-
-The current scripts do not separately profile:
-
-- transposition-heavy boards
-- VCF-dominant boards
-- fallback / rootsplit-heavy boards
-- stop / node-limit heavy workloads
-
-### 4. It does not yet compare backend candidates
-
-There is no current benchmark harness for:
-
-- Python baseline vs Python rewrite
-- Python baseline vs native backend
-- backend A vs backend B
-
-## Decision
-
-Current profiling is complete enough for:
-
-- first-batch pure Python optimization
-- choosing the first 2 to 3 hotspot modules
-- choosing the first native prototype boundary
-
-Current profiling is not complete enough for:
-
-- deciding to migrate the main hotspot to native immediately
-- deciding which native backend to adopt permanently
-
-## Current Hotspots
-
-The current evidence consistently points to the following hotspot stack:
-
-### Tier 1: Immediate Hotspots
-
-1. [`pyslow/eval/local.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/eval/local.py)
-   - `compute_direction_shape`
-   - `recompute_all`
-   - `recompute_point_caches`
-   - `value_wide_compute`
-
-2. [`pyslow/patterns/line.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/patterns/line.py)
-   - `from_board`
-   - `shape`
-   - `_shape_table_lookup`
-
-3. [`pyslow/board.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/board.py)
-   - `at`
-   - `in_bounds`
-
-These dominate the current cumulative time and are hit by both normal search and
-VCF-related paths.
-
-Current interpretation:
-
-- `board.py` was a good first pure-Python target and should stay in Python
-- `line.py` and `eval/local.py` are still hot after cleanup and are the best
-  candidates for native acceleration
-- `global_eval.py` got cheaper once local access costs dropped, which confirms it
-  should remain a later-stage candidate
-
-### Tier 2: Secondary Hotspots
-
-4. [`pyslow/eval/global_eval.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/eval/global_eval.py)
-   - `evaluate_board`
-   - `_evaluate_last5_branch`
-
-5. [`pyslow/threats/vcf.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/threats/vcf.py)
-   - `search`
-   - `_search_attacker`
-   - `_search_defender`
-
-6. [`pyslow/threats/threat_board.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/threats/threat_board.py)
-   - `threat_moves`
-   - `winning_threat_moves`
-   - `_broken_four_reply_with_ambiguity`
-
-### Tier 3: Search Shell
-
-7. [`pyslow/search/alphabeta.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/alphabeta.py)
-8. [`pyslow/search/movegen.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/movegen.py)
-
-These show up high in cumulative time because they sit above the real inner
-loops, but right now they do not look like the best first direct optimization
-targets.
-
-## Priority Order
-
-## Priority 0: Freeze Semantics
-
-Before optimizing anything:
-
-- keep [`alignment_compare.py`](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
-  green at `70/70`
-- keep:
-  - `tests/test_search.py`
-  - `tests/test_movegen.py`
-  - `tests/test_protocol.py`
-  - `tests/test_config.py`
-  green
-
-No speedup is allowed to change:
-
-- move choice
-- score
-- fallback semantics
-- VCF result semantics
-- candidate ordering semantics where reference alignment depends on it
-
-## Priority 1: Pure Python Micro-Architecture Cleanup
-
-This work has already started and should now be treated as nearly complete.
-
-### 1. `board.py`
-
-Targets:
-
-- reduce `board.at()` call overhead
-- reduce `in_bounds()` call overhead
-- reduce repeated nested attribute lookups on `board.grid`
-
-Likely methods:
-
-- inline access inside the hottest callers
-- cache `grid`, `size`, local variables inside tight loops
-- replace tiny helper calls with direct indexed access in hotspot-only code
-
-Status:
-
-- done for the first round
-- enough gain has already been extracted here
-- more work in this file is low priority unless profiling later proves
-  otherwise
-
-### 2. `patterns/line.py`
-
-Targets:
-
-- reduce `Line.from_board()` construction cost
-- reduce repeated shape extraction overhead
-
-Likely methods:
-
-- avoid rebuilding temporary Python lists where fixed-size scans are enough
-- keep line extraction in flat local variables
-- reduce helper layering between `from_board`, `shape`, and lookup
-
-Status:
-
-- first pure-Python cleanup landed
-- still one of the hottest remaining modules
-- should now move from “Python cleanup target” to “first native candidate”
-
-### 3. `eval/local.py`
-
-Targets:
-
-- reduce repeated direction recomputation cost
-- reduce cache update overhead
-- reduce `value_wide_compute()` Python loop overhead
-
-Likely methods:
-
-- flatten loops
-- cut temporary tuple/list creation
-- move repeated branching out of inner loops
-- prebind commonly used locals
-
-Status:
-
-- first pure-Python cleanup landed
-- still the strongest overall hotspot family
-- should be the second native candidate after `patterns/line`
-
-## Priority 2: Secondary Python Optimization
-
-Only after Priority 1 is measured.
-
-### 4. `global_eval.py`
-
-Reason:
-
-- currently heavy, but partly downstream of `local.py`
-- may get cheaper automatically once local eval is cheaper
-
-### 5. `threat_board.py`
-
-Reason:
-
-- important, but current cost is smaller than local eval and line scanning
-- should be revisited after Tier 1 results are measured
-
-### 6. `vcf.py`
-
-Reason:
-
-- tactically important
-- still expensive
-- but riskier than board/line/local because tactical semantics are branch-heavy
-
-## Priority 3: Re-evaluate Search Limits
-
-Only after measurable speedup lands.
-
-Then evaluate:
-
-- whether default `depth=3 width=10` can be raised safely
-- whether practical root width can increase first
-- whether VCF caps should be revisited
-
-This must be benchmark-driven, not guess-driven.
-
-## Native Strategy
-
-## Short Answer
-
-Yes, but in a staged way.
-
-Current recommendation:
-
-- keep search shell, protocol, and control flow in Python
-- prototype native acceleration in the narrowest hot modules first
-- use Cython first because the codebase was already shaped to leave space for
-  this path
-- do not migrate multiple hotspot families at once
-
-## Native Candidate Priority
-
-### Priority N1: `patterns/line.py`
-
-Why first:
-
-- very hot even after Python cleanup
-- small API surface
-- pure data transformation logic
-- easier to isolate than `eval/local.py`
-
-Good native scope:
-
-- line extraction from board
-- packed shape lookup
-- raw packed-shape return path
-
-Why this is safer than starting with search:
-
-- easier to compare exact input/output
-- easier to keep Python fallback
-- lower risk of hidden control-flow drift
-
-### Priority N2: `eval/local.py`
-
-Why second:
-
-- currently the single strongest hotspot family
-- depends directly on line-shape work
-- large total upside once line extraction is already accelerated
-
-Good native scope:
-
-- `compute_direction_shape`
-- cache recomputation loops
-- wide local value accumulation
-
-Why second instead of first:
-
-- higher semantic risk
-- larger surface area
-- benefits from first stabilizing a native line backend
-
-### Priority N3: `threats/threat_board.py`
-
-Why third:
-
-- heavy enough to matter
-- tactically central
-- still more branch-sensitive than `line` and `local eval`
-
-Good native scope:
-
-- threat classification helpers
-- compact candidate emission loops
-
-### Priority N4: `threats/vcf.py`
-
-Why later:
-
-- expensive, but semantically delicate
-- branch-heavy and recursion-heavy
-- likely to be harder to debug if moved too early
-
-Recommendation:
-
-- only consider after `line` and `local eval` native work is proven
-
-### Keep In Python For Now
-
-- [`pyslow/search/alphabeta.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/alphabeta.py)
-- [`pyslow/search/root.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/root.py)
-- [`pyslow/search/movegen.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/movegen.py)
-- protocol and GUI layers
-
-Reason:
-
-- control-flow semantics matter more here than raw loop speed
-- these modules benefit from faster helpers underneath
-- moving them native too early would make alignment regressions harder to
-  diagnose
-
-## Backend Recommendation
-
-### Default Native Prototype Choice: Cython
-
-Why:
-
-- best fit for tight loops over Python-managed arrays and ints
-- lowest friction for a first prototype
-- works on Linux and macOS, including Apple Silicon, with a normal build toolchain
-- easiest way to keep a Python fallback next to the native version
-
-Constraints:
-
-- compiled extension packaging is platform- and Python-version-specific
-- build setup and CI complexity will increase
-- type annotations and memory/layout decisions matter more than in Python
-
-### Long-Term Alternative: PyO3 / Rust
-
-Why it remains relevant:
-
-- stronger long-term packaging story with `abi3`
-- good for isolated stable kernels
-- safer memory model
-
-Why not first:
-
-- higher rewrite cost for the initial prototype
-- more friction when the exact native boundary is still being learned
-
-## Native Risks And Mitigation
-
-### 1. Semantic Drift
-
-Risk:
-
-- shape encoding, cache recomputation, or threat classification might drift from
-  the reference-aligned Python baseline
-
-Mitigation:
-
-- keep the existing Python implementation as the reference fallback
-- introduce backend toggles instead of replacement-in-place
-- require `alignment_compare.py` `70/70` and the current regression suite on
-  every native change
-- add direct Python-vs-native micro-tests on exact inputs and outputs
-
-### 2. Debugging Cost
-
-Risk:
-
-- native failures are slower to inspect than Python bugs
-
-Mitigation:
-
-- start with `patterns/line.py`, which has the narrowest contract
-- keep the native interface minimal and pure-function-like
-- avoid moving recursive search control flow native in the first stage
-
-### 3. Packaging And Build Friction
-
-Risk:
-
-- developers without a local compiler cannot build native modules
-- CI matrix grows once wheels matter
-
-Mitigation:
-
-- keep Python fallback always available
-- make native backend optional at import or runtime
-- avoid making native extensions mandatory for tests that only validate semantics
-
-### 4. Premature Boundary Choice
-
-Risk:
-
-- moving the wrong module native too early locks in poor interfaces
-
-Mitigation:
-
-- native stage 1 must be a prototype, not a permanent architecture decision
-- re-run profiling after each stage before expanding scope
-
-## Recommended Execution Order
-
-1. freeze the current aligned Python baseline
-2. keep Python fallback implementations intact
-3. prototype a Cython backend for `patterns/line.py`
-4. measure:
-   - search wall time
-   - hotspot movement
-   - semantic parity
-5. if the prototype pays off, extend native work into `eval/local.py`
-6. only then re-evaluate `threat_board` and `vcf`
-7. only after multiple backend wins, revisit practical search-depth and width
-   targets
-
-## Success Criteria
-
-The native plan is working only if all of the following remain true:
+Semantic stability:
 
 - [`alignment_compare.py`](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
   stays `70/70`
-- `tests/test_search.py`, `tests/test_movegen.py`, `tests/test_protocol.py`,
-  and `tests/test_config.py` stay green
-- the native prototype materially reduces wall time on the development baseline
-- the codebase still runs without the native backend enabled
-- finish at least one pure Python optimization batch first
+- current broad regression pass is `118 passed`
 
-## Backend Alternatives Appendix
+Interactive defaults:
 
-### Alternative 1: PyO3 / Rust with `abi3`
+- GUI / Gomocup entry defaults: `depth=5`, `width=15`
+- alignment / semantic-audit baseline remains `depth=3`, `width=10`
 
-- best long-term packaging story
-- good cross-platform support
-- good fit for stable, isolated kernels after the native boundary is already
-  proven
+Representative current timings:
 
-Tradeoffs:
+- `PYTHONPATH=. python benchmarks/profile_search.py --depth 5 --width 15 --top 10`
+  - current stable search time is about `0.94s`
+- `python benchmarks/selfplay_smoke.py --depth 5 --width 15 --plies 4`
+  - current average is about `2599 ms/ply`
 
-- requires Rust toolchain for source builds
-- more engineering overhead than Cython
+## What Has Already Landed
 
-### Alternative 2: Cython
+Pure Python wins:
 
-- best short-term prototype path
-- easiest fit for current loop-heavy hotspots
-- works on macOS, including Apple Silicon, with a normal compiler toolchain
+- board and line-path cleanup
+- move generation cleanup
+- `shape_cache` snapshot/restore changed from whole-cache deep copy to undo-log
 
-Tradeoffs:
+Optional native backends already landed:
 
-- wheel compatibility is usually per-Python-version unless extra work is done
-- less elegant when logic gets complex
-- can drift into “Python with type annotations everywhere” without a clean
-  module boundary
+- `patterns/line`
+- local-eval point-shape helpers
+- `movegen`
+- `ordering`
+- `threat_board` hot helpers
+- local-eval update kernel used by `value_wide_compute`
 
-### Alternative 3: Plain C/C++ Extension
+These are no longer “planned”; they are part of the current baseline.
 
-- possible, but not the preferred first step here
+## Current Bottlenecks
 
-Tradeoffs:
+The remaining wall is no longer generic Python overhead. It is concentrated in:
 
-- highest manual maintenance cost
-- lowest safety
-- packaging burden without a clear advantage over PyO3 or Cython here
+1. [`pyslow/eval/local.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/eval/local.py)
+   - `value_wide_compute`
+   - `compute_bucket_and_attack`
+   - `compute_direction_shape`
+
+2. [`pyslow/eval/global_eval.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/eval/global_eval.py)
+   - `evaluate_board`
+   - `last5 / next43` related paths
+
+3. [`pyslow/eval/caches.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/eval/caches.py)
+   - remaining snapshot / restore work outside the resolved `shape_cache` copy path
+
+4. [`pyslow/threats/vcf.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/threats/vcf.py)
+   - recursive tactical search
+
+`movegen` is no longer the primary bottleneck after the landed native work.
+
+## Cost-Model Rules
+
+Recent failed experiments showed that “hot function” is not enough reason to
+change code. Every next optimization should start from a cost model:
+
+1. decide whether the hotspot is dominated by:
+   - Python object churn
+   - bulk copying
+   - arithmetic / scan loops
+   - recursive control flow
+2. only then choose:
+   - Python rewrite
+   - undo-log / patch strategy
+   - native kernel
+   - no change
+
+Do not repeat these now-invalid patterns:
+
+- thin wrapper Cythonization around a still-Python object graph
+- `flat + nested` double-write cache experiments
+- lazy-property cache rebuild experiments
+- fresh isolated replay used as a substitute for in-game persistent search
+
+## Priority Order
+
+### Priority 1: Local Eval / Global Eval Subsystem
+
+Primary target:
+
+- reduce the remaining cost of local cache updates and downstream global eval
+
+Near-term focus:
+
+- inspect `value_wide_compute` sub-costs before each new native step
+- keep `global_eval` changes tied to measured wins, not guesswork
+
+### Priority 2: Remaining Cache Strategy
+
+Primary target:
+
+- avoid expensive cache work that still survives after `shape_cache` undo-log
+
+Rules:
+
+- measure exact copy / restore contribution first
+- prefer patch-style restore only where changed-point counts justify it
+
+### Priority 3: VCF / Threat Search
+
+Primary target:
+
+- tactical recursion cost after the eval/cache layer is cheaper
+
+Reason:
+
+- `VCF` is hot, but still downstream of eval/cache costs on practical searches
+
+## Native Strategy From Here
+
+Keep:
+
+- search shell
+- protocol
+- GUI
+- root/alphabeta orchestration
+
+in Python unless profiling later proves otherwise.
+
+Prefer:
+
+- small, data-oriented native kernels
+- Python fallback always available
+- one hotspot family at a time
+
+Current best candidate family:
+
+1. local-eval kernels
+2. global-eval helpers only if they still remain large after local-eval work
+3. VCF / threat helpers after that
+
+## Validation Rules
+
+Every performance change must keep all of these green:
+
+- [`alignment_compare.py`](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
+  at `70/70`
+- current regression suite
+- fixed search timing:
+  - `profile_search --depth 5 --width 15`
+- practical timing:
+  - `selfplay_smoke --depth 5 --width 15`
+
+## Replay And GUI Notes
+
+When checking GUI or protocol behavior:
+
+- coordinates are `(x, y)` = `(column, row)`
+- for in-game move verification, prefer persistent-searcher replay over fresh
+  isolated single-position replay
+
+Fresh replay is still useful, but it is not a drop-in substitute for the GUI's
+real search path once TT and persistent search state are involved.

@@ -22,6 +22,12 @@ Recent audit update:
   - `70/70` positions aligned at `depth=3`, `width=10`
 - interactive local entry defaults are now:
   - `depth=5`, `width=15`
+- current broad regression pass is:
+  - `118 passed`
+- current representative search timing is about:
+  - `profile_search --depth 5 --width 15` -> `0.94s`
+- current short selfplay timing is about:
+  - `selfplay_smoke --depth 5 --width 15 --plies 4` -> `2599 ms/ply`
 - the compare set now covers:
   - opening
   - midgame
@@ -43,6 +49,10 @@ Recent audit update:
 - exact regression coverage was added for the resolved non-root ladder case:
   - [`tests/test_search.py`](/home/jerry/python-test/gomoku/slow_temp/tests/test_search.py)
   - `mid_ladder + (7,5)` now matches reference with `score=-47`, `move=(7,9)`
+- recent additional progress:
+  - optional native backends landed for `line`, `movegen`, `ordering`, `threat_board`
+  - local-eval native kernel landed and is part of the stable baseline
+  - `shape_cache` snapshot/restore now uses undo-log instead of whole-cache deep copy
 
 Current confidence level:
 
@@ -95,33 +105,33 @@ Rules:
 
 Execution order:
 
-1. re-run hotspot measurement on the now-stable aligned baseline
-2. finish the current pure Python cleanup round and freeze that result
-3. build the first optional Cython backend for a proven hotspot
-4. increase practical root depth / width only after measuring post-optimization gains
+1. keep the current stable baseline frozen
+2. continue cost-model-driven performance work on local eval / global eval
+3. revisit remaining cache work only when measurements justify it
+4. revisit `VCF` after eval/cache costs come down further
+5. increase practical root depth / width only after measuring post-optimization gains
 
 Immediate deliverables:
 
-1. produce an updated hotspot report on the current `70/70` aligned baseline
-2. rank the hottest Python call paths by total time and call count
-3. keep semantic regressions frozen while optimizing
-4. implement the first native prototype boundary
-   - first choice: `patterns/line`
-   - second choice: `eval/local`
+1. measure the next remaining `local/global eval` hot path before changing code
+2. keep semantic regressions frozen while optimizing
+3. prefer small profitable kernels over broad speculative refactors
+4. benchmark both fixed search and short selfplay after each speedup
 
 Likely hotspots:
 
-- `patterns/line`
 - `eval/local`
+- `eval/global_eval`
+- `eval/caches`
 - `threats/threat_board`
 - `threats/vcf`
-- board access hot paths
+- residual `movegen` work only after the above
 
 Current recommendation:
 
-- stop treating native as a distant fallback
-- continue to keep Python as the semantic reference path
-- start native work narrowly, with `patterns/line` as the first Cython target
+- keep Python as the semantic reference path
+- keep native optional and narrow
+- do not repeat failed wrapper-style or dual-write cache experiments
 
 ### 2. Search Reach Upgrade
 

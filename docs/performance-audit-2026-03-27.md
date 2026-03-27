@@ -4,74 +4,75 @@ Date: `2026-03-27`
 
 Current semantic baseline:
 - `python benchmarks/alignment_compare.py` -> `70/70`
-- `pytest -q tests/test_eval.py tests/test_search.py tests/test_vcf.py tests/test_movegen.py` -> `88 passed`
+- current broad regression pass -> `118 passed`
 
 Current stable native wins already landed:
 - `line` backend
-- `local` point-shape helpers
+- `local` point-shape helpers and local update kernel
 - `movegen` backend
 - `ordering` backend
+- `threat_board` hot helpers
+
+Current stable Python-side structural win:
+
+- `shape_cache` snapshot/restore now uses undo-log instead of whole-cache deep copy
 
 Current measured timings:
-- `hotspot_report.py`
-  - `depth=2 width=8` -> `42.14 ms/ply`
-  - `depth=3 width=10` -> `139.49 ms/ply`
-  - `depth=6 width=10` -> `3249.88 ms/ply`
+- `PYTHONPATH=. python benchmarks/profile_search.py --depth 5 --width 15 --top 10`
+  - current stable search time about `0.94s`
+- `python benchmarks/selfplay_smoke.py --depth 5 --width 15 --plies 4`
+  - current average about `2599 ms/ply`
 
 Representative search profiles:
 - `depth=5 width=15`
-  - total about `1.85s`
+  - total about `0.94s`
   - top hotspots:
     - `eval/local.py::value_wide_compute`
     - `eval/global_eval.py::evaluate_board`
     - `threats/vcf.py::*`
-    - `eval/caches.py::{snapshot,restore,_copy_shape_cache_any}`
+    - remaining `eval/caches.py::{snapshot,restore}`
     - `search/movegen.py::generate_candidates`
-- `depth=6 width=20`
-  - total about `3.34s`
-  - top hotspots:
-    - `value_wide_compute`
-    - `evaluate_board`
-    - `compute_bucket_and_attack`
-    - `cache snapshot/restore`
-    - `generate_candidates`
-- `depth=8 width=20`
-  - total about `2.08s` on the benchmark position
-  - same hotspot ordering; local eval and cache copy still dominate
 
 Gap to target:
-- User target direction: around `depth=10 width=30`, average move time near `5s`
-- Current codebase is materially faster than the earlier Python baseline, but still far from that target under broad workloads
-- The remaining gap will not be closed by micro-optimizations alone
+- target direction remains significantly stronger than the current practical
+  baseline
+- current codebase is much faster than the earlier Python-only baseline, but
+  still not close enough to stop optimization
+- the remaining gap will not be closed by micro-optimizations alone
 
 What recent experiments proved:
-- Small local Python tweaks now have low and unstable ROI
-- `movegen` and `ordering` were good native candidates because their inputs/outputs are flat and their control flow is simple
-- Several attempted optimizations were reverted because they did not show stable net wins:
-  - `value_wide_compute` full-function Cython wrapper
-  - `ThreatBoardView` lightweight play/undo
+- small local Python tweaks now have lower ROI than before
+- `movegen` and `ordering` were good native candidates because their
+  inputs/outputs are flat and their control flow is simple
+- local-eval work only paid off once the kernel boundary was made narrower and
+  the cost model was clearer
+- several attempted optimizations were reverted because they did not show
+  stable net wins:
+  - thin wrapper `value_wide_compute` Cythonization
+  - `flat + nested` cache dual-write experiments
   - cache owned-restore shortcut
+  - lightweight `ThreatBoardView` play/undo experiments
   - several partial `VCF` flow tweaks
 
 Main conclusion:
-- The remaining performance wall is now mostly structural
-- The biggest stable bottleneck is still `value_wide_compute`, but it is not amenable to shallow wrapper-style Cythonization
-- To move materially closer to the target, the project needs bigger steps:
-  - data-layout-aware native work for local eval
-  - tighter cache strategy
-  - possibly a dedicated native tactical/threat backend
+- the remaining performance wall is still mostly structural
+- the biggest stable bottleneck remains local eval, followed by global eval,
+  remaining cache work, and `VCF`
+- the next meaningful gains should come from cost-model-driven native work, not
+  broad speculative refactors
 
 Priority tiers:
 
 Tier 1:
 - `eval/local.py::value_wide_compute`
 - `eval/local.py::{compute_direction_shape, compute_bucket_and_attack}`
-- `eval/caches.py::{snapshot, restore_snapshot, _copy_shape_cache_any}`
+- `eval/global_eval.py::{evaluate_board, _evaluate_last5_branch, _evaluate_next43_branch}`
+- `eval/caches.py::{snapshot, restore_snapshot}`
 
 Tier 2:
-- `eval/global_eval.py::{evaluate_board, _evaluate_last5_branch, _evaluate_next43_branch}`
 - `threats/vcf.py`
 - `threats/threat_board.py`
+- remaining cache-copy helpers if profiling keeps them visible
 
 Tier 3:
 - `search/movegen.py` remaining Python-side candidate assembly
@@ -79,31 +80,28 @@ Tier 3:
 
 Recommended next-stage strategy:
 
-1. Stop doing isolated micro-optimizations in Python unless the profile shows an obvious cheap win.
+1. Stop doing broad speculative refactors without a local cost model.
 
-2. Treat local eval as a subsystem, not a single function.
-   The next real acceleration step should not be a thin Cython wrapper around `value_wide_compute`.
-   It should redesign the hot path around a flatter native-friendly representation for:
-   - board shadow
-   - shape cache
-   - value cache
-   - attack cache
+2. Treat local eval and global eval as a measured subsystem.
+   Prefer smaller kernels with verified wins over another large cache-layout
+   experiment.
 
-3. Keep Python orchestration, but move hot kernels together.
-   The likely profitable grouping is:
+3. Keep Python orchestration, but continue to move hot kernels together.
+   The currently profitable grouping remains:
    - shape extraction
    - bucket/attack computation
    - incremental cache writes
 
-4. Revisit VCF only after the eval/cache layer is cheaper.
-   Right now VCF is hot, but a large part of the total cost is still upstream eval/cache work.
+4. Revisit `VCF` only after the eval/cache layer is cheaper enough that
+   tactical recursion becomes the clear primary wall.
 
 Execution order for the next phase:
-- Phase A: design a flatter native cache/eval representation
-- Phase B: implement a dedicated native local-eval update path
-- Phase C: benchmark again at `depth=6 width=20` and `depth=8 width=20`
-- Phase D: only then decide whether the next module is `vcf` or broader cache storage
+- Phase A: measure the next local/global-eval sub-cost before each change
+- Phase B: keep iterating on profitable local-eval kernels
+- Phase C: benchmark again at `depth=5 width=15` and stronger fixed searches
+- Phase D: only then decide whether the next module is `vcf` or broader cache work
 
 Decision:
-- Do not keep spending cycles on small Python tweaks
-- Increase scope and attack the local-eval/cache subsystem more aggressively
+- do not go back to wrapper-style native experiments that already failed
+- keep semantics frozen
+- push the next acceleration work where measured cost still remains largest
