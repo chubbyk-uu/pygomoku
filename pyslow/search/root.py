@@ -16,6 +16,69 @@ from pyslow.search.ordering import order_candidates
 from pyslow.search.tt import TranspositionTable
 from pyslow.threats.vcf import VCFSearcher
 
+_REFERENCE_RAND_SEED = 1232356
+_REFERENCE_FALLBACK_STATE = (
+    1603889900,
+    -1740789191,
+    -2076689411,
+    -1153067617,
+    -1124319803,
+    340699494,
+    1499292279,
+    -1833903626,
+    -1036476732,
+    -128327729,
+    -35239293,
+    -2075498026,
+    -354280095,
+    1255612656,
+    -1950976913,
+    -1058987630,
+    1316872281,
+    -914373007,
+    1371081629,
+    1866512257,
+    1020687683,
+    -662904884,
+    744671781,
+    1789604293,
+    -675410512,
+    127571185,
+    400670923,
+    -519747875,
+    -2122335559,
+    16358792,
+    1686896992,
+)
+_REFERENCE_FALLBACK_FPTR = 14
+_REFERENCE_FALLBACK_RPTR = 11
+
+
+class _ReferenceFallbackRng:
+    """Mirror the post-InitHash libc rand() stream used by the Linux trace harness."""
+
+    def __init__(self, seed: int = _REFERENCE_RAND_SEED) -> None:
+        if seed != _REFERENCE_RAND_SEED:
+            raise ValueError("only the reference fallback seed is supported")
+        # These values were captured from the local libc `random_r` state after:
+        # `srand(1232356)` and the 4010 draws performed by reference `InitHash()`.
+        self._state = [value & 0xFFFFFFFF for value in _REFERENCE_FALLBACK_STATE]
+        self._fptr = _REFERENCE_FALLBACK_FPTR
+        self._rptr = _REFERENCE_FALLBACK_RPTR
+
+    def randrange(self, upper: int) -> int:
+        if upper <= 0:
+            raise ValueError("upper must be positive")
+        value = (self._state[self._fptr] + self._state[self._rptr]) & 0xFFFFFFFF
+        self._state[self._fptr] = value
+        self._fptr = (self._fptr + 1) % len(self._state)
+        self._rptr = (self._rptr + 1) % len(self._state)
+        return ((value >> 1) & 0x7FFFFFFF) % upper
+
+
+def _new_reference_fallback_rng() -> _ReferenceFallbackRng:
+    return _ReferenceFallbackRng()
+
 
 def _shape_label(shape: int) -> int:
     return (shape >> 16) & 0xF
@@ -25,11 +88,19 @@ def _shape_aux(shape: int) -> int:
     return shape & 0xF
 
 
-def _fallback_ai_move(board: Board, caches: EvalCaches, side: int) -> int:
+def _fallback_ai_move(
+    board: Board,
+    caches: EvalCaches,
+    side: int,
+    *,
+    rng: _ReferenceFallbackRng | None = None,
+) -> int:
     player = 0 if side == 1 else 1
     opponent = 1 - player
-    best_move = -1
     best_value = -10**18
+    best_moves: list[int] = []
+    if rng is None:
+        rng = _new_reference_fallback_rng()
 
     for move in range(board.size * board.size):
         if not board.is_legal_move(move):
@@ -105,11 +176,13 @@ def _fallback_ai_move(board: Board, caches: EvalCaches, side: int) -> int:
         total = 5 * offensive + 5 * defensive
         if total > best_value:
             best_value = total
-            best_move = move
+            best_moves = [move]
+        elif total == best_value:
+            best_moves.append(move)
 
-    if best_move == -1:
+    if not best_moves:
         raise ValueError("fallback AIs found no legal move on non-terminal board")
-    return best_move
+    return best_moves[rng.randrange(len(best_moves))]
 
 
 @dataclass(frozen=True)
@@ -134,6 +207,7 @@ class RootSearcher:
         self.tt = tt or TranspositionTable()
         self.alphabeta = AlphaBetaSearcher(config, self.tt)
         self.vcf = VCFSearcher()
+        self._fallback_rng = _new_reference_fallback_rng()
 
     def _root_allowed_moves(self, board: Board) -> set[int] | None:
         if self.config.runtime.static_board or board.move_count == 0:
@@ -271,7 +345,12 @@ class RootSearcher:
         if root_allowed_moves is not None:
             root_legal_moves = sorted(move for move in root_allowed_moves if board.is_legal_move(move))
             if len(root_legal_moves) == 0:
-                return SearchResult(move=_fallback_ai_move(board, caches, side), score=-INF, depth=0, nodes=0)
+                return SearchResult(
+                    move=_fallback_ai_move(board, caches, side, rng=self._fallback_rng),
+                    score=-INF,
+                    depth=0,
+                    nodes=0,
+                )
             if len(root_legal_moves) == 1:
                 return SearchResult(move=root_legal_moves[0], score=-INF, depth=0, nodes=0)
 
@@ -313,5 +392,5 @@ class RootSearcher:
                     break
 
         if best_move == -1:
-            best_move = _fallback_ai_move(board, caches, side)
+            best_move = _fallback_ai_move(board, caches, side, rng=self._fallback_rng)
         return SearchResult(move=best_move, score=best_score, depth=depth, nodes=total_nodes)

@@ -117,6 +117,37 @@ POSITIONS: dict[str, list[tuple[int, int, int]]] = {
         (14, 14, 1), (9, 7, -1),
         (14, 13, 1), (10, 7, -1),
     ],
+    "tact_edge_open3": [
+        # Black has an edge-side three extending from the left wall
+        (0, 7, 1), (14, 14, -1),
+        (1, 7, 1), (14, 13, -1),
+        (2, 7, 1), (13, 14, -1),
+    ],
+    "tact_edge_four": [
+        # Black has 4 on the top edge and should complete immediately
+        (3, 0, 1), (14, 14, -1),
+        (4, 0, 1), (14, 13, -1),
+        (5, 0, 1), (13, 14, -1),
+        (6, 0, 1), (13, 13, -1),
+    ],
+    "tact_defend4_edge": [
+        # White has 4 near the bottom edge, black must defend at one end
+        (0, 0, 1), (5, 13, -1),
+        (14, 14, 1), (6, 13, -1),
+        (0, 1, 1), (7, 13, -1),
+        (14, 13, 1), (8, 13, -1),
+    ],
+    "fallback_missing_root": [
+        # Known fallback-heavy position where root move can be missing
+        (7, 7, 1), (7, 6, -1),
+        (7, 5, 1), (6, 5, -1),
+        (8, 7, 1), (6, 7, -1),
+        (6, 6, 1), (5, 8, -1),
+        (8, 5, 1), (5, 4, -1),
+        (8, 6, 1), (4, 9, -1),
+        (3, 10, 1), (4, 3, -1),
+        (3, 2, 1),
+    ],
 
     # --- Dense / endgame-like (20+ stones) ---
     "dense_center": [
@@ -206,6 +237,7 @@ def _build_trace_cpp_v2() -> str:
     return textwrap.dedent(f"""\
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include "Headers/game.h"
 
 void init();
@@ -218,6 +250,7 @@ extern long long int countx;
 extern pair<short,short> abval;
 
 int main() {{
+    srand((unsigned)1232356);
     S = 15;
     boardSize = 15;
     init();
@@ -344,6 +377,11 @@ def _run_pyslow() -> dict[str, EngineResult]:
     from pyslow.search.root import RootSearcher, SearchLimits
 
     config = load_default_config()
+    searcher = RootSearcher(config)
+    limits = SearchLimits(
+        max_depth=SEARCH_DEPTH,
+        root_width=SEARCH_WIDTH,
+    )
     results: dict[str, EngineResult] = {}
 
     for pos_id, moves in POSITIONS.items():
@@ -353,11 +391,6 @@ def _run_pyslow() -> dict[str, EngineResult]:
                 mv = xy_to_move(x, y)
                 board.play(mv, side)
 
-            searcher = RootSearcher(config)
-            limits = SearchLimits(
-                max_depth=SEARCH_DEPTH,
-                root_width=SEARCH_WIDTH,
-            )
             sr = searcher.search(board, limits)
             mx, my = move_to_xy(sr.move)
             is_vcf = (sr.nodes == 0 and abs(sr.score) >= 15000

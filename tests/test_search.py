@@ -9,7 +9,7 @@ from pyslow.eval.caches import EvalCaches
 from pyslow.eval.local import recompute_all
 from pyslow.search.alphabeta import AlphaBetaSearcher, SearchStats, _rootbonus
 from pyslow.constants import HASHF_ALPHA, INF
-from pyslow.search.root import RootSearcher, SearchLimits, _fallback_ai_move
+from pyslow.search.root import RootSearcher, SearchLimits, _fallback_ai_move, _new_reference_fallback_rng
 from pyslow.search.tt import TTEntry
 
 
@@ -253,12 +253,24 @@ def test_root_uses_ais_fallback_when_vcf_filter_leaves_no_root_moves(monkeypatch
     monkeypatch.setattr(searcher.vcf, "search", fake_search)
     caches = EvalCaches()
     recompute_all(board, caches)
-    expected = _fallback_ai_move(board, caches, board.side_to_move)
+    expected = _fallback_ai_move(board, caches, board.side_to_move, rng=_new_reference_fallback_rng())
 
     result = searcher.search(board, SearchLimits(max_depth=4, root_width=8))
     assert result.score == -INF
     assert result.depth == 0
     assert result.move == expected
+
+
+def test_fallback_ai_move_uses_reference_seeded_tie_break() -> None:
+    board = Board()
+    for x, y, side in POSITIONS["tact_defend4"]:
+        board.play(xy_to_move(x, y), side)
+    caches = EvalCaches()
+    recompute_all(board, caches)
+    move_a = _fallback_ai_move(board, caches, board.side_to_move, rng=_new_reference_fallback_rng())
+    move_b = _fallback_ai_move(board, caches, board.side_to_move, rng=_new_reference_fallback_rng())
+    assert move_a == move_b
+    assert move_to_xy(move_a) == (6, 7)
 
 
 def test_root_skips_vcf_paths_when_runtime_disables_it(monkeypatch) -> None:
