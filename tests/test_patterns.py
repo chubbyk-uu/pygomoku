@@ -1,7 +1,9 @@
 """Pattern and bucket tests."""
 
+from importlib.util import find_spec
+
 from pyslow.patterns.buckets import DOUBLE_SHAPE, bucket_for_lines
-from pyslow.patterns.line import Line
+from pyslow.patterns.line import Line, _shape_raw_from_cells_python, line_backend_name
 from pyslow.patterns.shapes import (
     DIAGONAL_DOWN,
     DIAGONAL_UP,
@@ -61,6 +63,33 @@ def test_line_shape_returns_nonzero_for_simple_stone() -> None:
     shape = line.shape(7)
     assert isinstance(shape, PackedShape)
     assert shape.raw >= 0
+
+
+def test_line_backend_name_is_supported() -> None:
+    assert line_backend_name() in {"python", "cython"}
+
+
+def test_line_shape_raw_matches_shape_wrapper() -> None:
+    board = Board()
+    board.play(xy_to_move(7, 7))
+    board.play(xy_to_move(7, 8))
+    board.play(xy_to_move(7, 9))
+    line = Line.from_board(board, 7, HORIZONTAL)
+    assert line.shape_raw(7) == line.shape(7).raw
+
+
+def test_optional_cython_shape_backend_matches_python_helper() -> None:
+    if find_spec("pyslow.patterns._line_cy") is None:
+        return
+    from pyslow.patterns._line_cy import shape_raw_from_cells
+
+    board = Board()
+    board.play(xy_to_move(7, 7))
+    board.play(xy_to_move(7, 8))
+    board.play(xy_to_move(7, 9))
+    board.play(xy_to_move(8, 8))
+    line = Line.from_board(board, 7, HORIZONTAL)
+    assert shape_raw_from_cells(line.cells, 7, True) == _shape_raw_from_cells_python(line.cells, 7, True)
 
 
 def test_line_a3pb_returns_reference_encoded_targets() -> None:

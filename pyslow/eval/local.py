@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from pyslow.board import Board
 from pyslow.config import EngineConfig
 from pyslow.constants import BLACK, BOARD_SIZE, EMPTY, WHITE
@@ -43,32 +45,7 @@ def _copy_board_into_shadow(board: Board, caches: EvalCaches) -> None:
             shadow_col[y] = grid[y][x]
 
 
-def compute_direction_shape(board: Board, x: int, y: int, direction: int, side: int) -> int:
-    grid = board.grid
-    if grid[y][x] != EMPTY:
-        return 0
-    grid[y][x] = side
-    try:
-        if direction == HORIZONTAL:
-            pivot = x
-            point_index = y
-        elif direction == VERTICAL:
-            pivot = y
-            point_index = x
-        elif direction == DIAGONAL_DOWN:
-            pivot = x + y
-            point_index = y
-        elif direction == DIAGONAL_UP:
-            pivot = BOARD_SIZE - 1 - y + x
-            point_index = BOARD_SIZE - 1 - y
-        else:
-            raise ValueError(f"invalid direction: {direction}")
-        return Line.from_board(board, pivot, direction).shape_raw(point_index)
-    finally:
-        grid[y][x] = EMPTY
-
-
-def compute_bucket_and_attack(direction_shapes: tuple[int, int, int, int]) -> tuple[int, int]:
+def _compute_bucket_and_attack_python(direction_shapes: tuple[int, int, int, int]) -> tuple[int, int]:
     attack = 0
     active_threes = 0
     broken_fours = 0
@@ -116,6 +93,70 @@ def compute_bucket_and_attack(direction_shapes: tuple[int, int, int, int]) -> tu
     return bucket, attack
 
 
+_LOCAL_BACKEND_MODE = os.getenv("PYSLOW_LOCAL_BACKEND", "auto").lower()
+_USING_CYTHON_LOCAL_BACKEND = False
+
+if _LOCAL_BACKEND_MODE != "python":
+    try:
+        from pyslow.eval._local_cy import compute_bucket_and_attack_raw as _compute_bucket_and_attack_native
+        from pyslow.eval._local_cy import compute_direction_shape_raw as _compute_direction_shape_native
+        from pyslow.eval._local_cy import compute_point_cache_entry as _compute_point_cache_entry_native
+    except ImportError:
+        if _LOCAL_BACKEND_MODE == "cython":
+            raise
+        _compute_bucket_and_attack_native = None
+        _compute_direction_shape_native = None
+        _compute_point_cache_entry_native = None
+    else:
+        _USING_CYTHON_LOCAL_BACKEND = True
+else:
+    _compute_bucket_and_attack_native = None
+    _compute_direction_shape_native = None
+    _compute_point_cache_entry_native = None
+
+
+def local_backend_name() -> str:
+    return "cython" if _USING_CYTHON_LOCAL_BACKEND else "python"
+
+
+def compute_direction_shape(board: Board, x: int, y: int, direction: int, side: int) -> int:
+    if _compute_direction_shape_native is not None:
+        return _compute_direction_shape_native(board.grid, x, y, direction, side, board.size)
+    grid = board.grid
+    if grid[y][x] != EMPTY:
+        return 0
+    grid[y][x] = side
+    try:
+        if direction == HORIZONTAL:
+            pivot = x
+            point_index = y
+        elif direction == VERTICAL:
+            pivot = y
+            point_index = x
+        elif direction == DIAGONAL_DOWN:
+            pivot = x + y
+            point_index = y
+        elif direction == DIAGONAL_UP:
+            pivot = BOARD_SIZE - 1 - y + x
+            point_index = BOARD_SIZE - 1 - y
+        else:
+            raise ValueError(f"invalid direction: {direction}")
+        return Line.from_board(board, pivot, direction).shape_raw(point_index)
+    finally:
+        grid[y][x] = EMPTY
+
+
+def compute_bucket_and_attack(direction_shapes: tuple[int, int, int, int]) -> tuple[int, int]:
+    if _compute_bucket_and_attack_native is not None:
+        return _compute_bucket_and_attack_native(
+            direction_shapes[0],
+            direction_shapes[1],
+            direction_shapes[2],
+            direction_shapes[3],
+        )
+    return _compute_bucket_and_attack_python(direction_shapes)
+
+
 def recompute_point_caches(board: Board, caches: EvalCaches, x: int, y: int) -> None:
     if board.grid[y][x] != EMPTY:
         for player in (0, 1):
@@ -130,15 +171,20 @@ def recompute_point_caches(board: Board, caches: EvalCaches, x: int, y: int) -> 
 
     for side, player in ((BLACK, 0), (WHITE, 1)):
         shape_col = caches.shape_cache[player][x][y]
-        h_shape = compute_direction_shape(board, x, y, HORIZONTAL, side)
-        v_shape = compute_direction_shape(board, x, y, VERTICAL, side)
-        d_down_shape = compute_direction_shape(board, x, y, DIAGONAL_DOWN, side)
-        d_up_shape = compute_direction_shape(board, x, y, DIAGONAL_UP, side)
+        if _compute_point_cache_entry_native is not None:
+            h_shape, v_shape, d_down_shape, d_up_shape, bucket, attack = _compute_point_cache_entry_native(
+                board.grid, x, y, side, board.size
+            )
+        else:
+            h_shape = compute_direction_shape(board, x, y, HORIZONTAL, side)
+            v_shape = compute_direction_shape(board, x, y, VERTICAL, side)
+            d_down_shape = compute_direction_shape(board, x, y, DIAGONAL_DOWN, side)
+            d_up_shape = compute_direction_shape(board, x, y, DIAGONAL_UP, side)
+            bucket, attack = compute_bucket_and_attack((h_shape, v_shape, d_down_shape, d_up_shape))
         shape_col[HORIZONTAL] = h_shape
         shape_col[VERTICAL] = v_shape
         shape_col[DIAGONAL_DOWN] = d_down_shape
         shape_col[DIAGONAL_UP] = d_up_shape
-        bucket, attack = compute_bucket_and_attack((h_shape, v_shape, d_down_shape, d_up_shape))
         caches.value_cache[player][x][y] = bucket
         caches.attack_cache[player][x][y] = attack
 

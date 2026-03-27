@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 from pyslow.board import Board
@@ -16,6 +17,102 @@ from pyslow.patterns.shapes import (
 )
 
 _SENTINEL = 1024
+
+
+def _extract_cells_python(grid: list[list[int]], size: int, pivot: int, direction: int) -> list[int]:
+    cells = [_SENTINEL] * (size + 4)
+    if direction == HORIZONTAL:
+        for y in range(size):
+            cells[y + 2] = grid[y][pivot]
+    elif direction == VERTICAL:
+        row = grid[pivot]
+        for x in range(size):
+            cells[x + 2] = row[x]
+    elif direction == DIAGONAL_DOWN:
+        if pivot < size:
+            for i in range(pivot + 1):
+                cells[i + 2] = grid[i][pivot - i]
+        else:
+            start = pivot - size + 1
+            for i in range(start, size):
+                cells[i + 2] = grid[i][pivot - i]
+    elif direction == DIAGONAL_UP:
+        if pivot < size:
+            for i in range(pivot + 1):
+                cells[i + 2] = grid[size - 1 - i][pivot - i]
+        else:
+            start = pivot - size + 1
+            for i in range(start, size):
+                cells[i + 2] = grid[size - 1 - i][pivot - i]
+    else:
+        raise ValueError(f"invalid direction: {direction}")
+    return cells
+
+
+def _shape_raw_from_cells_python(cells: list[int], point_index: int, freestyle: bool) -> int:
+    p = point_index + 2
+    stone = cells[p]
+    if stone not in (BLACK, WHITE):
+        return 0
+
+    ssp = 0
+    si = 0
+    sj = 0
+
+    forward_masks = (16, 8, 4, 2, 1)
+    backward_masks = (32, 64, 128, 256, 512)
+
+    for offset, mask in enumerate(forward_masks, start=1):
+        value = cells[p + offset]
+        if value == EMPTY:
+            continue
+        if value == stone:
+            ssp |= mask
+        else:
+            sj = offset - 1
+            break
+    else:
+        sj = 5
+
+    for offset, mask in enumerate(backward_masks, start=1):
+        value = cells[p - offset]
+        if value == EMPTY:
+            continue
+        if value == stone:
+            ssp |= mask
+        else:
+            si = offset - 1
+            break
+    else:
+        si = 5
+
+    ssp >>= 5 - sj
+    table_index = (1 << si) * ((1 << sj) + 62) - 63 + ssp
+    row = 1 if stone == BLACK and not freestyle else 0
+    trt = SHAPE_TABLE[row][table_index]
+    return ((trt & 0xF0) << 12) | (trt & 0xF)
+
+
+_BACKEND_MODE = os.getenv("PYSLOW_LINE_BACKEND", "auto").lower()
+_USING_CYTHON_BACKEND = False
+_extract_cells_impl = _extract_cells_python
+_shape_raw_from_cells_impl = _shape_raw_from_cells_python
+
+if _BACKEND_MODE != "python":
+    try:
+        from pyslow.patterns._line_cy import extract_cells as _extract_cells_cy
+        from pyslow.patterns._line_cy import shape_raw_from_cells as _shape_raw_from_cells_cy
+    except ImportError:
+        if _BACKEND_MODE == "cython":
+            raise
+    else:
+        _extract_cells_impl = lambda grid, size, pivot, direction: _extract_cells_cy(grid, size, pivot, direction, _SENTINEL)
+        _shape_raw_from_cells_impl = _shape_raw_from_cells_cy
+        _USING_CYTHON_BACKEND = True
+
+
+def line_backend_name() -> str:
+    return "cython" if _USING_CYTHON_BACKEND else "python"
 
 
 def _comb(x: int, y: int) -> int:
@@ -36,51 +133,14 @@ class Line:
 
     @classmethod
     def from_board(cls, board: Board, pivot: int, direction: int) -> "Line":
-        size = board.size
-        grid = board.grid
-        cells = [_SENTINEL] * (size + 4)
-        if direction == HORIZONTAL:
-            for y in range(size):
-                cells[y + 2] = grid[y][pivot]
-        elif direction == VERTICAL:
-            row = grid[pivot]
-            for x in range(size):
-                cells[x + 2] = row[x]
-        elif direction == DIAGONAL_DOWN:
-            if pivot < size:
-                for i in range(pivot + 1):
-                    cells[i + 2] = grid[i][pivot - i]
-            else:
-                start = pivot - size + 1
-                for i in range(start, size):
-                    cells[i + 2] = grid[i][pivot - i]
-        elif direction == DIAGONAL_UP:
-            if pivot < size:
-                for i in range(pivot + 1):
-                    cells[i + 2] = grid[size - 1 - i][pivot - i]
-            else:
-                start = pivot - size + 1
-                for i in range(start, size):
-                    cells[i + 2] = grid[size - 1 - i][pivot - i]
-        else:
-            raise ValueError(f"invalid direction: {direction}")
-        return cls(cells=cells)
+        return cls(cells=_extract_cells_impl(board.grid, board.size, pivot, direction))
 
     def shape(self, point_index: int, freestyle: bool = True) -> PackedShape:
         return PackedShape(self.shape_raw(point_index, freestyle))
 
     def shape_raw(self, point_index: int, freestyle: bool = True) -> int:
         """Return the packed directional shape for an occupied point on this line."""
-        p = point_index + 2
-        stone = self.cells[p]
-        if stone not in (BLACK, WHITE):
-            return 0
-
-        if stone == BLACK:
-            trt = self._shape_table_lookup(p, BLACK, foul_or_nosix=not freestyle)
-        else:
-            trt = self._shape_table_lookup(p, WHITE, foul_or_nosix=False)
-        return ((trt & 0xF0) << 12) | (trt & 0xF)
+        return _shape_raw_from_cells_impl(self.cells, point_index, freestyle)
 
     def _shape_table_lookup(self, p: int, stone: int, foul_or_nosix: bool) -> int:
         ssp = 0

@@ -34,9 +34,22 @@ Current performance evidence:
 
 Observed timing:
 
-- `depth=2 width=8 plies=6` -> about `197 ms/ply`
-- `depth=3 width=10 plies=6` -> about `741 ms/ply`
-- `depth=6 width=10 plies=4` -> about `12922 ms/ply`
+- initial pre-optimization timing:
+  - `depth=2 width=8 plies=6` -> about `197 ms/ply`
+  - `depth=3 width=10 plies=6` -> about `741 ms/ply`
+  - `depth=6 width=10 plies=4` -> about `12922 ms/ply`
+- after two pure-Python optimization rounds:
+  - `depth=2 width=8 plies=6` -> about `138 ms/ply`
+  - `depth=3 width=10 plies=6` -> about `510 ms/ply`
+  - `depth=6 width=10 plies=4` -> about `9425 ms/ply`
+
+Observed direction:
+
+- pure Python optimization is clearly worthwhile
+- pure Python optimization is no longer enough by itself to justify an ambitious
+  search-depth target
+- the remaining top cost is concentrated in line scanning and local evaluation,
+  which makes those modules the strongest native candidates
 
 ## How Complete The Current Profiling Is
 
@@ -116,6 +129,7 @@ Current profiling is complete enough for:
 
 - first-batch pure Python optimization
 - choosing the first 2 to 3 hotspot modules
+- choosing the first native prototype boundary
 
 Current profiling is not complete enough for:
 
@@ -145,6 +159,14 @@ The current evidence consistently points to the following hotspot stack:
 
 These dominate the current cumulative time and are hit by both normal search and
 VCF-related paths.
+
+Current interpretation:
+
+- `board.py` was a good first pure-Python target and should stay in Python
+- `line.py` and `eval/local.py` are still hot after cleanup and are the best
+  candidates for native acceleration
+- `global_eval.py` got cheaper once local access costs dropped, which confirms it
+  should remain a later-stage candidate
 
 ### Tier 2: Secondary Hotspots
 
@@ -196,7 +218,7 @@ No speedup is allowed to change:
 
 ## Priority 1: Pure Python Micro-Architecture Cleanup
 
-This is the current recommended first batch.
+This work has already started and should now be treated as nearly complete.
 
 ### 1. `board.py`
 
@@ -212,15 +234,12 @@ Likely methods:
 - cache `grid`, `size`, local variables inside tight loops
 - replace tiny helper calls with direct indexed access in hotspot-only code
 
-Risk:
+Status:
 
-- low semantic risk
-- moderate maintainability risk if inlining is done everywhere
-
-Mitigation:
-
-- only inline inside proven hotspot loops
-- keep public helper methods intact for non-hot code
+- done for the first round
+- enough gain has already been extracted here
+- more work in this file is low priority unless profiling later proves
+  otherwise
 
 ### 2. `patterns/line.py`
 
@@ -235,14 +254,11 @@ Likely methods:
 - keep line extraction in flat local variables
 - reduce helper layering between `from_board`, `shape`, and lookup
 
-Risk:
+Status:
 
-- medium semantic risk because shape encoding is fragile
-
-Mitigation:
-
-- add module-level before/after trace comparisons on the same handpicked points
-- do not change shape encoding or bucket mapping
+- first pure-Python cleanup landed
+- still one of the hottest remaining modules
+- should now move from “Python cleanup target” to “first native candidate”
 
 ### 3. `eval/local.py`
 
@@ -259,17 +275,11 @@ Likely methods:
 - move repeated branching out of inner loops
 - prebind commonly used locals
 
-Risk:
+Status:
 
-- medium semantic risk because this touches the core eval cache path
-
-Mitigation:
-
-- verify pointwise outputs for:
-  - `compute_direction_shape`
-  - `move_value`
-  - `attack_level`
-  - cache snapshots before/after move/undo
+- first pure-Python cleanup landed
+- still the strongest overall hotspot family
+- should be the second native candidate after `patterns/line`
 
 ## Priority 2: Secondary Python Optimization
 
@@ -313,48 +323,226 @@ This must be benchmark-driven, not guess-driven.
 
 ## Short Answer
 
-Not yet.
+Yes, but in a staged way.
 
 Current recommendation:
 
-- do not go native first
-- finish at least one pure Python optimization batch first
+- keep search shell, protocol, and control flow in Python
+- prototype native acceleration in the narrowest hot modules first
+- use Cython first because the codebase was already shaped to leave space for
+  this path
+- do not migrate multiple hotspot families at once
 
-## If Native Becomes Necessary
+## Native Candidate Priority
 
-### Recommendation Ranking
+### Priority N1: `patterns/line.py`
 
-#### 1. PyO3 / Rust with `abi3`
+Why first:
 
-Best for long-term distributable compatibility.
+- very hot even after Python cleanup
+- small API surface
+- pure data transformation logic
+- easier to isolate than `eval/local.py`
+
+Good native scope:
+
+- line extraction from board
+- packed shape lookup
+- raw packed-shape return path
+
+Why this is safer than starting with search:
+
+- easier to compare exact input/output
+- easier to keep Python fallback
+- lower risk of hidden control-flow drift
+
+### Priority N2: `eval/local.py`
+
+Why second:
+
+- currently the single strongest hotspot family
+- depends directly on line-shape work
+- large total upside once line extraction is already accelerated
+
+Good native scope:
+
+- `compute_direction_shape`
+- cache recomputation loops
+- wide local value accumulation
+
+Why second instead of first:
+
+- higher semantic risk
+- larger surface area
+- benefits from first stabilizing a native line backend
+
+### Priority N3: `threats/threat_board.py`
+
+Why third:
+
+- heavy enough to matter
+- tactically central
+- still more branch-sensitive than `line` and `local eval`
+
+Good native scope:
+
+- threat classification helpers
+- compact candidate emission loops
+
+### Priority N4: `threats/vcf.py`
+
+Why later:
+
+- expensive, but semantically delicate
+- branch-heavy and recursion-heavy
+- likely to be harder to debug if moved too early
+
+Recommendation:
+
+- only consider after `line` and `local eval` native work is proven
+
+### Keep In Python For Now
+
+- [`pyslow/search/alphabeta.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/alphabeta.py)
+- [`pyslow/search/root.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/root.py)
+- [`pyslow/search/movegen.py`](/home/jerry/python-test/gomoku/slow_temp/pyslow/search/movegen.py)
+- protocol and GUI layers
+
+Reason:
+
+- control-flow semantics matter more here than raw loop speed
+- these modules benefit from faster helpers underneath
+- moving them native too early would make alignment regressions harder to
+  diagnose
+
+## Backend Recommendation
+
+### Default Native Prototype Choice: Cython
 
 Why:
 
-- good cross-platform story
-- works on macOS, Linux, Windows
-- `abi3` can reduce wheel fragmentation across Python versions
-- strong implementation safety for complex logic
-- clean boundary for isolated hotspot modules
+- best fit for tight loops over Python-managed arrays and ints
+- lowest friction for a first prototype
+- works on Linux and macOS, including Apple Silicon, with a normal build toolchain
+- easiest way to keep a Python fallback next to the native version
+
+Constraints:
+
+- compiled extension packaging is platform- and Python-version-specific
+- build setup and CI complexity will increase
+- type annotations and memory/layout decisions matter more than in Python
+
+### Long-Term Alternative: PyO3 / Rust
+
+Why it remains relevant:
+
+- stronger long-term packaging story with `abi3`
+- good for isolated stable kernels
+- safer memory model
+
+Why not first:
+
+- higher rewrite cost for the initial prototype
+- more friction when the exact native boundary is still being learned
+
+## Native Risks And Mitigation
+
+### 1. Semantic Drift
+
+Risk:
+
+- shape encoding, cache recomputation, or threat classification might drift from
+  the reference-aligned Python baseline
+
+Mitigation:
+
+- keep the existing Python implementation as the reference fallback
+- introduce backend toggles instead of replacement-in-place
+- require `alignment_compare.py` `70/70` and the current regression suite on
+  every native change
+- add direct Python-vs-native micro-tests on exact inputs and outputs
+
+### 2. Debugging Cost
+
+Risk:
+
+- native failures are slower to inspect than Python bugs
+
+Mitigation:
+
+- start with `patterns/line.py`, which has the narrowest contract
+- keep the native interface minimal and pure-function-like
+- avoid moving recursive search control flow native in the first stage
+
+### 3. Packaging And Build Friction
+
+Risk:
+
+- developers without a local compiler cannot build native modules
+- CI matrix grows once wheels matter
+
+Mitigation:
+
+- keep Python fallback always available
+- make native backend optional at import or runtime
+- avoid making native extensions mandatory for tests that only validate semantics
+
+### 4. Premature Boundary Choice
+
+Risk:
+
+- moving the wrong module native too early locks in poor interfaces
+
+Mitigation:
+
+- native stage 1 must be a prototype, not a permanent architecture decision
+- re-run profiling after each stage before expanding scope
+
+## Recommended Execution Order
+
+1. freeze the current aligned Python baseline
+2. keep Python fallback implementations intact
+3. prototype a Cython backend for `patterns/line.py`
+4. measure:
+   - search wall time
+   - hotspot movement
+   - semantic parity
+5. if the prototype pays off, extend native work into `eval/local.py`
+6. only then re-evaluate `threat_board` and `vcf`
+7. only after multiple backend wins, revisit practical search-depth and width
+   targets
+
+## Success Criteria
+
+The native plan is working only if all of the following remain true:
+
+- [`alignment_compare.py`](/home/jerry/python-test/gomoku/slow_temp/benchmarks/alignment_compare.py)
+  stays `70/70`
+- `tests/test_search.py`, `tests/test_movegen.py`, `tests/test_protocol.py`,
+  and `tests/test_config.py` stay green
+- the native prototype materially reduces wall time on the development baseline
+- the codebase still runs without the native backend enabled
+- finish at least one pure Python optimization batch first
+
+## Backend Alternatives Appendix
+
+### Alternative 1: PyO3 / Rust with `abi3`
+
+- best long-term packaging story
+- good cross-platform support
+- good fit for stable, isolated kernels after the native boundary is already
+  proven
 
 Tradeoffs:
 
 - requires Rust toolchain for source builds
 - more engineering overhead than Cython
 
-Best use:
+### Alternative 2: Cython
 
-- stable isolated hotspots after Python semantics are frozen
-- modules like `line`, `local eval`, or `threat_board`
-
-#### 2. Cython
-
-Best for the fastest iteration on loop-heavy hotspots.
-
-Why:
-
-- straightforward for translating Python loops to typed loops
-- works on macOS, including Apple Silicon, as long as a C toolchain exists
-- lower rewrite cost for existing Python code
+- best short-term prototype path
+- easiest fit for current loop-heavy hotspots
+- works on macOS, including Apple Silicon, with a normal compiler toolchain
 
 Tradeoffs:
 
@@ -363,93 +551,12 @@ Tradeoffs:
 - can drift into “Python with type annotations everywhere” without a clean
   module boundary
 
-Best use:
+### Alternative 3: Plain C/C++ Extension
 
-- first native experiment on a very hot, very local loop
-- especially if the target is numeric/array-like and branch-light
-
-#### 3. Plain C/C++ Extension
-
-Possible, but not preferred as the first native path.
+- possible, but not the preferred first step here
 
 Tradeoffs:
 
 - highest manual maintenance cost
 - lowest safety
 - packaging burden without a clear advantage over PyO3 or Cython here
-
-## Compatibility Answer For Apple Systems
-
-Yes, both Cython and PyO3 can support Apple systems.
-
-If the question is:
-
-- "which one can run on Apple?"
-  - both can
-
-If the question is:
-
-- "which one has the highest long-term packaging compatibility?"
-  - PyO3 with `abi3` is the stronger answer
-
-If the question is:
-
-- "which one is easiest to try quickly on current hotspots?"
-  - Cython is the easier first experiment
-
-## Current Recommendation
-
-For this project, the best staged choice is:
-
-1. pure Python optimization first
-2. if native is still needed, prefer:
-   - PyO3 for a durable production backend
-   - Cython only if a quick hotspot experiment is needed earlier
-
-## Risk Register
-
-### Risk 1: Semantic drift in eval / line code
-
-Highest-risk modules:
-
-- `patterns/line.py`
-- `eval/local.py`
-
-Mitigation:
-
-- add narrow equivalence tests before each optimization batch
-- re-run `70/70` compare after every landed batch
-
-### Risk 2: Measuring the wrong hotspot
-
-Mitigation:
-
-- re-profile after every meaningful optimization batch
-- do not keep using stale hotspot order after performance changes
-
-### Risk 3: Native path adds packaging friction too early
-
-Mitigation:
-
-- keep Python backend first-class
-- avoid native until pure Python gains are measured
-- prefer isolated backend modules with runtime fallback
-
-### Risk 4: Improving node count but not wall time
-
-Mitigation:
-
-- always measure wall time, not just node count
-- keep fixed workload timing benchmarks
-
-## Immediate Next Step
-
-The next practical task should be:
-
-1. keep the current `70/70` semantic baseline frozen
-2. start with Priority 1 pure Python optimization
-3. first target:
-   - `board.py`
-   - `patterns/line.py`
-4. re-profile
-5. only then decide whether `eval/local.py` or a native experiment is next

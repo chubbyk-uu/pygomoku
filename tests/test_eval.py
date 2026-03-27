@@ -1,6 +1,7 @@
 """Evaluation tests."""
 
 import random
+from importlib.util import find_spec
 
 from pyslow.board import Board, xy_to_move
 from pyslow.config import load_default_config
@@ -9,6 +10,9 @@ from pyslow.eval.caches import EvalCaches
 from pyslow.eval.global_eval import _evaluate_last5_branch, _evaluate_next43_branch, _find_last5_target, evaluate_board
 from pyslow.eval.local import (
     attack_level,
+    compute_bucket_and_attack,
+    compute_direction_shape,
+    local_backend_name,
     move_value,
     recompute_all,
     recompute_point_caches,
@@ -25,6 +29,10 @@ def test_eval_caches_start_with_zeroed_storage() -> None:
     assert caches.board_shadow[0][0] == 0
     assert caches.shape_cache[0][0][0] == [0, 0, 0, 0]
     assert caches.value_cache[1][BOARD_SIZE - 1][BOARD_SIZE - 1] == 0
+
+
+def test_local_backend_name_is_supported() -> None:
+    assert local_backend_name() in {"python", "cython"}
 
 
 def test_eval_caches_reset_restores_zero_state() -> None:
@@ -75,6 +83,30 @@ def test_recompute_point_caches_finds_black_five_threat() -> None:
     recompute_point_caches(board, caches, 7, 7)
     assert attack_level(caches, 7, 7, 1) == 6
     assert caches.value_cache[0][7][7] > 0
+
+
+def test_optional_cython_local_helpers_match_python_path() -> None:
+    if find_spec("pyslow.eval._local_cy") is None:
+        return
+
+    from pyslow.eval._local_cy import compute_bucket_and_attack_raw, compute_direction_shape_raw
+
+    board = Board()
+    board.play(xy_to_move(7, 7))
+    board.play(xy_to_move(8, 7))
+    board.play(xy_to_move(7, 8))
+
+    py_shape = compute_direction_shape(board, 8, 8, 0, 1)
+    cy_shape = compute_direction_shape_raw(board.grid, 8, 8, 0, 1, board.size)
+    assert py_shape == cy_shape
+
+    shapes = (
+        compute_direction_shape(board, 8, 8, 0, 1),
+        compute_direction_shape(board, 8, 8, 1, 1),
+        compute_direction_shape(board, 8, 8, 2, 1),
+        compute_direction_shape(board, 8, 8, 3, 1),
+    )
+    assert compute_bucket_and_attack(shapes) == compute_bucket_and_attack_raw(*shapes)
 
 
 def test_recompute_all_populates_board_shadow_from_board() -> None:

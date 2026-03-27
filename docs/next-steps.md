@@ -93,19 +93,18 @@ Rules:
 Execution order:
 
 1. re-run hotspot measurement on the now-stable aligned baseline
-2. optimize pure Python implementation first
-3. increase practical root depth / width only after measuring post-optimization gains
-4. only then consider native replacements for proven hotspots
+2. finish the current pure Python cleanup round and freeze that result
+3. build the first optional Cython backend for a proven hotspot
+4. increase practical root depth / width only after measuring post-optimization gains
 
 Immediate deliverables:
 
 1. produce an updated hotspot report on the current `70/70` aligned baseline
 2. rank the hottest Python call paths by total time and call count
-3. choose the first optimization target set
-   - likely `board` access
-   - `patterns/line`
-   - `eval/local`
-4. keep semantic regressions frozen while optimizing
+3. keep semantic regressions frozen while optimizing
+4. implement the first native prototype boundary
+   - first choice: `patterns/line`
+   - second choice: `eval/local`
 
 Likely hotspots:
 
@@ -114,6 +113,12 @@ Likely hotspots:
 - `threats/threat_board`
 - `threats/vcf`
 - board access hot paths
+
+Current recommendation:
+
+- stop treating native as a distant fallback
+- continue to keep Python as the semantic reference path
+- start native work narrowly, with `patterns/line` as the first Cython target
 
 ### 2. Search Reach Upgrade
 
@@ -159,5 +164,6 @@ Start here:
    - use `--group <name>` for targeted checks during optimization
 2. read [acceleration-plan.md](/home/jerry/python-test/gomoku/slow_temp/docs/acceleration-plan.md)
 3. profile the aligned baseline before changing any default search limits
-4. optimize the first confirmed hotspot set
-5. after each speedup, re-run the alignment and regression suites
+4. read [performance-roadmap.md](/home/jerry/python-test/gomoku/slow_temp/docs/performance-roadmap.md) for the native priority order
+5. implement or measure only one hotspot boundary at a time
+6. after each speedup, re-run the alignment and regression suites
