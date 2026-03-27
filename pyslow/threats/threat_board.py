@@ -21,14 +21,20 @@ _THREAT_BOARD_BACKEND_MODE = os.getenv("PYSLOW_THREAT_BOARD_BACKEND", "auto").lo
 if _THREAT_BOARD_BACKEND_MODE != "python":
     try:
         from pyslow.threats._threat_board_cy import build_views as _build_views_native
+        from pyslow.threats._threat_board_cy import broken_four_point_for_side_raw as _broken_four_point_for_side_native
+        from pyslow.threats._threat_board_cy import broken_four_reply_raw as _broken_four_reply_native
         from pyslow.threats._threat_board_cy import threat_moves_grid as _threat_moves_native
     except ImportError:
         if _THREAT_BOARD_BACKEND_MODE == "cython":
             raise
         _build_views_native = None
+        _broken_four_point_for_side_native = None
+        _broken_four_reply_native = None
         _threat_moves_native = None
 else:
     _build_views_native = None
+    _broken_four_point_for_side_native = None
+    _broken_four_reply_native = None
     _threat_moves_native = None
 
 
@@ -228,6 +234,10 @@ class ThreatBoardView:
         return move
 
     def _broken_four_reply_with_ambiguity(self, x: int, y: int) -> tuple[int | None, bool]:
+        if _broken_four_reply_native is not None and "_lines_for" not in self.__dict__:
+            reply, ambiguous = _broken_four_reply_native(self.x1, self.x2, self.x3, self.x4, x, y, self.board.size)
+            return (None if reply < 0 else reply, bool(ambiguous))
+
         l1, l2, l3, l4, p1, p2, p3, p4 = self._lines_for(x, y)
         counts = (
             l1.b4p(p1),
@@ -265,6 +275,18 @@ class ThreatBoardView:
         return None, False
 
     def broken_four_point_for_side(self, side: int) -> tuple[int | None, bool]:
+        if _broken_four_point_for_side_native is not None and "_broken_four_reply_with_ambiguity" not in self.__dict__:
+            reply, ambiguous = _broken_four_point_for_side_native(
+                self.board.grid,
+                self.x1,
+                self.x2,
+                self.x3,
+                self.x4,
+                side,
+                self.board.size,
+            )
+            return (None if reply < 0 else reply, bool(ambiguous))
+
         grid = self.board.grid
         size = self.board.size
         first_reply: int | None = None
