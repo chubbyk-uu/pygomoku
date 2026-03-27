@@ -101,18 +101,21 @@ if _LOCAL_BACKEND_MODE != "python":
         from pyslow.eval._local_cy import compute_bucket_and_attack_raw as _compute_bucket_and_attack_native
         from pyslow.eval._local_cy import compute_direction_shape_raw as _compute_direction_shape_native
         from pyslow.eval._local_cy import compute_point_cache_entry as _compute_point_cache_entry_native
+        from pyslow.eval._local_cy import value_wide_update as _value_wide_update_native
     except ImportError:
         if _LOCAL_BACKEND_MODE == "cython":
             raise
         _compute_bucket_and_attack_native = None
         _compute_direction_shape_native = None
         _compute_point_cache_entry_native = None
+        _value_wide_update_native = None
     else:
         _USING_CYTHON_LOCAL_BACKEND = True
 else:
     _compute_bucket_and_attack_native = None
     _compute_direction_shape_native = None
     _compute_point_cache_entry_native = None
+    _value_wide_update_native = None
 
 
 def local_backend_name() -> str:
@@ -243,6 +246,19 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
             recompute_all(board, caches)
             return
         caches.initialized = True
+
+    if _value_wide_update_native is not None:
+        _value_wide_update_native(
+            grid,
+            caches.board_shadow,
+            caches.shape_cache,
+            caches.value_cache,
+            caches.attack_cache,
+            caches._active_snapshot_count,
+            caches._shape_log,
+            size,
+        )
+        return
 
     ar = 4
     comp = [bytearray(size) for _ in range(size)]

@@ -114,3 +114,203 @@ def compute_point_cache_entry(object grid, int x, int y, int side, int size=BOAR
     cdef int d_up_shape = compute_direction_shape_raw(grid, x, y, DIAGONAL_UP, side, size)
     cdef tuple ba = compute_bucket_and_attack_raw(h_shape, v_shape, d_down_shape, d_up_shape)
     return h_shape, v_shape, d_down_shape, d_up_shape, ba[0], ba[1]
+
+
+cdef inline void _set_shape_value(
+    object shape_log,
+    int active_snapshots,
+    object shape_cache,
+    int player,
+    int x,
+    int y,
+    int direction,
+    int value,
+):
+    cdef object shape_col = shape_cache[player][x][y]
+    cdef int old_value = shape_col[direction]
+    if old_value == value:
+        return
+    if active_snapshots:
+        shape_log.append((player, x, y, direction, old_value))
+    shape_col[direction] = value
+
+
+def value_wide_update(
+    object grid,
+    object shadow,
+    object shape_cache,
+    object value_cache,
+    object attack_cache,
+    int active_snapshots,
+    object shape_log,
+    int size=BOARD_SIZE,
+):
+    cdef list comp = [bytearray(size) for _ in range(size)]
+    cdef int ar = 4
+    cdef int horizontal_flag = 1
+    cdef int vertical_flag = 2
+    cdef int diag_down_flag = 4
+    cdef int diag_up_flag = 8
+    cdef int x, y, xx, yy, fixed, seen, value, cell, flags
+    cdef int bh, bv, bdd, bdu, wh, wv, wdd, wdu, bucket, attack
+    cdef object comp_col
+    cdef object shadow_col
+    cdef object black_value_col
+    cdef object white_value_col
+    cdef object black_attack_col
+    cdef object white_attack_col
+
+    for x in range(size):
+        for y in range(size):
+            if shadow[x][y] != grid[y][x]:
+                comp[x][y] = 15
+
+                fixed = x
+                seen = 0
+                for yy in range(y + 1, min(size, y + ar + 1)):
+                    value = grid[yy][fixed]
+                    if seen == 0:
+                        seen = value
+                    elif value != EMPTY and value != seen:
+                        break
+                    comp[fixed][yy] |= horizontal_flag
+                seen = 0
+                for yy in range(y - 1, max(-1, y - ar - 1), -1):
+                    value = grid[yy][fixed]
+                    if seen == 0:
+                        seen = value
+                    elif value != EMPTY and value != seen:
+                        break
+                    comp[fixed][yy] |= horizontal_flag
+
+                fixed = y
+                seen = 0
+                for xx in range(x + 1, min(size, x + ar + 1)):
+                    value = grid[fixed][xx]
+                    if seen == 0:
+                        seen = value
+                    elif value != EMPTY and value != seen:
+                        break
+                    comp[xx][fixed] |= vertical_flag
+                seen = 0
+                for xx in range(x - 1, max(-1, x - ar - 1), -1):
+                    value = grid[fixed][xx]
+                    if seen == 0:
+                        seen = value
+                    elif value != EMPTY and value != seen:
+                        break
+                    comp[xx][fixed] |= vertical_flag
+
+                seen = 0
+                xx = x - 1
+                yy = y + 1
+                while xx >= 0 and yy < size and xx >= x - ar and yy <= y + ar:
+                    value = grid[yy][xx]
+                    if seen == 0:
+                        seen = value
+                    elif value != EMPTY and value != seen:
+                        break
+                    comp[xx][yy] |= diag_down_flag
+                    xx -= 1
+                    yy += 1
+
+                seen = 0
+                xx = x + 1
+                yy = y - 1
+                while xx < size and yy >= 0 and xx <= x + ar and yy >= y - ar:
+                    value = grid[yy][xx]
+                    if seen == 0:
+                        seen = value
+                    elif value != EMPTY and value != seen:
+                        break
+                    comp[xx][yy] |= diag_down_flag
+                    xx += 1
+                    yy -= 1
+
+                seen = 0
+                xx = x + 1
+                yy = y + 1
+                while xx < size and yy < size and xx <= x + ar and yy <= y + ar:
+                    value = grid[yy][xx]
+                    if seen == 0:
+                        seen = value
+                    elif value != EMPTY and value != seen:
+                        break
+                    comp[xx][yy] |= diag_up_flag
+                    xx += 1
+                    yy += 1
+
+                seen = 0
+                xx = x - 1
+                yy = y - 1
+                while xx >= 0 and yy >= 0 and xx >= x - ar and yy >= y - ar:
+                    value = grid[yy][xx]
+                    if seen == 0:
+                        seen = value
+                    elif value != EMPTY and value != seen:
+                        break
+                    comp[xx][yy] |= diag_up_flag
+                    xx -= 1
+                    yy -= 1
+
+    for x in range(size):
+        shadow_col = shadow[x]
+        comp_col = comp[x]
+        black_value_col = value_cache[0][x]
+        white_value_col = value_cache[1][x]
+        black_attack_col = attack_cache[0][x]
+        white_attack_col = attack_cache[1][x]
+        for y in range(size):
+            cell = grid[y][x]
+            shadow_col[y] = cell
+            flags = comp_col[y]
+            if flags and cell == EMPTY:
+                if flags & horizontal_flag:
+                    bh = compute_direction_shape_raw(grid, x, y, HORIZONTAL, BLACK, size)
+                    wh = compute_direction_shape_raw(grid, x, y, HORIZONTAL, WHITE, size)
+                    _set_shape_value(shape_log, active_snapshots, shape_cache, 0, x, y, HORIZONTAL, bh)
+                    _set_shape_value(shape_log, active_snapshots, shape_cache, 1, x, y, HORIZONTAL, wh)
+                if flags & vertical_flag:
+                    bv = compute_direction_shape_raw(grid, x, y, VERTICAL, BLACK, size)
+                    wv = compute_direction_shape_raw(grid, x, y, VERTICAL, WHITE, size)
+                    _set_shape_value(shape_log, active_snapshots, shape_cache, 0, x, y, VERTICAL, bv)
+                    _set_shape_value(shape_log, active_snapshots, shape_cache, 1, x, y, VERTICAL, wv)
+                if flags & diag_down_flag:
+                    bdd = compute_direction_shape_raw(grid, x, y, DIAGONAL_DOWN, BLACK, size)
+                    wdd = compute_direction_shape_raw(grid, x, y, DIAGONAL_DOWN, WHITE, size)
+                    _set_shape_value(shape_log, active_snapshots, shape_cache, 0, x, y, DIAGONAL_DOWN, bdd)
+                    _set_shape_value(shape_log, active_snapshots, shape_cache, 1, x, y, DIAGONAL_DOWN, wdd)
+                if flags & diag_up_flag:
+                    bdu = compute_direction_shape_raw(grid, x, y, DIAGONAL_UP, BLACK, size)
+                    wdu = compute_direction_shape_raw(grid, x, y, DIAGONAL_UP, WHITE, size)
+                    _set_shape_value(shape_log, active_snapshots, shape_cache, 0, x, y, DIAGONAL_UP, bdu)
+                    _set_shape_value(shape_log, active_snapshots, shape_cache, 1, x, y, DIAGONAL_UP, wdu)
+
+                bh = shape_cache[0][x][y][HORIZONTAL]
+                bv = shape_cache[0][x][y][VERTICAL]
+                bdd = shape_cache[0][x][y][DIAGONAL_DOWN]
+                bdu = shape_cache[0][x][y][DIAGONAL_UP]
+                bucket, attack = compute_bucket_and_attack_raw(bh, bv, bdd, bdu)
+                black_value_col[y] = bucket
+                black_attack_col[y] = attack
+
+                wh = shape_cache[1][x][y][HORIZONTAL]
+                wv = shape_cache[1][x][y][VERTICAL]
+                wdd = shape_cache[1][x][y][DIAGONAL_DOWN]
+                wdu = shape_cache[1][x][y][DIAGONAL_UP]
+                bucket, attack = compute_bucket_and_attack_raw(wh, wv, wdd, wdu)
+                white_value_col[y] = bucket
+                white_attack_col[y] = attack
+            elif cell != EMPTY:
+                black_value_col[y] = 0
+                white_value_col[y] = 0
+                black_attack_col[y] = 0
+                white_attack_col[y] = 0
+                _set_shape_value(shape_log, active_snapshots, shape_cache, 0, x, y, HORIZONTAL, 0)
+                _set_shape_value(shape_log, active_snapshots, shape_cache, 0, x, y, VERTICAL, 0)
+                _set_shape_value(shape_log, active_snapshots, shape_cache, 0, x, y, DIAGONAL_DOWN, 0)
+                _set_shape_value(shape_log, active_snapshots, shape_cache, 0, x, y, DIAGONAL_UP, 0)
+                _set_shape_value(shape_log, active_snapshots, shape_cache, 1, x, y, HORIZONTAL, 0)
+                _set_shape_value(shape_log, active_snapshots, shape_cache, 1, x, y, VERTICAL, 0)
+                _set_shape_value(shape_log, active_snapshots, shape_cache, 1, x, y, DIAGONAL_DOWN, 0)
+                _set_shape_value(shape_log, active_snapshots, shape_cache, 1, x, y, DIAGONAL_UP, 0)

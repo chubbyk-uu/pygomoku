@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 
 from pyslow.board import Board, move_to_xy, xy_to_move
@@ -15,6 +16,20 @@ THREAT_DIRS: tuple[tuple[int, int], ...] = (
     (2, 0), (1, 0), (0, 2), (0, 1),
     (-2, 0), (-1, 0), (0, -2), (0, -1),
 )
+
+_THREAT_BOARD_BACKEND_MODE = os.getenv("PYSLOW_THREAT_BOARD_BACKEND", "auto").lower()
+if _THREAT_BOARD_BACKEND_MODE != "python":
+    try:
+        from pyslow.threats._threat_board_cy import build_views as _build_views_native
+        from pyslow.threats._threat_board_cy import threat_moves_grid as _threat_moves_native
+    except ImportError:
+        if _THREAT_BOARD_BACKEND_MODE == "cython":
+            raise
+        _build_views_native = None
+        _threat_moves_native = None
+else:
+    _build_views_native = None
+    _threat_moves_native = None
 
 
 def _ga(value: int) -> int:
@@ -60,6 +75,9 @@ class ThreatBoardView:
     def from_board(cls, board: Board) -> "ThreatBoardView":
         size = board.size
         grid = board.grid
+        if _build_views_native is not None:
+            x1, x2, x3, x4 = _build_views_native(grid, size)
+            return cls(board=board, x1=x1, x2=x2, x3=x3, x4=x4)
         x1 = [[grid[y][x] for y in range(size)] for x in range(size)]
         x2 = [[grid[y][x] for x in range(size)] for y in range(size)]
         width = 2 * board.size - 1
@@ -119,6 +137,8 @@ class ThreatBoardView:
     def threat_moves(self, side: int) -> tuple[int, ...]:
         size = self.board.size
         grid = self.board.grid
+        if _threat_moves_native is not None:
+            return _threat_moves_native(grid, side, size)
         candidates: list[int] = []
         for x in range(size):
             for y in range(size):
