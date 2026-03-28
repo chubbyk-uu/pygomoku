@@ -1,6 +1,11 @@
 """Transposition table tests."""
 
+from pyslow.board import Board, xy_to_move
+from pyslow.config import load_default_config
 from pyslow.constants import HASHF_ALPHA, HASHF_BETA, HASHF_EXACT
+from pyslow.eval.caches import EvalCaches
+from pyslow.eval.local import recompute_all
+from pyslow.search.alphabeta import AlphaBetaSearcher, SearchStats
 from pyslow.search.tt import TTEntry, TranspositionTable
 
 
@@ -61,3 +66,47 @@ def test_tt_prefers_second_slot_when_first_has_higher_priority() -> None:
     table.store(second)
     assert table.probe(2, depth=1, alpha=-5, beta=5).value == 10
     assert table.probe(4, depth=1, alpha=-5, beta=5).value == 20
+
+
+def test_tt_default_bucket_bits_match_corrected_alignment_baseline() -> None:
+    table = TranspositionTable()
+    assert table.bucket_mask == (1 << 20) - 1
+    assert len(table.buckets) == 1 << 20
+
+
+def test_tt_winning_exact_store_adds_windepth_like_reference() -> None:
+    board = Board()
+    sequence = [
+        (3, 7, 1),
+        (0, 0, -1),
+        (4, 7, 1),
+        (1, 0, -1),
+        (5, 7, 1),
+        (2, 0, -1),
+        (6, 7, 1),
+    ]
+    for x, y, side in sequence:
+        board.play(xy_to_move(x, y), side)
+
+    caches = EvalCaches()
+    recompute_all(board, caches)
+    table = TranspositionTable()
+    searcher = AlphaBetaSearcher(load_default_config(), table)
+    score, move = searcher.search(
+        board,
+        caches,
+        board.side_to_move,
+        3.0,
+        -20002,
+        20002,
+        8,
+        opo=1,
+        ply=1,
+        stats=SearchStats(),
+    )
+
+    assert score <= -15000
+    entry = next(item for item in table._bucket(board.zobrist_key) if item.key == board.zobrist_key)
+    assert entry.flag == HASHF_EXACT
+    assert entry.depth == 13
+    assert entry.best_move == move

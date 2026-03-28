@@ -7,7 +7,7 @@ import time
 
 from pyslow.board import Board, move_to_xy, xy_to_move
 from pyslow.config import EngineConfig
-from pyslow.constants import INF
+from pyslow.constants import INF, WIN
 from pyslow.eval.caches import EvalCaches
 from pyslow.eval.local import recompute_all
 from pyslow.search.alphabeta import AlphaBetaSearcher, SearchStats
@@ -18,50 +18,53 @@ from pyslow.threats.vcf import VCFSearcher
 
 _REFERENCE_RAND_SEED = 1232356
 _REFERENCE_FALLBACK_STATE = (
-    1603889900,
-    -1740789191,
-    -2076689411,
-    -1153067617,
-    -1124319803,
-    340699494,
-    1499292279,
-    -1833903626,
-    -1036476732,
-    -128327729,
-    -35239293,
-    -2075498026,
-    -354280095,
-    1255612656,
-    -1950976913,
-    -1058987630,
-    1316872281,
-    -914373007,
-    1371081629,
-    1866512257,
-    1020687683,
-    -662904884,
-    744671781,
-    1789604293,
-    -675410512,
-    127571185,
-    400670923,
-    -519747875,
-    -2122335559,
-    16358792,
-    1686896992,
+    -950575697,
+    -534807373,
+    229790648,
+    -966373420,
+    529145457,
+    -273021231,
+    1735816513,
+    469166854,
+    1730624144,
+    -1386466792,
+    649120694,
+    -1282397366,
+    473519764,
+    1775465023,
+    936985512,
+    994684877,
+    -63353161,
+    825016603,
+    -643785611,
+    -1367318099,
+    -45443784,
+    1063826198,
+    2094918629,
+    -1988741269,
+    -281467344,
+    563982589,
+    367722354,
+    742065300,
+    1591101748,
+    477268195,
+    -574683412,
 )
-_REFERENCE_FALLBACK_FPTR = 14
-_REFERENCE_FALLBACK_RPTR = 11
+_REFERENCE_FALLBACK_FPTR = 25
+_REFERENCE_FALLBACK_RPTR = 22
 
 
 class _ReferenceFallbackRng:
-    """Mirror the post-InitHash libc rand() stream used by the Linux trace harness."""
+    """Mirror the Gomocup-process libc rand() stream used by SlowRenju fallback."""
 
     def __init__(self, seed: int = _REFERENCE_RAND_SEED) -> None:
         if seed != _REFERENCE_RAND_SEED:
             raise ValueError("only the reference fallback seed is supported")
-        # These values were captured from the local libc `random_r` state after:
-        # `srand(1232356)` and the 4010 draws performed by reference `InitHash()`.
+        # In Gomocup mode the reference process calls `InitHash()` twice before the
+        # first real move search: once on `START` and once on the initial
+        # `RESTART` used by `_sync_full_board()`. These values were captured from
+        # the local libc `rand()` state after `srand(1232356)` and both InitHash
+        # passes (2 * 4010 draws with the reference N=20 zobrist stream shape).
         self._state = [value & 0xFFFFFFFF for value in _REFERENCE_FALLBACK_STATE]
         self._fptr = _REFERENCE_FALLBACK_FPTR
         self._rptr = _REFERENCE_FALLBACK_RPTR
@@ -372,7 +375,7 @@ class RootSearcher:
                 -INF,
                 INF,
                 limits.root_width,
-                opo=0,
+                opo=1,
                 stats=stats,
                 root=True,
                 root_allowed_moves=root_allowed_moves,
@@ -384,6 +387,12 @@ class RootSearcher:
                 prev_score = best_score if best_move != -1 else score
                 best_move = move
                 best_score = score
+            elif score <= -WIN:
+                # SlowRenju rootsearch does not keep the previous PV when the
+                # current iteration reports "all root children lose" via
+                # `abval.second == -1`; it falls back to AIs() immediately.
+                best_move = _fallback_ai_move(board, caches, side, rng=self._fallback_rng)
+                best_score = score
             budget_ms = self._iteration_budget_ms(
                 limits.time_limit_ms,
                 score,
@@ -392,7 +401,7 @@ class RootSearcher:
                 prev_move,
                 prev_prev_move,
             )
-            if stats.stop or abs(score) >= INF - depth:
+            if stats.stop or score >= WIN or score <= -WIN:
                 break
             if budget_ms is not None:
                 elapsed_ms = (time.perf_counter() - search_start) * 1000.0

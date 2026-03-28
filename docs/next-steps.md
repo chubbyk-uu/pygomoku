@@ -2,8 +2,6 @@
 
 ## Current State
 
-The project still has two goals, and they must happen in order.
-
 ### Priority 1. Align `classic` with `SlowRenju`
 
 This is still the top priority.
@@ -59,19 +57,6 @@ The current rule is unchanged:
 - only change classic when a difference from `SlowRenju` is backed by:
   - direct source evidence, or
   - direct trace evidence on the same minimal practical position
-
-### Priority 2. Align `state` and `native` with `classic`
-
-This is intentionally second.
-
-The sequence is still:
-
-1. align classic with `SlowRenju`
-2. treat classic as the `pyslow` behavior baseline
-3. align `state` with classic
-4. align `native` with classic
-
-Do not invert this order.
 
 ## What Has Already Been Fixed In Classic
 
@@ -168,22 +153,13 @@ After the remaining residuals are closed:
 - rerun `pytest -q`
 - record the new classic baseline
 
-### 3. Then align `state`
-
-Only after classic is considered aligned to `SlowRenju`.
-
-### 4. Then align `native`
-
-Only after state is aligned to classic.
-
 ## Documents To Read Before Resuming
 
 Read these first:
 
 1. [current-handoff.md](./current-handoff.md)
 2. [classic-slowrenju-alignment-notes.md](./classic-slowrenju-alignment-notes.md)
-3. [native-search-branch-plan.md](./native-search-branch-plan.md)
-4. [acceleration-plan.md](./acceleration-plan.md)
+3. [acceleration-plan.md](./acceleration-plan.md)
 
 Then:
 

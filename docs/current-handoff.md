@@ -6,15 +6,12 @@ Priority 1 is still:
 
 - align `classic` with the `SlowRenju` reference
 
-Do not resume `state` / `native` alignment work until classic-vs-reference is
-closed on the current practical baseline.
+The project now keeps only the `classic` search line.
 
 ## Terminology
 
 - `reference` = subrepo [`SlowRenju/`](../SlowRenju)
 - `classic` = current Python production path under [`pyslow/search/`](../pyslow/search)
-- `state` = Python flat-state reference layer under [`pyslow/core/reference/`](../pyslow/core/reference)
-- `native` = native execution path under [`pyslow/core/native_search.py`](../pyslow/core/native_search.py)
 
 ## Active Reference Baseline
 

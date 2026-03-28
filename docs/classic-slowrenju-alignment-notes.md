@@ -5,8 +5,8 @@
 This document records the confirmed differences found while aligning
 `pyslow` classic with the external `SlowRenju` reference.
 
-It exists so that later `state` / `native` alignment work can reuse the same
-evidence instead of rediscovering the same reference behavior.
+It exists so later classic work can reuse the same evidence instead of
+rediscovering the same reference behavior.
 
 The rules for entries in this document are:
 
@@ -19,8 +19,6 @@ The rules for entries in this document are:
 
 - `reference`: the external `SlowRenju` engine in [`SlowRenju/`](../SlowRenju)
 - `classic`: the Python production search path in [`pyslow/search/`](../pyslow/search)
-- `state`: the flat-state Python reference layer in [`pyslow/core/reference/`](../pyslow/core/reference)
-- `native`: the flat-state native execution path in [`pyslow/core/native_search.py`](../pyslow/core/native_search.py) and [`pyslow/core/_native_search_cy.pyx`](../pyslow/core/_native_search_cy.pyx)
 
 ## Current Alignment Status
 
@@ -206,7 +204,7 @@ Important note:
 
 - this was a source-backed alignment fix
 - it was not the single largest practical root cause, but it is real reference
-  behavior and should be kept when aligning `state` and `native`
+  behavior and should remain part of the classic baseline
 
 ### 5. Root win-break behavior differed from SlowRenju
 
@@ -551,10 +549,10 @@ Interpretation:
 - but a landed classic fix still needs practical confirmation on the real
   persistent search path
 
-## What State / Native Alignment Should Reuse Later
+## Current Classic Baseline To Preserve
 
-When aligning `state` and `native` to classic later, the following behavior
-should be treated as part of the corrected classic baseline:
+The following behavior should be treated as part of the corrected classic
+baseline:
 
 1. the corrected zobrist stream semantics
 2. no turn key in zobrist
@@ -563,9 +561,6 @@ should be treated as part of the corrected classic baseline:
 5. winning exact-store depth boost (`windepth + 10`)
 6. root win-break on first `score >= WIN`
 7. reference fallback RNG state aligned to Gomocup `START` + first `RESTART`
-
-Any later `state` / `native` drift should be checked against these corrected
-classic rules first.
 
 ## Remaining Open Items
 

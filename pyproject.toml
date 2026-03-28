@@ -14,3 +14,8 @@ gui = ["pygame>=2.5"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "fast: small unit and structural regression tests intended for frequent local runs",
+    "alignment: reference-behavior regressions used to keep classic aligned with SlowRenju",
+    "integration: protocol, subprocess, and UI entrypoint tests",
+]
