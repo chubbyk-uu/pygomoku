@@ -262,6 +262,21 @@ Coordinate convention for GUI / protocol / logs:
 - this matches both current `pyslow` output and the checked reference trace
 - do not read logged coordinates as `(row, column)`
 
+Recent practical checkpoints for these defaults:
+
+- `classic d5 w20` vs `zhou d5`, opening-set `9`:
+  - result `9/0/0` as black and `9/0/0` as white
+  - average engine time about `1539.62 ms/step`
+- `classic d5 w30` vs `zhou d5`, opening-set `9`:
+  - result `9/0/0` as black and `9/0/0` as white
+  - average engine time about `1990.75 ms/step`
+- GUI `SlowRenju d8 w24` reference check vs `zhou d5`, opening-set `9`:
+  - result `9/0/0` as black and `9/0/0` as white
+  - average engine time about `769.96 ms/step`
+- `SlowRenju d10 w24` comparison check vs `zhou d5`, opening-set `9`:
+  - result `9/0/0` as black and `9/0/0` as white
+  - average engine time about `5009.70 ms/step`
+
 ## Rules For Future Changes
 
 1. Do not call the alignment baseline or interactive defaults the engine default.

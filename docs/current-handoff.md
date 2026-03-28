@@ -61,6 +61,25 @@ Current development entry defaults:
 - opponent runner `SlowRenju` default fixed search: `depth=5 width=20`
 - reference-alignment baseline remains the checked `depth=5 width=15` practical set
 
+Recent practical experiment checkpoints:
+
+- `classic d5 w20` vs `zhou d5`, opening-set `9`:
+  - black `9/0/0`
+  - white `9/0/0`
+  - average engine time: about `1539.62 ms/step`
+- `classic d5 w30` vs `zhou d5`, opening-set `9`:
+  - black `9/0/0`
+  - white `9/0/0`
+  - average engine time: about `1990.75 ms/step`
+- `SlowRenju d8 w24` vs `zhou d5`, opening-set `9`:
+  - black `9/0/0`
+  - white `9/0/0`
+  - average engine time: about `769.96 ms/step`
+- `SlowRenju d10 w24` vs `zhou d5`, opening-set `9`:
+  - black `9/0/0`
+  - white `9/0/0`
+  - average engine time: about `5009.70 ms/step`
+
 ## Current Alignment Status
 
 Known whole-game residuals against `SlowRenju` on opening-set `9`:
