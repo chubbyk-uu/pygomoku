@@ -41,7 +41,7 @@ def test_hash_tracks_partial_undo_correctly() -> None:
     assert board.zobrist_key == key_after_first
 
 
-def test_side_to_move_changes_hash_even_on_same_grid() -> None:
+def test_side_to_move_does_not_change_hash_on_same_grid() -> None:
     black_to_move = Board()
     white_to_move = Board(side_to_move=-1)
-    assert black_to_move.zobrist_key != white_to_move.zobrist_key
+    assert black_to_move.zobrist_key == white_to_move.zobrist_key

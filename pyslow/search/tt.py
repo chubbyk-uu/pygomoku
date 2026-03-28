@@ -28,7 +28,7 @@ class ProbeResult:
 
 
 class TranspositionTable:
-    def __init__(self, bucket_bits: int = 12) -> None:
+    def __init__(self, bucket_bits: int = 20) -> None:
         self.bucket_mask = (1 << bucket_bits) - 1
         self.buckets: list[list[TTEntry]] = [
             [TTEntry(), TTEntry()] for _ in range(1 << bucket_bits)

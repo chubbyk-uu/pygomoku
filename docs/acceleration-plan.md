@@ -2,15 +2,17 @@
 
 ## Current Position
 
-This document still defines the acceleration rules, but acceleration is not the
-current top priority.
+This document defines the current optimization rules for the kept `classic`
+path.
 
 Current project priority order is:
 
-1. align `classic` with the external `SlowRenju` reference
-2. only then resume large-scale acceleration work
+1. keep `classic` semantics stable
+2. improve `classic` speed
+3. leave the remaining `d5 w15` alignment residuals open until direct evidence
+   justifies resuming them
 
-So this document is now a deferred-plan document, not the immediate work order.
+So this is now an active work-order document, not just a deferred plan.
 
 ## Terminology
 
@@ -27,18 +29,9 @@ The current Python production path:
 - [`pyslow/search/`](../pyslow/search)
 - [`pyslow/eval/`](../pyslow/eval)
 
-## Rule Before Any New Performance Work
-
-No new acceleration work should become primary until the following is true:
-
-1. classic is aligned with `SlowRenju`
-2. the kept runtime path is stable enough to profile and optimize
-
-This rule exists because optimizing a drifting path is wasted work.
-
 ## Core Principles
 
-When acceleration resumes, every change must still satisfy all 3 conditions:
+Every kept optimization must still satisfy all 3 conditions:
 
 1. semantics must not change
 2. Python fallback must remain available
@@ -74,24 +67,22 @@ But the rule remains:
 
 Right now, the following are not first-priority tasks:
 
-- broad new native performance work
-- speculative root-level throughput tuning
-- changing default search limits to chase speed alone
+- speculative residual-alignment surgery without new direct evidence
 - introducing faster-but-different semantics
 
-These only make sense after the alignment sequence is complete.
+These only make sense after the evidence bar is met.
 
-## Deferred Performance Targets
+## Current Performance Targets
 
-Once alignment work is finished, the acceleration target remains:
+The current target is:
 
 - keep equivalent semantics
 - significantly improve throughput
 - move practical search reach toward at least `depth=8 width=20`
 
-## Future Work Order After Alignment
+## Work Order
 
-When the project returns to acceleration work, do it in this order:
+Do the work in this order:
 
 1. profile the corrected classic baseline again
 2. re-identify the hottest aligned path
@@ -101,9 +92,16 @@ When the project returns to acceleration work, do it in this order:
 
 ## Validation Rules
 
-When acceleration resumes, every kept change should be validated with:
+Every kept change should be validated with:
 
-- `pytest -q`
+- `python -m pytest -n auto -q`
 - `python benchmarks/alignment_compare.py`
 - fixed representative benchmark runs
 - practical persistent-session opponent checks when needed
+
+Recommended local test commands:
+
+- full suite: `python -m pytest -n auto -q`
+- fast subset: `python -m pytest -m fast -q`
+- alignment subset: `python -m pytest -m alignment -n auto -q`
+- integration subset: `python -m pytest -m integration -q`

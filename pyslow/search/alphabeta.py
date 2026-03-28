@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import log
+import os
 
 from pyslow.board import Board
 from pyslow.config import EngineConfig
@@ -12,14 +13,21 @@ from pyslow.eval.caches import EvalCaches
 from pyslow.eval.global_eval import evaluate_board
 from pyslow.eval.local import value_wide_compute
 from pyslow.search.movegen import generate_candidates
-from pyslow.search.ordering import order_candidates
+from pyslow.search.ordering import order_candidates, order_candidates_root_slowrenju
 from pyslow.search.tt import TTEntry, TranspositionTable
 from pyslow.threats.vcf import VCFSearcher
+
+_DEBUG_TT_KEY = int(os.getenv("PYSLOW_DEBUG_TT_KEY", "0"))
+_DEBUG_ROOT_KEY = int(os.getenv("PYSLOW_DEBUG_ROOT_KEY", "0"))
+_DEBUG_NODE_KEY = int(os.getenv("PYSLOW_DEBUG_NODE_KEY", "0"))
 
 
 @dataclass
 class SearchStats:
     nodes: int = 0
+    leaf_nodes: int = 0
+    tt_hits: int = 0
+    cutoffs: int = 0
     stop: bool = False
     node_limit: int | None = None
 
@@ -67,7 +75,7 @@ def _rootbonus(board: Board, x: int, y: int) -> int:
                         countall += 1
                 else:
                     countall += 1
-        bonus += countall_list[countall] * 0.7
+        bonus += countall_list[min(countall, len(countall_list) - 1)] * 0.7
         return int(round(bonus))
 
     if height <= 3:
@@ -102,10 +110,14 @@ class AlphaBetaSearcher:
         root_allowed_moves: set[int] | None = None,
         downf: int = 0,
         root_depth: float | None = None,
+        priority_base: int | None = None,
     ) -> tuple[int, int]:
         if root_depth is None:
             root_depth = depth
+        if priority_base is None:
+            priority_base = board.move_count
         hash_depth = int(depth)
+        original_beta = beta
         if stats is None:
             stats = SearchStats()
         if stats.node_limit is not None and stats.nodes >= stats.node_limit:
@@ -118,6 +130,21 @@ class AlphaBetaSearcher:
             return terminal, -1
 
         probe = self.tt.probe(board.zobrist_key, hash_depth, alpha, beta)
+        if _DEBUG_TT_KEY and board.zobrist_key == _DEBUG_TT_KEY:
+            print(
+                "DBG key probe",
+                {
+                    "depth": depth,
+                    "hash_depth": hash_depth,
+                    "alpha": alpha,
+                    "beta": beta,
+                    "opo": opo,
+                    "ply": ply,
+                    "root": root,
+                    "downf": downf,
+                    "probe": probe,
+                },
+            )
         if probe.hit and probe.value is not None:
             return probe.value, probe.best_move
         if probe.has_window and not root:
@@ -139,7 +166,7 @@ class AlphaBetaSearcher:
                     value=score,
                     flag=HASHF_EXACT,
                     depth=0,
-                    priority=board.move_count * 10,
+                    priority=priority_base * 10,
                     best_move=-1,
                 )
             )
@@ -153,8 +180,14 @@ class AlphaBetaSearcher:
             wide=wide,
             root_allowed_moves=root_allowed_moves if root else None,
             preferred_move=probe.best_move,
+            preserve_scan_order=root,
         )
-        ordered = order_candidates(board, generated.candidates, side, probe.best_move)
+        if root:
+            ordered = order_candidates_root_slowrenju(board, generated.candidates, side)
+        else:
+            ordered = order_candidates(board, generated.candidates, side, probe.best_move)
+        if generated.win_priority and ordered:
+            return INF, ordered[0].move
         if self.config.runtime.compute_vcf and self.config.runtime.nonroot_vcf and not root:
             nonroot_vcf_depth = self._nonroot_vcf_depth(depth, root_depth)
             if nonroot_vcf_depth > 0 and self.vcf.search(board, -side, nonroot_vcf_depth).found:
@@ -224,6 +257,7 @@ class AlphaBetaSearcher:
                         stats=stats,
                         downf=local_downf,
                         root_depth=root_depth,
+                        priority_base=priority_base,
                     )
                     score = -atdown - score
                     if alpha < score < beta:
@@ -240,6 +274,7 @@ class AlphaBetaSearcher:
                             stats=stats,
                             downf=local_downf,
                             root_depth=root_depth,
+                            priority_base=priority_base,
                         )
                         score = -atdown - score
                 else:
@@ -256,6 +291,7 @@ class AlphaBetaSearcher:
                         stats=stats,
                         downf=local_downf,
                         root_depth=root_depth,
+                        priority_base=priority_base,
                     )
                     score = -atdown - score
                 if score >= WIN:
@@ -269,6 +305,37 @@ class AlphaBetaSearcher:
             board.undo()
             caches.restore_snapshot(snapshot)
 
+            if _DEBUG_ROOT_KEY and root and board.zobrist_key == _DEBUG_ROOT_KEY:
+                print(
+                    "DBG root child",
+                    {
+                        "depth": depth,
+                        "move": (candidate.move % board.size, candidate.move // board.size),
+                        "score": score,
+                        "alpha": alpha,
+                        "current": current,
+                        "downf": local_downf,
+                        "case_index": index,
+                    },
+                )
+            if _DEBUG_NODE_KEY and board.zobrist_key == _DEBUG_NODE_KEY:
+                print(
+                    "DBG node child",
+                    {
+                        "board_key": board.zobrist_key,
+                        "depth": depth,
+                        "root": root,
+                        "ply": ply,
+                        "move": (candidate.move % board.size, candidate.move // board.size),
+                        "score": score,
+                        "alpha": alpha,
+                        "current": current,
+                        "downf": local_downf,
+                        "case_index": index,
+                        "history": [(m.move % board.size, m.move // board.size) for m in board.move_history[-8:]],
+                    },
+                )
+
             if score > current:
                 current = score
             if score > alpha:
@@ -276,6 +343,8 @@ class AlphaBetaSearcher:
                 best_move = candidate.move
                 hash_flag = HASHF_EXACT
                 found_pv = True
+            if root and score >= WIN:
+                break
             if alpha >= beta:
                 hash_flag = HASHF_BETA
                 break
@@ -283,14 +352,36 @@ class AlphaBetaSearcher:
         if current <= original_alpha and hash_flag != HASHF_BETA:
             hash_flag = HASHF_ALPHA
 
+        store_depth = hash_depth
+        if (current >= WIN and current > original_alpha) or (current <= -WIN and current < original_beta):
+            hash_flag = HASHF_EXACT
+            store_depth += 10
+
         self.tt.store(
             TTEntry(
                 key=board.zobrist_key,
                 value=current,
                 flag=hash_flag,
-                depth=hash_depth,
-                priority=board.move_count * 10 + hash_depth,
+                depth=store_depth,
+                priority=priority_base * 10 + hash_depth,
                 best_move=best_move,
             )
         )
+        if _DEBUG_TT_KEY and board.zobrist_key == _DEBUG_TT_KEY:
+            print(
+                "DBG key store",
+                {
+                    "depth": depth,
+                    "hash_depth": hash_depth,
+                    "alpha0": original_alpha,
+                    "beta0": beta,
+                    "opo": opo,
+                    "ply": ply,
+                    "root": root,
+                    "downf": downf,
+                    "value": current,
+                    "flag": hash_flag,
+                    "best_move": best_move,
+                },
+            )
         return current, best_move

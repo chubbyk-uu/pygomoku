@@ -2,9 +2,10 @@
 
 ## Current State
 
-### Priority 1. Align `classic` with `SlowRenju`
+### Priority 1. Optimize `classic` without changing semantics
 
-This is still the top priority.
+Whole-game alignment against `SlowRenju` is not fully closed, but active work
+is temporarily shifting to performance work on the kept `classic` path.
 
 Current reference baseline:
 
@@ -57,6 +58,14 @@ The current rule is unchanged:
 - only change classic when a difference from `SlowRenju` is backed by:
   - direct source evidence, or
   - direct trace evidence on the same minimal practical position
+- do not change semantics while optimizing speed
+
+Current development defaults:
+
+- interactive / CLI defaults: `depth=5 width=20`
+- GUI `SlowRenju` backend fixed search: `depth=8 width=24`
+- opponent runner `SlowRenju` default fixed search: `depth=5 width=20`
+- checked practical alignment baseline: `depth=5 width=15`
 
 ## What Has Already Been Fixed In Classic
 
@@ -129,29 +138,42 @@ residuals without direct evidence.
 
 ## Current Work Order
 
-### 1. Finish classic-vs-reference whole-game alignment on opening-set `9`
+### 1. Optimize classic speed on the current semantic baseline
 
 Immediate task:
+
+1. profile the current `classic` path
+2. optimize Python or native hotspots only if behavior remains unchanged
+3. use `depth=5 width=20` as the development default for practical checks
+4. keep the current `d5 w15` residual list as an open issue, not as the active task
+
+Do not:
+
+- change search semantics to chase speed
+- “improve” classic by intuition and call it alignment
+- treat edge residual guesses as proven causes without direct evidence
+
+### 2. Keep regression practical and parallel
+
+Use parallel pytest by default for broad runs:
+
+- full suite: `python -m pytest -n auto -q`
+- fast subset: `python -m pytest -m fast -q`
+- alignment subset: `python -m pytest -m alignment -n auto -q`
+- integration subset: `python -m pytest -m integration -q`
+- current grouped counts: `fast=39`, `alignment=89`, `integration=29`
+
+Single-thread full-suite runs are noticeably slower and should not be the
+default local workflow.
+
+### 3. Revisit classic-vs-reference residuals only when justified
+
+If alignment work resumes:
 
 1. continue from the four black residuals above
 2. keep using exact practical prefixes and persistent Gomocup flow
 3. treat fresh one-shot search only as a diagnosis aid
 4. only land code changes after direct source / trace evidence
-
-Do not:
-
-- “improve” classic by intuition
-- replace persistent reference behavior with fresh-TT behavior
-- treat edge-location guesses as proven root causes without exact evidence
-
-### 2. Re-baseline regression once opening-set `9` is closed
-
-After the remaining residuals are closed:
-
-- rerun Zhou opening matches
-- rerun `alignment_compare.py`
-- rerun `pytest -q`
-- record the new classic baseline
 
 ## Documents To Read Before Resuming
 

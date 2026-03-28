@@ -159,6 +159,7 @@ def generate_candidates(
     wide: int | None = None,
     root_allowed_moves: set[int] | None = None,
     preferred_move: int = -1,
+    preserve_scan_order: bool = False,
 ) -> CandidateGenerationResult:
     moves = covered_moves(board)
     if wide is None:
@@ -252,7 +253,8 @@ def generate_candidates(
                 )
             )
 
-    candidates.sort(key=lambda candidate: (-candidate.order_score, candidate.move))
+    if not preserve_scan_order:
+        candidates.sort(key=lambda candidate: (-candidate.order_score, candidate.move))
     if winpri and candidates:
         return CandidateGenerationResult((candidates[0],), False, bool(hsflag), True)
     if sglflag and candidates:

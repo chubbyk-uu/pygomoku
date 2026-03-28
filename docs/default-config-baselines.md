@@ -24,16 +24,26 @@ Primary references:
 
 ### Root Search Defaults
 
-Reference command-line entry launches:
+For the checked Gomocup fixed-search build path, reference defaults are:
 
-- `depth = 24`
-- `width = 60`
+- `fixedsearch = 1`
+- `searchdepth = 5`
+- `searchwidth = 15`
 - `ratio_num = 1`
 - `ratio_den = 1`
 
+This is the practical default used by the compiled `slowrenju_linux` path when
+no explicit `INFO depth/width` override is sent.
+
+If `fixedsearch` is turned off, the time-managed path falls back to:
+
+- `depth = 24`
+- `width = 60`
+
 Source:
 
-- [`main.cpp`](../SlowRenju/Common/main.cpp#L527)
+- [`main.cpp`](../SlowRenju/Common/main.cpp)
+- [`global_value.cpp`](../SlowRenju/Common/global_value.cpp)
 
 ### Runtime Defaults
 
@@ -225,7 +235,9 @@ reference-alignment baseline.
 Current interactive entry defaults:
 
 - `max_depth = 5`
-- `root_width = 15`
+- `root_width = 20`
+- GUI `SlowRenju` backend fixed search: `depth = 8`, `width = 24`
+- opponent runner `SlowRenju` default fixed search: `depth = 5`, `width = 20`
 
 Source:
 
@@ -234,8 +246,12 @@ Source:
 
 Reason:
 
-- current acceleration now makes `5/15` just acceptable for interactive local use
-- `5/15` remains noticeably heavier than `5/10`, so it is an interactive
+- current development work is using `5/20` as the practical default
+- `5/20` is an interactive / development strength default, not an alignment
+  baseline
+- the GUI keeps a separate fixed `SlowRenju` backend default at `8/24`
+- the opponent runner keeps a separate `SlowRenju` practical default at `5/20`
+- it remains noticeably heavier than the audit baselines, so it is an interactive
   strength default, not an alignment or audit baseline
 - the reference-alignment and semantic-audit baseline remains `3/10` on purpose
   for faster feedback and stable trace comparison
@@ -256,3 +272,13 @@ Coordinate convention for GUI / protocol / logs:
    and short selfplay timing before changing docs.
 5. If a future `VCT` module is added, document its defaults separately. It does
    not exist yet and therefore has no current default depth.
+
+## Test Execution Defaults
+
+Current recommended local test defaults:
+
+- full-suite runs should use `python -m pytest -n auto -q`
+- alignment-heavy runs should use `python -m pytest -m alignment -n auto -q`
+- grouped test counts are currently `fast=39`, `alignment=89`, `integration=29`
+- single-thread `pytest -q` is still valid, but it is not the preferred default
+  because full-suite wall time is much worse

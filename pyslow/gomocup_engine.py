@@ -9,7 +9,7 @@ from pyslow.protocol.gomocup import GomocupProtocol
 from pyslow.search.root import SearchLimits
 
 DEFAULT_DEPTH = 5
-DEFAULT_WIDTH = 15
+DEFAULT_WIDTH = 20
 
 
 def main() -> None:

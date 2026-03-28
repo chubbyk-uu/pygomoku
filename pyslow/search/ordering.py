@@ -111,3 +111,43 @@ def order_candidates(
         return (-tt_bias, -candidate.order_score, -getmi(board, x, y, side), candidate.move)
 
     return tuple(sorted(candidates, key=sort_key))
+
+
+def order_candidates_root_slowrenju(
+    board: Board,
+    candidates: tuple[Candidate, ...],
+    side: int,
+) -> tuple[Candidate, ...]:
+    ordered = list(candidates)
+    mis = [0] * (board.size * board.size)
+    limit = len(ordered)
+    for i in range(limit):
+        best_index = i
+        best = ordered[best_index]
+        best_mi = 0
+        for j in range(i + 1, limit):
+            candidate = ordered[j]
+            if candidate.order_score > best.order_score:
+                best_index = j
+                best = candidate
+                best_mi = 0
+                continue
+            if candidate.order_score < best.order_score:
+                continue
+            if best_mi == 0:
+                bx = best.move % board.size
+                by = best.move // board.size
+                best_mi = getmi(board, bx, by, side)
+                mis[best.move] = best_mi
+            candidate_mi = mis[candidate.move]
+            if candidate_mi == 0:
+                cx = candidate.move % board.size
+                cy = candidate.move // board.size
+                candidate_mi = getmi(board, cx, cy, side)
+                mis[candidate.move] = candidate_mi
+            if candidate_mi > best_mi:
+                best_index = j
+                best = candidate
+                best_mi = candidate_mi
+        ordered[i], ordered[best_index] = ordered[best_index], ordered[i]
+    return tuple(ordered)

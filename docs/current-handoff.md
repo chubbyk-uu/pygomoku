@@ -2,9 +2,9 @@
 
 ## Current Goal
 
-Priority 1 is still:
+Priority 1 is now:
 
-- align `classic` with the `SlowRenju` reference
+- keep `classic` semantics stable while improving practical speed
 
 The project now keeps only the `classic` search line.
 
@@ -53,6 +53,13 @@ Current extended check:
   - white `8/1/0`
 
 Summary is aligned on the 9-opening set, but whole-game parity is not.
+
+Current development entry defaults:
+
+- interactive / CLI defaults: `depth=5 width=20`
+- GUI `SlowRenju` backend fixed search: `depth=8 width=24`
+- opponent runner `SlowRenju` default fixed search: `depth=5 width=20`
+- reference-alignment baseline remains the checked `depth=5 width=15` practical set
 
 ## Current Alignment Status
 
@@ -125,18 +132,31 @@ These are evidence-backed findings from the 9-opening investigation.
 - a naive tie-order patch was tested and reverted because it did not change
   practical 9-opening results
 
+## Current Strategy
+
+Classic-vs-reference alignment is not considered closed, but further root-cause
+work on the remaining 9-opening black residuals is temporarily paused.
+
+Current working rule:
+
+- do not claim full classic-vs-reference closure
+- do not reopen speculative alignment surgery without new direct evidence
+- prioritize speed work on `classic`
+- keep semantics unchanged while optimizing
+
 ## Immediate Next Step
 
-Continue from the opening-set `9` black residuals only:
+Immediate engineering focus:
 
-1. keep `SlowRenju/` clean except short-lived trace edits
-2. continue exact-position / exact-node trace work
-3. close the remaining upstream condition on:
-   - `black_0_2_2`
-   - `black_2_12_2`
-   - `black_3_12_12`
-4. only change classic after direct reference source evidence or exact trace
-   evidence on the same practical branch
+1. optimize `classic` performance without changing behavior
+2. keep `d5 w20` as the development default while benchmarking
+3. validate every kept speedup with tests and practical opponent checks
+4. only resume residual alignment work if new direct evidence is available
+
+Recommended local test invocation:
+
+- full regression: `python -m pytest -n auto -q`
+- fast-only smoke: `python -m pytest -m fast -q`
 
 ## First Files To Read After Reopen
 

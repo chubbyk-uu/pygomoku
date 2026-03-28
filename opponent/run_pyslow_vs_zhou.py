@@ -29,6 +29,8 @@ DEFAULT_PARALLEL = 10
 DEFAULT_ENGINE_TYPE = "pyslow"
 DEFAULT_PYSLOW_CMD = f"{shlex.quote(sys.executable)} -m pyslow.gomocup_engine"
 DEFAULT_SLOWRENJU_CMD = str(REPO_ROOT / "SlowRenju" / "slowrenju_linux")
+DEFAULT_SLOWRENJU_DEPTH = 5
+DEFAULT_SLOWRENJU_WIDTH = 20
 DEFAULT_SLOWRENJU_TIMEOUT_TURN_MS = 1500
 DEFAULT_SLOWRENJU_TIME_LEFT_MS = 30000
 
@@ -98,12 +100,16 @@ class _GomocupEngine:
         command: str,
         name: str,
         color: str,
+        depth: int | None = None,
+        width: int | None = None,
         timeout_turn_ms: int | None = None,
         time_left_ms: int | None = None,
     ) -> None:
         self._command = command
         self._name = name
         self._color = color
+        self._depth = depth
+        self._width = width
         self._timeout_turn_ms = timeout_turn_ms
         self._time_left_ms = time_left_ms
         self._proc: subprocess.Popen[str] | None = None
@@ -165,6 +171,10 @@ class _GomocupEngine:
             return text
 
     def _configure(self) -> None:
+        if self._depth is not None:
+            self._send_line(f"INFO depth {self._depth}")
+        if self._width is not None:
+            self._send_line(f"INFO width {self._width}")
         if self._timeout_turn_ms is not None:
             self._send_line(f"INFO timeout_turn {self._timeout_turn_ms}")
         if self._time_left_ms is not None:
@@ -215,6 +225,8 @@ class _GomocupEngine:
             "engine": self._name,
             "color": self._color,
             "command": self._command,
+            "depth": self._depth,
+            "width": self._width,
             "timeout_turn_ms": self._timeout_turn_ms,
             "time_left_ms": self._time_left_ms,
         }
@@ -311,6 +323,8 @@ def _play_task(
     engine_name: str,
     pyslow_depth: int,
     pyslow_width: int,
+    slowrenju_depth: int | None,
+    slowrenju_width: int | None,
     slowrenju_timeout_turn_ms: int,
     slowrenju_time_left_ms: int,
     zhou_depth: int,
@@ -344,6 +358,8 @@ def _play_task(
             command=engine_command,
             name=engine_name,
             color=task.engine_color,
+            depth=slowrenju_depth,
+            width=slowrenju_width,
             timeout_turn_ms=slowrenju_timeout_turn_ms,
             time_left_ms=slowrenju_time_left_ms,
         )
@@ -481,6 +497,8 @@ def _build_payload(
     engine_color: str,
     pyslow_depth: int,
     pyslow_width: int,
+    slowrenju_depth: int | None,
+    slowrenju_width: int | None,
     slowrenju_timeout_turn_ms: int,
     slowrenju_time_left_ms: int,
     zhou_depth: int,
@@ -501,6 +519,8 @@ def _build_payload(
         "params": {
             "pyslow_depth": pyslow_depth,
             "pyslow_width": pyslow_width,
+            "slowrenju_depth": slowrenju_depth,
+            "slowrenju_width": slowrenju_width,
             "slowrenju_timeout_turn_ms": slowrenju_timeout_turn_ms,
             "slowrenju_time_left_ms": slowrenju_time_left_ms,
             "zhou_depth": zhou_depth,
@@ -524,6 +544,8 @@ def main() -> None:
     parser.add_argument("--engine-name", type=str, default=None)
     parser.add_argument("--pyslow-depth", type=int, default=5)
     parser.add_argument("--pyslow-width", type=int, default=15)
+    parser.add_argument("--slowrenju-depth", type=int, default=DEFAULT_SLOWRENJU_DEPTH)
+    parser.add_argument("--slowrenju-width", type=int, default=DEFAULT_SLOWRENJU_WIDTH)
     parser.add_argument("--slowrenju-timeout-turn", type=int, default=DEFAULT_SLOWRENJU_TIMEOUT_TURN_MS)
     parser.add_argument("--slowrenju-time-left", type=int, default=DEFAULT_SLOWRENJU_TIME_LEFT_MS)
     parser.add_argument("--zhou-depth", type=int, default=5)
@@ -564,6 +586,8 @@ def main() -> None:
                 engine_name=engine_name,
                 pyslow_depth=args.pyslow_depth,
                 pyslow_width=args.pyslow_width,
+                slowrenju_depth=args.slowrenju_depth,
+                slowrenju_width=args.slowrenju_width,
                 slowrenju_timeout_turn_ms=args.slowrenju_timeout_turn,
                 slowrenju_time_left_ms=args.slowrenju_time_left,
                 zhou_depth=args.zhou_depth,
@@ -591,6 +615,8 @@ def main() -> None:
             engine_color="BLACK",
             pyslow_depth=args.pyslow_depth,
             pyslow_width=args.pyslow_width,
+            slowrenju_depth=args.slowrenju_depth,
+            slowrenju_width=args.slowrenju_width,
             slowrenju_timeout_turn_ms=args.slowrenju_timeout_turn,
             slowrenju_time_left_ms=args.slowrenju_time_left,
             zhou_depth=args.zhou_depth,
@@ -609,6 +635,8 @@ def main() -> None:
             engine_color="WHITE",
             pyslow_depth=args.pyslow_depth,
             pyslow_width=args.pyslow_width,
+            slowrenju_depth=args.slowrenju_depth,
+            slowrenju_width=args.slowrenju_width,
             slowrenju_timeout_turn_ms=args.slowrenju_timeout_turn,
             slowrenju_time_left_ms=args.slowrenju_time_left,
             zhou_depth=args.zhou_depth,

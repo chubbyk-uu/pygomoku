@@ -19,7 +19,7 @@
 
 1. 以 `SlowRenju` 为 reference，对齐 `pyslow` 的关键行为语义
 2. 在 `pyslow` 中实现和维护可测试、可回归、可演进的搜索/评估/战术模块
-3. 在确认语义后，再推进 native 加速与执行层替换
+3. 在不改变已确认语义的前提下，持续优化 `classic` 的实际速度
 
 agent 不应把自己当作“机械翻译器”。
 应优先关注：
@@ -36,8 +36,9 @@ agent 不应把自己当作“机械翻译器”。
 
 开始工作前，优先阅读：
 
-1. [`docs/next-steps.md`](./docs/next-steps.md)
-2. [`docs/acceleration-plan.md`](./docs/acceleration-plan.md)
+1. [`docs/current-handoff.md`](./docs/current-handoff.md)
+2. [`docs/next-steps.md`](./docs/next-steps.md)
+3. [`docs/acceleration-plan.md`](./docs/acceleration-plan.md)
 
 规格类文档按任务需要阅读，例如：
 
@@ -80,7 +81,8 @@ agent 不应把自己当作“机械翻译器”。
 
 ## native 工作规则
 
-native 的目标是等价语义替换，不是单独发明另一套搜索器。
+native 是允许的提速手段之一，但目标仍然是等价语义替换，不是
+单独发明另一套搜索器。
 
 因此：
 
@@ -95,4 +97,5 @@ native 的目标是等价语义替换，不是单独发明另一套搜索器。
 
 `AGENTS.md` 只强调一条总规则：
 
-- 先收口语义，再做性能和 native 硬化
+- `classic` 是当前唯一语义主线；优先做不改语义的提速，Python 和
+  native 都可以作为实现路径

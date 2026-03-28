@@ -8,9 +8,15 @@ from pyslow.config import load_default_config
 from pyslow.eval.caches import EvalCaches
 from pyslow.eval.local import recompute_all
 from pyslow.search.alphabeta import AlphaBetaSearcher, SearchStats, _rootbonus
-from pyslow.constants import HASHF_ALPHA, INF
+from pyslow.constants import HASHF_ALPHA, HASHF_EXACT, INF
 from pyslow.search.root import RootSearcher, SearchLimits, _fallback_ai_move, _new_reference_fallback_rng
 from pyslow.search.tt import TTEntry
+
+
+def _play_reference_prefix(board: Board, moves: list[tuple[int, int, int]]) -> None:
+    for x, y, side in moves:
+        assert board.side_to_move == side
+        board.play(xy_to_move(x, y), side)
 
 
 def test_root_search_returns_center_on_empty_board() -> None:
@@ -62,6 +68,126 @@ def test_root_search_matches_reference_one_move_reply() -> None:
     result = searcher.search(board, SearchLimits(max_depth=3, root_width=8))
     assert move_to_xy(result.move) == (7, 4)
     assert result.score == -12
+
+
+def test_root_search_matches_slowrenju_opening_10_4_depth5_width15() -> None:
+    board = Board()
+    board.play(xy_to_move(10, 4))
+    searcher = RootSearcher(load_default_config())
+    result = searcher.search(board, SearchLimits(max_depth=5, root_width=15))
+    assert move_to_xy(result.move) == (9, 4)
+    assert result.score == -10
+
+
+def test_reference_fallback_rng_matches_slowrenju_white_10_10_sequence() -> None:
+    prefix_to_30 = [
+        (10, 10, 1),
+        (10, 9, -1),
+        (9, 11, 1),
+        (9, 10, -1),
+        (11, 9, 1),
+        (12, 8, -1),
+        (8, 12, 1),
+        (7, 13, -1),
+        (8, 11, 1),
+        (10, 11, -1),
+        (11, 12, 1),
+        (8, 9, -1),
+        (10, 12, 1),
+        (9, 12, -1),
+        (8, 10, 1),
+        (7, 9, -1),
+        (8, 13, 1),
+        (8, 14, -1),
+        (9, 9, 1),
+        (8, 8, -1),
+        (11, 13, 1),
+        (12, 14, -1),
+        (11, 11, 1),
+        (11, 10, -1),
+        (12, 12, 1),
+        (13, 13, -1),
+        (13, 12, 1),
+        (14, 12, -1),
+        (12, 10, 1),
+    ]
+    prefix_to_32 = prefix_to_30 + [
+        (13, 9, -1),
+        (10, 8, 1),
+    ]
+    rng = _new_reference_fallback_rng()
+
+    board = Board()
+    _play_reference_prefix(board, prefix_to_30)
+    caches = EvalCaches()
+    recompute_all(board, caches)
+    assert move_to_xy(_fallback_ai_move(board, caches, board.side_to_move, rng=rng)) == (13, 9)
+
+    board = Board()
+    _play_reference_prefix(board, prefix_to_32)
+    caches = EvalCaches()
+    recompute_all(board, caches)
+    assert move_to_xy(_fallback_ai_move(board, caches, board.side_to_move, rng=rng)) == (9, 7)
+
+
+def test_root_fallback_uses_reference_rng_on_white_10_10_turn_32() -> None:
+    prefix_to_30 = [
+        (10, 10, 1),
+        (10, 9, -1),
+        (9, 11, 1),
+        (9, 10, -1),
+        (11, 9, 1),
+        (12, 8, -1),
+        (8, 12, 1),
+        (7, 13, -1),
+        (8, 11, 1),
+        (10, 11, -1),
+        (11, 12, 1),
+        (8, 9, -1),
+        (10, 12, 1),
+        (9, 12, -1),
+        (8, 10, 1),
+        (7, 9, -1),
+        (8, 13, 1),
+        (8, 14, -1),
+        (9, 9, 1),
+        (8, 8, -1),
+        (11, 13, 1),
+        (12, 14, -1),
+        (11, 11, 1),
+        (11, 10, -1),
+        (12, 12, 1),
+        (13, 13, -1),
+        (13, 12, 1),
+        (14, 12, -1),
+        (12, 10, 1),
+    ]
+    prefix_to_32 = prefix_to_30 + [
+        (13, 9, -1),
+        (10, 8, 1),
+    ]
+    board = Board()
+    _play_reference_prefix(board, prefix_to_30)
+    searcher = RootSearcher(load_default_config())
+    caches = EvalCaches()
+    recompute_all(board, caches)
+    assert move_to_xy(_fallback_ai_move(board, caches, board.side_to_move, rng=searcher._fallback_rng)) == (13, 9)
+
+    board = Board()
+    _play_reference_prefix(board, prefix_to_32)
+    searcher.tt.store(
+        TTEntry(
+            key=board.zobrist_key,
+            value=-20000,
+            flag=HASHF_EXACT,
+            depth=5,
+            priority=999,
+            best_move=-1,
+        )
+    )
+    result = searcher.search(board, SearchLimits(max_depth=5, root_width=15))
+    assert move_to_xy(result.move) == (9, 7)
+    assert result.score == -20000
 
 
 def test_root_allowed_moves_use_dynamic_board_margin_when_enabled() -> None:
@@ -293,7 +419,7 @@ def test_fallback_ai_move_uses_reference_seeded_tie_break() -> None:
     move_a = _fallback_ai_move(board, caches, board.side_to_move, rng=_new_reference_fallback_rng())
     move_b = _fallback_ai_move(board, caches, board.side_to_move, rng=_new_reference_fallback_rng())
     assert move_a == move_b
-    assert move_to_xy(move_a) == (6, 7)
+    assert move_to_xy(move_a) == (11, 7)
 
 
 def test_root_skips_vcf_paths_when_runtime_disables_it(monkeypatch) -> None:
@@ -360,7 +486,7 @@ def test_root_search_uses_reference_ais_fallback_when_root_move_is_missing() -> 
     searcher = RootSearcher(load_default_config())
     result = searcher.search(board, SearchLimits(max_depth=3, root_width=10))
     assert board.is_legal_move(result.move)
-    assert move_to_xy(result.move) == (8, 4)
+    assert move_to_xy(result.move) == (8, 8)
 
 
 def test_root_search_matches_corrected_reference_on_simple_tt_alpha_seed() -> None:
@@ -499,5 +625,5 @@ def test_alphabeta_matches_reference_mid_ladder_nonroot_score() -> None:
         stats=SearchStats(),
         downf=1,
     )
-    assert move_to_xy(move) == (7, 9)
-    assert score == -47
+    assert move_to_xy(move) == (12, 12)
+    assert score == -43
