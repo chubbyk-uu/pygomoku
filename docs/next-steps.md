@@ -2,186 +2,191 @@
 
 ## Current State
 
-`pyslow` is no longer a skeleton. The current codebase now has:
+The project still has two goals, and they must happen in order.
 
-- working `15x15` freestyle board, undo, winner detection, zobrist
-- parameter mapping aligned to `SlowRenju`
-- `ValueWide`-style local caches and global eval
-- normal move generation, TT, iterative deepening alpha-beta, root control
-- working `VCF` and `ThreatBoardView`
-- working Gomocup protocol adapter
-- working pygame GUI with local and Gomocup engine modes
-- benchmark/profile helpers
-- opponent benchmark scripts for `zhou`, `pyslow`, and `SlowRenju`
-- Linux-buildable `SlowRenju/slowrenju_linux`
+### Priority 1. Align `classic` with `SlowRenju`
 
-Current verified baseline:
+This is still the top priority.
 
-- [`alignment_compare.py`](../benchmarks/alignment_compare.py)
-  - `70/70` aligned at `depth=3`, `width=10`
-- `pytest -q`
-  - `155 passed`
-- interactive defaults
-  - `depth=5`, `width=15`
-- representative fixed search timing
-  - `PYTHONPATH=. python benchmarks/profile_search.py --depth 5 --width 15 --top 10`
-  - about `0.51s`
-- representative short selfplay timing
-  - `PYTHONPATH=. python benchmarks/selfplay_smoke.py --depth 5 --width 15 --plies 4`
-  - about `1463 ms/ply`
+Current reference baseline:
 
-Recent stable wins already landed:
+- `SlowRenju/` subrepo
+- branch: `linux-fixed-d5w15`
+- commit: `98be8f9`
 
-- optional native backends for `line`, `movegen`, `ordering`, `threat_board`
-- local-eval native kernel in the stable baseline
-- `shape_cache` snapshot/restore changed from whole-cache deep copy to undo-log
-- `VCF` attacker duplicate-scan removal
-- native `broken_four_reply` / `broken_four_point_for_side` helpers in `threat_board`
+Current practical status:
 
-Recent conclusions already validated:
+- opening-set `5`, `depth=5 width=15`, both colors
+  - classic vs Zhou:
+    - black `5/0/0`
+    - white `4/1/0`
+  - reference vs Zhou:
+    - black `5/0/0`
+    - white `4/1/0`
+  - whole-game parity: `10/10`
 
-- semantic alignment is closed enough for current freestyle `15x15` scope
-- `pyslow` and `SlowRenju` remain aligned on the current `70/70` compare set
-- the current project phase has moved from branch-level alignment to:
-  - performance analysis
-  - protocol correctness
-  - practical search reach
+- opening-set `9`, `depth=5 width=15`, both colors
+  - classic vs Zhou:
+    - black `9/0/0`
+    - white `8/1/0`
+  - reference vs Zhou:
+    - black `9/0/0`
+    - white `8/1/0`
+  - summary aligned, whole-game parity incomplete
 
-## External Play Status
+Current known whole-game mismatches against `SlowRenju` on opening-set `9`:
 
-Current opponent benchmark results:
+- `black_0_2_2`
+  - first differing move `9`
+  - classic `BLACK (5,4)`
+  - reference `BLACK (4,5)`
+- `black_1_2_12`
+  - first differing move `3`
+  - classic `BLACK (5,8)`
+  - reference `BLACK (4,10)`
+- `black_2_12_2`
+  - first differing move `9`
+  - classic `BLACK (9,4)`
+  - reference `BLACK (10,5)`
+- `black_3_12_12`
+  - first differing move `15`
+  - classic `BLACK (8,11)`
+  - reference `BLACK (10,10)`
 
-- `pyslow` via Gomocup, protocol-correct persistent session
-  - 5-openings vs `zhou`, `depth=5 width=15`
-    - black: `5-0`
-    - white: `2-3`
-- `pyslow` via Gomocup, reduced search
-  - 5-openings vs `zhou`, `depth=3 width=15`
-    - black: `5-0`
-    - white: `4-1`
-  - 9-openings vs `zhou`, `depth=3 width=15`
-    - black: `8-1`
-    - white: `8-1`
-- `SlowRenju` via Gomocup, default time settings
-  - 5-openings vs `zhou`
-    - black: `5-0`
-    - white: `5-0`
-  - 9-openings vs `zhou`
-    - black: `9-0`
-    - white: `9-0`
+The current rule is unchanged:
 
-Important protocol conclusion:
+- do not make speculative fixes
+- only change classic when a difference from `SlowRenju` is backed by:
+  - direct source evidence, or
+  - direct trace evidence on the same minimal practical position
 
-- fresh-per-move Gomocup replay is not equivalent to a real match
-- restarting the engine before every move changes searcher lifecycle and TT reuse
-- opponent and GUI validation must use persistent engine sessions across a whole game
-- treat the persistent-session `depth=5 width=15` external-play result as the
-  protocol-correct baseline for current `pyslow` strength
-- do not compare later opponent results against the discarded fresh-per-move
-  runner, even if that runner happened to score better in a small sample
+### Priority 2. Align `state` and `native` with `classic`
 
-## Work Order
+This is intentionally second.
 
-### 1. Current Priority: Performance Analysis And Acceleration
+The sequence is still:
 
-Primary source of truth:
+1. align classic with `SlowRenju`
+2. treat classic as the `pyslow` behavior baseline
+3. align `state` with classic
+4. align `native` with classic
 
-- [acceleration-plan.md](./acceleration-plan.md)
+Do not invert this order.
 
-Current phase goal:
+## What Has Already Been Fixed In Classic
 
-- this is now a deliberate large-acceleration phase
-- the objective is substantial search-throughput gain, not just incremental local speedups
-- semantics must stay equivalent to the current validated `pyslow` baseline
-- hot subsystems should be moved from Python into Cython/C together with their data paths, not as thin wrapper ports
-- the practical target is to push usable search reach toward at least `depth=8 width=20`
+The following major alignment fixes have already landed because they were backed
+by direct `SlowRenju` source or trace evidence:
 
-Rules:
+- zobrist random stream now follows the `SlowRenju`-style libc `rand64()`
+- zobrist no longer includes a turn key
+- zobrist stream size now matches the `SlowRenju` reference board stream shape
+- TT default size raised to `20`
+- TT store priority now follows reference root-search move-count semantics
+- winning TT store depth boost now follows `windepth + 10`
+- root win-break behavior follows the reference
+- root fallback RNG state follows Gomocup `START` + first `RESTART`
 
-- do not change semantics
-- always keep Python fallback
-- every speedup must have both:
-  - semantic regression evidence
-  - benchmark evidence
+These fixes are the reason 5-opening whole-game parity is now complete.
 
-Execution order:
+## Confirmed New Findings From Opening-Set `9`
 
-1. keep the current stable baseline frozen
-2. continue cost-model-driven work on `eval/local`, `movegen`, `ordering`
-3. revisit `global_eval` only with a clearly profitable kernel boundary
-4. revisit remaining cache work only when measurements justify it
-5. revisit `VCF` after eval/cache costs come down further
-6. increase practical root depth / width only after post-optimization measurements
+### 1. `black_1_2_12` is a confirmed nonroot top-wide drift
 
-Immediate deliverables:
+Confirmed:
 
-1. measure the next remaining `local / movegen / global_eval` hot path before changing code
-2. keep semantic regressions frozen while optimizing
-3. prefer small profitable kernels over broad speculative refactors
-4. benchmark both fixed search and short selfplay after each speedup
-5. use persistent-session opponent matches as practical validation after larger search-reach gains
+- root candidate generation itself is not the problem
+- raw nonroot candidate sets match
+- drift appears when entering the searched top-`15` list and then propagates
+  through node-local `best_move`
 
-Likely hotspots:
+Not yet finished:
 
-- `eval/local`
-- `search/movegen`
-- `eval/global_eval`
-- `eval/caches`
-- `threats/vcf`
+- the globally correct repair condition is still not fully isolated
 
-Current recommendation:
+### 2. `black_0_2_2` is a deeper persistent-search drift
 
-- keep Python as the semantic reference path
-- keep native optional and narrow
-- allow larger subsystem refactors when they are measurement-driven and preserve equivalent semantics
-- do not repeat:
-  - wrapper-style native experiments around Python object graphs
-  - `flat + nested` dual-write cache experiments
-  - fresh-per-move Gomocup replay as a proxy for engine strength
+Confirmed:
 
-### 2. Search Reach Upgrade
+- classic can reproduce the same local `52 / -52` values as reference on the
+  critical exact boards
+- the practical drift is not explained by leaf eval alone
+- both engines use the same general mechanism of:
+  - earlier negative-depth leaf exact store
+  - later shallow-node exact hit
+- the current strongest evidence is that the branch diverges because nonroot
+  equal-score tie-order interacts with cumulative `running_downf`
 
-The next practical target is no longer “a bit faster”.
+Not yet finished:
 
-Current goal:
+- the exact upstream condition that makes classic land this mechanism on a
+  different node than reference is still not fully closed
 
-1. keep `depth=5 width=15` comfortably practical
-2. move the stable Python engine toward at least `depth=8 width=20`
-3. compare practical opponent results only under persistent Gomocup sessions
+### 3. `black_2_12_2` likely belongs to the same family as `black_0_2_2`
 
-Immediate likely knobs:
+Current evidence:
 
-- root iterative depth
-- root width
-- child width ratio
-- VCF depth caps
+- mirrored edge opening
+- first differing move also at `9`
+- same kind of edge-adjacent drift
 
-### 3. Add VCT
+Still needs exact trace closure.
 
-Only after:
+### 4. `black_3_12_12` remains a separate class
 
-- checklist alignment is sufficiently stable
-- VCF semantics are trusted
-- current hotspots are understood
+Confirmed:
 
-### 4. Continue Product-Level Work
+- root initial ordering is not enough to explain this residual
+- the drift appears later, after deeper search score propagation
 
-After the above:
+This one should not be forced into the same explanation as the move-9 edge
+residuals without direct evidence.
 
-- improve GUI usability
-- extend opponent benchmark suites
-- plan the next native boundaries more concretely
+## Current Work Order
 
-## Resume Advice
+### 1. Finish classic-vs-reference whole-game alignment on opening-set `9`
 
-When resuming work later, do not start by re-analyzing the whole project.
+Immediate task:
 
-Start here:
+1. continue from the four black residuals above
+2. keep using exact practical prefixes and persistent Gomocup flow
+3. treat fresh one-shot search only as a diagnosis aid
+4. only land code changes after direct source / trace evidence
 
-1. run [alignment_compare.py](../benchmarks/alignment_compare.py) and confirm `70/70`
-2. run `pytest -q` and confirm the current regression baseline
-3. read [acceleration-plan.md](./acceleration-plan.md)
-4. profile the aligned baseline before changing default search limits
-5. read [performance-roadmap.md](./performance-roadmap.md) for the native priority order
-6. implement or measure only one hotspot family at a time
-7. after each speedup, re-run alignment, regression, fixed search timing, and short selfplay
+Do not:
+
+- “improve” classic by intuition
+- replace persistent reference behavior with fresh-TT behavior
+- treat edge-location guesses as proven root causes without exact evidence
+
+### 2. Re-baseline regression once opening-set `9` is closed
+
+After the remaining residuals are closed:
+
+- rerun Zhou opening matches
+- rerun `alignment_compare.py`
+- rerun `pytest -q`
+- record the new classic baseline
+
+### 3. Then align `state`
+
+Only after classic is considered aligned to `SlowRenju`.
+
+### 4. Then align `native`
+
+Only after state is aligned to classic.
+
+## Documents To Read Before Resuming
+
+Read these first:
+
+1. [current-handoff.md](./current-handoff.md)
+2. [classic-slowrenju-alignment-notes.md](./classic-slowrenju-alignment-notes.md)
+3. [native-search-branch-plan.md](./native-search-branch-plan.md)
+4. [acceleration-plan.md](./acceleration-plan.md)
+
+Then:
+
+1. rerun the current practical Zhou regression if needed
+2. pick the earliest unresolved residual in opening-set `9`
+3. continue from the first differing exact node, not from broad speculation
