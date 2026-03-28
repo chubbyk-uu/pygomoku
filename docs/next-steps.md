@@ -88,6 +88,14 @@ Primary source of truth:
 
 - [acceleration-plan.md](./acceleration-plan.md)
 
+Current phase goal:
+
+- this is now a deliberate large-acceleration phase
+- the objective is substantial search-throughput gain, not just incremental local speedups
+- semantics must stay equivalent to the current validated `pyslow` baseline
+- hot subsystems should be moved from Python into Cython/C together with their data paths, not as thin wrapper ports
+- the practical target is to push usable search reach toward at least `depth=8 width=20`
+
 Rules:
 
 - do not change semantics
@@ -125,6 +133,7 @@ Current recommendation:
 
 - keep Python as the semantic reference path
 - keep native optional and narrow
+- allow larger subsystem refactors when they are measurement-driven and preserve equivalent semantics
 - do not repeat:
   - wrapper-style native experiments around Python object graphs
   - `flat + nested` dual-write cache experiments
