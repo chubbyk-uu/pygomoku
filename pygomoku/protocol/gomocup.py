@@ -20,13 +20,23 @@ class GomocupProtocol:
         self.config = config or load_default_config()
         self.default_limits = search_limits
         self.board = Board()
-        self.searcher = RootSearcher(self.config)
+        self._searcher: RootSearcher | None = None
         self.board_mode = False
         self.board_lines: list[tuple[int, int, int]] = []
         self.timeout_turn_ms: float | None = None
         self.time_left_ms: float | None = None
         self.node_limit: int | None = None
         self.ended = False
+
+    @property
+    def searcher(self) -> RootSearcher:
+        if self._searcher is None:
+            self._searcher = RootSearcher(self.config)
+        return self._searcher
+
+    @searcher.setter
+    def searcher(self, value: RootSearcher) -> None:
+        self._searcher = value
 
     def handle_line(self, line: str) -> list[str]:
         raw = line.strip()
@@ -107,7 +117,7 @@ class GomocupProtocol:
 
     def _reset_engine(self) -> None:
         self.board = Board()
-        self.searcher = RootSearcher(self.config)
+        self._searcher = None
         self.board_mode = False
         self.board_lines.clear()
 
@@ -165,11 +175,11 @@ class GomocupProtocol:
         elif key == "compute_vcf":
             runtime = replace(self.config.runtime, compute_vcf=bool(int(value)))
             self.config = replace(self.config, runtime=runtime)
-            self.searcher = RootSearcher(self.config)
+            self._searcher = None
         elif key == "static":
             runtime = replace(self.config.runtime, static_board=bool(int(value) % 2))
             self.config = replace(self.config, runtime=runtime)
-            self.searcher = RootSearcher(self.config)
+            self._searcher = None
 
     def _search_move(self) -> str:
         if self.default_limits is None:

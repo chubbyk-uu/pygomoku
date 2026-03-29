@@ -9,6 +9,7 @@ This script stores both forms in the output records to avoid ambiguity.
 
 from __future__ import annotations
 
+import atexit
 import argparse
 import json
 import os
@@ -53,6 +54,8 @@ OPENING_SETS: dict[str, list[tuple[int, int]]] = {
     "5": FIXED_OPENINGS_5,
     "9": FIXED_OPENINGS_9,
 }
+
+_GOMOCUP_ENGINE_CACHE: dict[tuple[str, str, str], "_GomocupEngine"] = {}
 
 
 @dataclass(frozen=True)
@@ -110,6 +113,10 @@ class _GomocupEngine:
         self._proc: subprocess.Popen[str] | None = None
         self._known_move_count = 0
         self._initialized = False
+        self._startup_ms: float | None = None
+        self._last_setup_ms: float | None = None
+        self._last_response_ms: float | None = None
+        self._last_transport: str | None = None
         self.last_stats: dict[str, Any] | None = None
         self.last_trace: dict[str, Any] | None = None
 
@@ -117,6 +124,7 @@ class _GomocupEngine:
         proc = self._proc
         if proc is not None and proc.poll() is None:
             return proc
+        t0 = time.perf_counter()
         argv = shlex.split(self._command)
         if not argv:
             raise ValueError("empty Gomocup command")
@@ -138,8 +146,10 @@ class _GomocupEngine:
         response = self._read_meaningful_line()
         if response != "OK":
             raise RuntimeError(f"{self._name} START failed: {response}")
+        self._configure()
+        self._startup_ms = (time.perf_counter() - t0) * 1000.0
         self._known_move_count = 0
-        self._initialized = False
+        self._initialized = True
         return self._proc
 
     def _send_line(self, line: str) -> None:
@@ -187,9 +197,12 @@ class _GomocupEngine:
     def _sync_full_board(self, board: Any) -> str:
         from pygomoku.board import move_to_xy
 
-        if not self._initialized:
+        t0 = time.perf_counter()
+        fresh_process = self._proc is None or self._proc.poll() is not None
+        if fresh_process:
             self._ensure_process()
-        self._restart()
+        else:
+            self._restart()
         self._send_line("BOARD")
         engine_side = board.side_to_move
         for played in board.move_history:
@@ -198,21 +211,32 @@ class _GomocupEngine:
             self._send_line(f"{x},{y},{side}")
         self._send_line("DONE")
         self._known_move_count = board.move_count
-        return self._read_meaningful_line()
+        self._last_setup_ms = (time.perf_counter() - t0) * 1000.0
+        wait_t0 = time.perf_counter()
+        response = self._read_meaningful_line()
+        self._last_response_ms = (time.perf_counter() - wait_t0) * 1000.0
+        return response
 
     def find_best_move(self, board: Any) -> tuple[int, int] | None:
         from pygomoku.board import move_to_xy
 
         if not self._initialized:
             response = self._sync_full_board(board)
+            self._last_transport = "board-sync"
         elif board.move_count == self._known_move_count + 1 and board.move_history:
             last = board.move_history[-1]
             x, y = move_to_xy(last.move)
+            setup_t0 = time.perf_counter()
             self._send_line(f"TURN {x},{y}")
+            self._last_setup_ms = (time.perf_counter() - setup_t0) * 1000.0
+            wait_t0 = time.perf_counter()
             response = self._read_meaningful_line()
+            self._last_response_ms = (time.perf_counter() - wait_t0) * 1000.0
             self._known_move_count = board.move_count
+            self._last_transport = "turn"
         else:
             response = self._sync_full_board(board)
+            self._last_transport = "board-sync"
         if "," not in response:
             raise RuntimeError(f"unexpected {self._name} move response: {response}")
         x_str, y_str = response.split(",", 1)
@@ -224,6 +248,10 @@ class _GomocupEngine:
             "width": self._width,
             "timeout_turn_ms": self._timeout_turn_ms,
             "time_left_ms": self._time_left_ms,
+            "transport": self._last_transport,
+            "startup_ms": None if self._startup_ms is None else round(self._startup_ms, 3),
+            "setup_ms": None if self._last_setup_ms is None else round(self._last_setup_ms, 3),
+            "response_ms": None if self._last_response_ms is None else round(self._last_response_ms, 3),
         }
         self.last_stats = None
         self._known_move_count = board.move_count + 1
@@ -245,6 +273,28 @@ class _GomocupEngine:
         self._proc = None
         self._known_move_count = 0
         self._initialized = False
+        self._startup_ms = None
+        self._last_setup_ms = None
+        self._last_response_ms = None
+        self._last_transport = None
+
+
+def _close_cached_gomocup_engines() -> None:
+    for engine in _GOMOCUP_ENGINE_CACHE.values():
+        engine.close()
+    _GOMOCUP_ENGINE_CACHE.clear()
+
+
+atexit.register(_close_cached_gomocup_engines)
+
+
+def _get_gomocup_engine(*, command: str, name: str, color: str) -> _GomocupEngine:
+    key = (command, name, color)
+    engine = _GOMOCUP_ENGINE_CACHE.get(key)
+    if engine is None:
+        engine = _GomocupEngine(command=command, name=name, color=color)
+        _GOMOCUP_ENGINE_CACHE[key] = engine
+    return engine
 
 
 class _PygomokuDirectEngine:
@@ -330,13 +380,11 @@ def _play_task(
     from gomoku.config import Player as ZhouPlayer
 
     engine_is_black = task.engine_color == "BLACK"
+    reuse_engine = False
     if engine_type == "pygomoku":
         command = f"{engine_command} --depth {pygomoku_depth} --width {pygomoku_width}"
-        engine_impl = _GomocupEngine(
-            command=command,
-            name=engine_name,
-            color=task.engine_color,
-        )
+        engine_impl = _get_gomocup_engine(command=command, name=engine_name, color=task.engine_color)
+        reuse_engine = True
     elif engine_type == "pygomoku-direct":
         engine_impl = _PygomokuDirectEngine(
             depth=pygomoku_depth,
@@ -354,8 +402,9 @@ def _play_task(
     pygomoku_board = PygomokuBoard()
     zhou_board = ZhouBoard()
     move_records: list[dict[str, Any]] = []
-    times_engine: list[float] = []
-    times_zhou: list[float] = []
+    times_engine_wall_ms: list[float] = []
+    times_engine_core_ms: list[float] = []
+    times_zhou_wall_ms: list[float] = []
 
     opening_x, opening_y = task.opening_xy
     opening_row, opening_col = opening_y, opening_x
@@ -390,11 +439,18 @@ def _play_task(
             t0 = time.perf_counter()
             move_xy = engine.find_best_move(active_board)
             elapsed = time.perf_counter() - t0
+            elapsed_ms = round(elapsed * 1000, 3)
+            core_ms = elapsed_ms
 
             if engine_turn:
-                times_engine.append(elapsed)
+                trace = _json_ready(engine.last_trace)
+                if isinstance(trace, dict) and trace.get("response_ms") is not None:
+                    core_ms = float(trace["response_ms"])
+                times_engine_wall_ms.append(elapsed_ms)
+                times_engine_core_ms.append(core_ms)
             else:
-                times_zhou.append(elapsed)
+                trace = _json_ready(engine.last_trace)
+                times_zhou_wall_ms.append(elapsed_ms)
 
             if move_xy is None:
                 winner = "DRAW"
@@ -421,9 +477,10 @@ def _play_task(
                     "row": row,
                     "col": col,
                     "opening_fixed": False,
-                    "elapsed_ms": round(elapsed * 1000, 3),
+                    "elapsed_ms": elapsed_ms,
+                    "engine_ms": round(core_ms, 3),
                     "stats": _json_ready(engine.last_stats),
-                    "trace": _json_ready(engine.last_trace),
+                    "trace": trace,
                 }
             )
             move_no += 1
@@ -442,7 +499,8 @@ def _play_task(
 
             current_black = not current_black
     finally:
-        engine_impl.close()
+        if not reuse_engine:
+            engine_impl.close()
         zhou_engine.close()
 
     return {
@@ -454,8 +512,9 @@ def _play_task(
         "winner": winner,
         "winner_engine": winner_engine,
         "num_moves": move_no,
-        "avg_ms_engine": round((sum(times_engine) / len(times_engine) * 1000) if times_engine else 0.0, 3),
-        "avg_ms_zhou": round((sum(times_zhou) / len(times_zhou) * 1000) if times_zhou else 0.0, 3),
+        "avg_ms_engine": round((sum(times_engine_core_ms) / len(times_engine_core_ms)) if times_engine_core_ms else 0.0, 3),
+        "avg_ms_engine_wall": round((sum(times_engine_wall_ms) / len(times_engine_wall_ms)) if times_engine_wall_ms else 0.0, 3),
+        "avg_ms_zhou": round((sum(times_zhou_wall_ms) / len(times_zhou_wall_ms)) if times_zhou_wall_ms else 0.0, 3),
         "moves": move_records,
     }
 
