@@ -14,6 +14,7 @@ readme = "README.md"
 license = "GPL-3.0-only"
 license-files = ["LICENSE"]
 keywords = ["gomoku", "gobang", "gomocup", "python", "cython", "alpha-beta"]
+urls = { Repository = "https://github.com/chubbyk-uu/pygomoku" }
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
