@@ -7,6 +7,26 @@ name = "pyslow"
 version = "0.1.0"
 description = "Python classic freestyle Gomoku engine"
 requires-python = ">=3.11"
+authors = [
+    { name = "jerry" },
+]
+readme = "README.md"
+license = { file = "LICENSE" }
+keywords = ["gomoku", "gobang", "gomocup", "python", "cython", "alpha-beta"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Cython",
+    "Topic :: Games/Entertainment :: Board Games",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 
 [project.optional-dependencies]
 gui = ["pygame>=2.5"]
