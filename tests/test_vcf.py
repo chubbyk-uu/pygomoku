@@ -1,8 +1,8 @@
 """VCF tactical tests."""
 
-from pyslow.board import Board, move_to_xy, xy_to_move
-from pyslow.threats.threat_board import ThreatBoardView, forcing_threat_moves, threat_moves, winning_threat_moves
-from pyslow.threats.vcf import VCFResult, VCFSearcher, _MemoEntry
+from pygomoku.board import Board, move_to_xy, xy_to_move
+from pygomoku.threats.threat_board import ThreatBoardView, forcing_threat_moves, threat_moves, winning_threat_moves
+from pygomoku.threats.vcf import VCFResult, VCFSearcher, _MemoEntry
 
 
 def test_threat_moves_use_expected_vcf_offsets() -> None:

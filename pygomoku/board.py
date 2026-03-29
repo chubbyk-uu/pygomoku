@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from pyslow.constants import BLACK, BOARD_AREA, BOARD_SIZE, EMPTY, WHITE
-from pyslow.types import Move, PlayedMove
-from pyslow.zobrist import DEFAULT_ZOBRIST, ZobristTable
+from pygomoku.constants import BLACK, BOARD_AREA, BOARD_SIZE, EMPTY, WHITE
+from pygomoku.types import Move, PlayedMove
+from pygomoku.zobrist import DEFAULT_ZOBRIST, ZobristTable
 
 _DIRECTIONS: tuple[tuple[int, int], ...] = ((1, 0), (0, 1), (1, 1), (1, -1))
 

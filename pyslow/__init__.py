@@ -1,2 +1,0 @@
-"""pyslow package."""
-

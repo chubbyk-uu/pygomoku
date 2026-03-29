@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from math import floor
 
-from pyslow.board import Board
-from pyslow.config import EngineConfig
-from pyslow.constants import BLACK, LAST5, NEXT4, NEXT43, NEXT5, WHITE, WIN
-from pyslow.eval.caches import EvalCaches
-from pyslow.eval.local import value_wide_compute
-from pyslow.patterns.line import Line
-from pyslow.patterns.shapes import DIAGONAL_DOWN, DIAGONAL_UP, HORIZONTAL, VERTICAL
+from pygomoku.board import Board
+from pygomoku.config import EngineConfig
+from pygomoku.constants import BLACK, LAST5, NEXT4, NEXT43, NEXT5, WHITE, WIN
+from pygomoku.eval.caches import EvalCaches
+from pygomoku.eval.local import value_wide_compute
+from pygomoku.patterns.line import Line
+from pygomoku.patterns.shapes import DIAGONAL_DOWN, DIAGONAL_UP, HORIZONTAL, VERTICAL
 
 _DIR_MAP = (3, 1, 2, 0, 0, 0, 2, 1, 3)
 

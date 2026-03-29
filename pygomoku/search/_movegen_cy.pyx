@@ -1,6 +1,6 @@
 """Optional Cython helpers for move generation hot paths."""
 
-from pyslow.constants import BOARD_SIZE, EMPTY
+from pygomoku.constants import BOARD_SIZE, EMPTY
 
 
 def covered_moves_raw(object move_history, object grid, object cover_neighbors):

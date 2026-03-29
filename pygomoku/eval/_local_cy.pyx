@@ -1,9 +1,9 @@
 """Optional Cython helpers for local evaluation hot paths."""
 
-from pyslow.constants import BLACK, BOARD_SIZE, EMPTY, WHITE
-from pyslow.patterns.line import _SENTINEL
-from pyslow.patterns._line_cy import extract_cells, shape_raw_from_cells
-from pyslow.patterns.shapes import DIAGONAL_DOWN, DIAGONAL_UP, HORIZONTAL, VERTICAL, ShapeLabel
+from pygomoku.constants import BLACK, BOARD_SIZE, EMPTY, WHITE
+from pygomoku.patterns.line import _SENTINEL
+from pygomoku.patterns._line_cy import extract_cells, shape_raw_from_cells
+from pygomoku.patterns.shapes import DIAGONAL_DOWN, DIAGONAL_UP, HORIZONTAL, VERTICAL, ShapeLabel
 
 
 def compute_direction_shape_raw(object grid, int x, int y, int direction, int side, int size=BOARD_SIZE):

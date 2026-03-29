@@ -1,6 +1,6 @@
-# pyslow
+# pygomoku
 
-`pyslow` 是一个使用 Python 编写、并通过 native / Cython 加速关键热点的自由规则五子棋引擎项目。
+`pygomoku` 是一个使用 Python 编写、并通过 native / Cython 加速关键热点的自由规则五子棋引擎项目。
 
 项目目标不是做一个演示性质的小程序，而是做一个：
 
@@ -10,7 +10,7 @@
 - 支持人机对战 GUI
 - 支持 Gomocup 协议，可与其他 AI 对战
 
-该项目的直接目的，是让 `pyslow` 在实际对战中稳定战胜 `opponent/zhou/` 中的另一个五子棋程序 `zhou`。
+该项目的直接目的，是让 `pygomoku` 在实际对战中稳定战胜 `opponent/zhou/` 中的另一个五子棋程序 `zhou`。
 
 本项目可以理解为一个以 `SlowRenju` 为核心参考、面向 Python/Cython 的自由规则五子棋引擎重实现。本文最后附有致谢说明。
 
@@ -56,7 +56,7 @@
 
 ```text
 gomoku-py/
-├── pyslow/                     # 主引擎代码
+├── pygomoku/                   # 主引擎代码
 │   ├── search/                 # root / alphabeta / movegen / ordering / tt
 │   ├── eval/                   # 局部评估、全局评估、缓存
 │   ├── patterns/               # 棋型、bucket、线型工具
@@ -65,7 +65,7 @@ gomoku-py/
 │   ├── gomocup_engine.py       # Gomocup 协议命令行入口
 │   └── gui.py                  # Pygame GUI 入口
 ├── opponent/
-│   ├── run_pyslow_vs_zhou.py   # pyslow vs zhou 对战脚本
+│   ├── run_pygomoku_vs_zhou.py # pygomoku vs zhou 对战脚本
 │   └── zhou/                   # 仓库内对手程序
 ├── benchmarks/                 # 性能与自对弈烟雾测试
 ├── tests/                      # 测试
@@ -75,29 +75,29 @@ gomoku-py/
 
 ## 核心组成
 
-### 1. 主引擎 `pyslow/`
+### 1. 主引擎 `pygomoku/`
 
 这是仓库的核心部分。
 
-- `pyslow/search/` 负责搜索主流程
-- `pyslow/eval/` 负责局面评估与增量缓存
-- `pyslow/patterns/` 负责棋型和 bucket 语义
-- `pyslow/threats/` 负责 VCF 等战术模块
-- `pyslow/protocol/` 负责 Gomocup 协议接入
+- `pygomoku/search/` 负责搜索主流程
+- `pygomoku/eval/` 负责局面评估与增量缓存
+- `pygomoku/patterns/` 负责棋型和 bucket 语义
+- `pygomoku/threats/` 负责 VCF 等战术模块
+- `pygomoku/protocol/` 负责 Gomocup 协议接入
 
 ### 2. GUI
 
-`pyslow/gui.py` 提供本地人机对战界面，当前只使用仓库内的主线引擎，不再依赖外部二进制引擎切换。
+`pygomoku/gui.py` 提供本地人机对战界面，当前只使用仓库内的主线引擎，不再依赖外部二进制引擎切换。
 
 ### 3. Gomocup 协议入口
 
-`pyslow/gomocup_engine.py` 提供标准输入输出式的 Gomocup 引擎入口，便于和其他 AI 进行协议对战。
+`pygomoku/gomocup_engine.py` 提供标准输入输出式的 Gomocup 引擎入口，便于和其他 AI 进行协议对战。
 
 ### 4. 对手程序 `zhou`
 
 `opponent/zhou/` 是当前仓库内保留的对手程序。
 
-`opponent/run_pyslow_vs_zhou.py` 用于固定开局批量对战，是当前阶段很重要的实战验证工具。
+`opponent/run_pygomoku_vs_zhou.py` 用于固定开局批量对战，是当前阶段很重要的实战验证工具。
 
 ### 5. Cython 加速
 
@@ -112,7 +112,7 @@ gomoku-py/
 
 这些扩展是当前项目非常重要的一部分。
 
-## 为什么必须重视 Cython
+## 强烈建议 Cython 加速
 
 这个项目**不编译 Cython 也可以运行**，因为 Python fallback 路径是保留的。
 
@@ -122,7 +122,7 @@ gomoku-py/
 - 不编译时，速度通常会明显偏慢
 - 在搜索、局部评估、候选生成、战术判断等热点上，纯 Python 版本的实战效率会差很多
 
-仓库当前已经验证过这一点：把 `pyslow/` 下已编译的 `.so` 临时移走后，
+仓库当前已经验证过这一点：把 `pygomoku/` 下已编译的 `.so` 临时移走后，
 `tests/test_config.py` 与 `tests/test_search.py` 仍可通过，说明 fallback 到
 Python 实现是可用的；只是速度明显不适合作为常态运行方式。
 
@@ -241,13 +241,13 @@ python setup.py build_ext --inplace
 GUI 入口是：
 
 ```bash
-python -m pyslow.gui
+python -m pygomoku.gui
 ```
 
 也可以显式指定搜索参数：
 
 ```bash
-python -m pyslow.gui --depth 5 --width 20
+python -m pygomoku.gui --depth 5 --width 20
 ```
 
 如果没有安装 `pygame`，GUI 不会启动。
@@ -257,13 +257,13 @@ python -m pyslow.gui --depth 5 --width 20
 命令行协议入口：
 
 ```bash
-python -m pyslow.gomocup_engine
+python -m pygomoku.gomocup_engine
 ```
 
 指定固定搜索参数：
 
 ```bash
-python -m pyslow.gomocup_engine --depth 5 --width 20
+python -m pygomoku.gomocup_engine --depth 5 --width 20
 ```
 
 这一路径适合：
@@ -325,49 +325,49 @@ python -m pytest tests/test_gui.py -q
 对战脚本：
 
 ```bash
-python opponent/run_pyslow_vs_zhou.py --help
+python opponent/run_pygomoku_vs_zhou.py --help
 ```
 
 ### 快速跑一组固定开局
 
 ```bash
-python opponent/run_pyslow_vs_zhou.py \
-  --engine-type pyslow-direct \
+python opponent/run_pygomoku_vs_zhou.py \
+  --engine-type pygomoku-direct \
   --opening-set 5 \
-  --pyslow-depth 5 \
-  --pyslow-width 20 \
+  --pygomoku-depth 5 \
+  --pygomoku-width 20 \
   --zhou-depth 5 \
   --parallel 10 \
   --colors both
 ```
 
-这里的 `pyslow-direct` 表示直接在进程内调用 Python 引擎入口，适合做本地快速验证。
+这里的 `pygomoku-direct` 表示直接在进程内调用 Python 引擎入口，适合做本地快速验证。
 这条路径已经做过最小实测。
 
 ### 使用 Gomocup 协议入口对战
 
 ```bash
-python opponent/run_pyslow_vs_zhou.py \
-  --engine-type pyslow \
+python opponent/run_pygomoku_vs_zhou.py \
+  --engine-type pygomoku \
   --opening-set 5 \
-  --pyslow-depth 5 \
-  --pyslow-width 20 \
+  --pygomoku-depth 5 \
+  --pygomoku-width 20 \
   --zhou-depth 5 \
   --parallel 10 \
   --colors both
 ```
 
-这里的 `pyslow` 表示通过 `python -m pyslow.gomocup_engine` 拉起标准
-Gomocup 协议引擎进程，更接近外部对战环境。这条路径也已经做过最小实测。
+这里的 `pygomoku` 表示通过 `python -m pygomoku.gomocup_engine` 拉起标准
+Gomocup 协议引擎进程，更接近外部对战环境，但 Gomocup 协议链路目前还没有专门优化，所以速度会稍慢。这条路径也已经做过最小实测。
 
 ### 扩大到 9 个固定开局
 
 ```bash
-python opponent/run_pyslow_vs_zhou.py \
-  --engine-type pyslow-direct \
+python opponent/run_pygomoku_vs_zhou.py \
+  --engine-type pygomoku-direct \
   --opening-set 9 \
-  --pyslow-depth 5 \
-  --pyslow-width 20 \
+  --pygomoku-depth 5 \
+  --pygomoku-width 20 \
   --zhou-depth 5 \
   --parallel 18 \
   --colors both
@@ -400,7 +400,7 @@ python opponent/run_pyslow_vs_zhou.py \
 - `(10, 10)`
 - `(7, 7)`
 
-如果再配合 `--colors both`，那么每个固定开局都会分别测试 `pyslow` 执黑和执白两种情况。
+如果再配合 `--colors both`，那么每个固定开局都会分别测试 `pygomoku` 执黑和执白两种情况。
 
 ### 输出结果
 
@@ -408,10 +408,10 @@ python opponent/run_pyslow_vs_zhou.py \
 
 ### 常用参数说明
 
-- `--engine-type`：选择 `pyslow-direct` 或 `pyslow`。前者直接调用 Python 引擎入口，后者通过 `python -m pyslow.gomocup_engine` 拉起 Gomocup 协议进程。
+- `--engine-type`：选择 `pygomoku-direct` 或 `pygomoku`。前者直接调用 Python 引擎入口，后者通过 `python -m pygomoku.gomocup_engine` 拉起 Gomocup 协议进程。
 - `--opening-set`：选择固定开局集合，目前支持 `5` 和 `9`。
-- `--pyslow-depth`：`pyslow` 的搜索深度，默认5。
-- `--pyslow-width`：`pyslow` 根节点候选宽度，默认20，通常越大搜索越多，但也越慢。
+- `--pygomoku-depth`：`pygomoku` 的搜索深度，默认5。
+- `--pygomoku-width`：`pygomoku` 根节点候选宽度，默认20，通常越大搜索越多，但也越慢。
 - `--zhou-depth`：`zhou` 的搜索深度，默认5。
 - `--parallel`：并行对局进程数，决定批量测试速度，也会显著影响机器负载。
 - `--colors`：选择只测 `black`、只测 `white`，或者 `both`。
@@ -451,13 +451,9 @@ PYTHONPATH=. python benchmarks/profile_search.py --depth 2 --width 12 --top 25
 - 不要把“感觉更强”当成充分证据，尽量让修改有测试、基准或实战结果支撑。
 - 运行广泛测试时优先用并行：`python -m pytest -n auto -q`
 
-## 许可证
-
-本项目以 GNU GPL v3.0 发布，完整文本见根目录 `LICENSE`。
-
-
 ## 致谢
 
-感谢 GitHub 上的 `SlowRenju` https://github.com/wind23/SlowRenju 项目。
+感谢 GitHub 上的 [SlowRenju](https://github.com/wind23/SlowRenju) 项目。
 
-虽然本项目当前已经收敛为自己的 Python 主线引擎，但它仍然可以理解为一个以 `SlowRenju` 为核心参考、面向 Python/Cython 的自由规则五子棋引擎重实现。这个仓库的很多关键概念，并不是凭空设计出来的，而是在吸收和消化这些成熟经验之后逐步落地的。仓库内部仍沿用 `classic` 这个名字来指代这条主线。
+虽然本项目当前已经收敛为自己的 Python 主线引擎，但它仍然可以理解为一个以 `SlowRenju` 为核心参考、面向 Python/Cython 的自由规则五子棋引擎重实现。
+这个仓库的很多关键概念，并不是凭空设计出来的，而是在吸收和消化这些成熟经验之后逐步落地的。仓库内部仍沿用 `classic` 这个名字来指代这条主线。

@@ -5,8 +5,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
-from pyslow.constants import BOARD_SIZE
-from pyslow.patterns.shapes import DIRECTION_IDS
+from pygomoku.constants import BOARD_SIZE
+from pygomoku.patterns.shapes import DIRECTION_IDS
 
 
 def _new_board_matrix(default: int = 0) -> list[list[int]]:
@@ -48,9 +48,9 @@ def _copy_value_cache(cache: list[list[list[int]]]) -> list[list[list[int]]]:
 _CACHES_BACKEND_MODE = os.getenv("PYSLOW_CACHES_BACKEND", "auto").lower()
 if _CACHES_BACKEND_MODE != "python":
     try:
-        from pyslow.eval._caches_cy import copy_board_shadow as _copy_board_shadow_native
-        from pyslow.eval._caches_cy import copy_shape_cache as _copy_shape_cache_native
-        from pyslow.eval._caches_cy import copy_value_cache as _copy_value_cache_native
+        from pygomoku.eval._caches_cy import copy_board_shadow as _copy_board_shadow_native
+        from pygomoku.eval._caches_cy import copy_shape_cache as _copy_shape_cache_native
+        from pygomoku.eval._caches_cy import copy_value_cache as _copy_value_cache_native
     except ImportError:
         if _CACHES_BACKEND_MODE == "cython":
             raise

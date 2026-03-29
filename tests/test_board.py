@@ -2,8 +2,8 @@
 
 import pytest
 
-from pyslow.board import Board, move_to_xy, xy_to_move
-from pyslow.constants import BLACK, EMPTY, WHITE
+from pygomoku.board import Board, move_to_xy, xy_to_move
+from pygomoku.constants import BLACK, EMPTY, WHITE
 
 
 def test_coordinate_conversion_round_trip() -> None:

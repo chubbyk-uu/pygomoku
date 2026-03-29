@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from pyslow.constants import DSHAPE_SIZE
+from pygomoku.constants import DSHAPE_SIZE
 
 
 @dataclass(frozen=True)

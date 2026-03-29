@@ -8,12 +8,12 @@ from setuptools import Extension, find_packages, setup
 def build_extensions() -> list[Extension]:
     extensions = []
     pyx_files = [
-        ("pyslow.patterns._line_cy", Path("pyslow/patterns/_line_cy.pyx")),
-        ("pyslow.eval._local_cy", Path("pyslow/eval/_local_cy.pyx")),
-        ("pyslow.eval._caches_cy", Path("pyslow/eval/_caches_cy.pyx")),
-        ("pyslow.search._movegen_cy", Path("pyslow/search/_movegen_cy.pyx")),
-        ("pyslow.search._ordering_cy", Path("pyslow/search/_ordering_cy.pyx")),
-        ("pyslow.threats._threat_board_cy", Path("pyslow/threats/_threat_board_cy.pyx")),
+        ("pygomoku.patterns._line_cy", Path("pygomoku/patterns/_line_cy.pyx")),
+        ("pygomoku.eval._local_cy", Path("pygomoku/eval/_local_cy.pyx")),
+        ("pygomoku.eval._caches_cy", Path("pygomoku/eval/_caches_cy.pyx")),
+        ("pygomoku.search._movegen_cy", Path("pygomoku/search/_movegen_cy.pyx")),
+        ("pygomoku.search._ordering_cy", Path("pygomoku/search/_ordering_cy.pyx")),
+        ("pygomoku.threats._threat_board_cy", Path("pygomoku/threats/_threat_board_cy.pyx")),
     ]
     for module_name, pyx in pyx_files:
         if pyx.exists():
@@ -31,6 +31,6 @@ def build_extensions() -> list[Extension]:
 
 
 setup(
-    packages=find_packages(include=["pyslow", "pyslow.*"]),
+    packages=find_packages(include=["pygomoku", "pygomoku.*"]),
     ext_modules=build_extensions(),
 )

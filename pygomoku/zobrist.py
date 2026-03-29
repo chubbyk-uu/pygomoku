@@ -6,7 +6,7 @@ import ctypes
 import operator
 from dataclasses import dataclass
 
-from pyslow.constants import BLACK, BOARD_AREA, WHITE
+from pygomoku.constants import BLACK, BOARD_AREA, WHITE
 
 _DEFAULT_SEED = 1232356
 _MASK64 = (1 << 64) - 1

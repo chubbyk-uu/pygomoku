@@ -10,7 +10,7 @@ import sys
 def test_gomocup_engine_begin_returns_coordinate() -> None:
     root = Path(__file__).resolve().parents[1]
     process = subprocess.Popen(
-        [sys.executable, "-m", "pyslow.gomocup_engine"],
+        [sys.executable, "-m", "pygomoku.gomocup_engine"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

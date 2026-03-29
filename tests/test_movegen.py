@@ -1,10 +1,10 @@
 """Move generation tests."""
 
-from pyslow.board import Board, move_to_xy, xy_to_move
-from pyslow.config import load_default_config
-from pyslow.eval.caches import EvalCaches
-from pyslow.eval.local import attack_level, move_value, recompute_all
-from pyslow.search.movegen import (
+from pygomoku.board import Board, move_to_xy, xy_to_move
+from pygomoku.config import load_default_config
+from pygomoku.eval.caches import EvalCaches
+from pygomoku.eval.local import attack_level, move_value, recompute_all
+from pygomoku.search.movegen import (
     _apply_hostile_three_extension,
     covered_moves,
     generate_candidates,

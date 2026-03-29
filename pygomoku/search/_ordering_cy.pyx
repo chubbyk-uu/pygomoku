@@ -1,6 +1,6 @@
 """Optional Cython helpers for move ordering."""
 
-from pyslow.constants import BOARD_SIZE
+from pygomoku.constants import BOARD_SIZE
 
 
 def getmi_raw(object grid, int x, int y, int c, int size=BOARD_SIZE):

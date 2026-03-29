@@ -1,6 +1,6 @@
 """Zobrist stability tests."""
 
-from pyslow.board import Board, xy_to_move
+from pygomoku.board import Board, xy_to_move
 
 
 def test_zobrist_changes_after_move() -> None:

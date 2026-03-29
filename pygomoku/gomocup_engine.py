@@ -5,8 +5,8 @@ from __future__ import annotations
 import argparse
 import sys
 
-from pyslow.protocol.gomocup import GomocupProtocol
-from pyslow.search.root import SearchLimits
+from pygomoku.protocol.gomocup import GomocupProtocol
+from pygomoku.search.root import SearchLimits
 
 DEFAULT_DEPTH = 5
 DEFAULT_WIDTH = 20

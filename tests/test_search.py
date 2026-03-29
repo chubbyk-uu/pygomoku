@@ -2,14 +2,14 @@
 
 from dataclasses import replace
 
-from pyslow.board import Board, move_to_xy, xy_to_move
-from pyslow.config import load_default_config
-from pyslow.eval.caches import EvalCaches
-from pyslow.eval.local import recompute_all
-from pyslow.search.alphabeta import AlphaBetaSearcher, SearchStats, _rootbonus
-from pyslow.constants import HASHF_ALPHA, HASHF_EXACT, INF
-from pyslow.search.root import RootSearcher, SearchLimits, _fallback_ai_move, _new_classic_fallback_rng
-from pyslow.search.tt import TTEntry
+from pygomoku.board import Board, move_to_xy, xy_to_move
+from pygomoku.config import load_default_config
+from pygomoku.eval.caches import EvalCaches
+from pygomoku.eval.local import recompute_all
+from pygomoku.search.alphabeta import AlphaBetaSearcher, SearchStats, _rootbonus
+from pygomoku.constants import HASHF_ALPHA, HASHF_EXACT, INF
+from pygomoku.search.root import RootSearcher, SearchLimits, _fallback_ai_move, _new_classic_fallback_rng
+from pygomoku.search.tt import TTEntry
 
 
 POSITIONS: dict[str, list[tuple[int, int, int]]] = {
@@ -471,7 +471,7 @@ def test_root_search_stops_early_under_time_budget(monkeypatch) -> None:
     searcher = RootSearcher(load_default_config())
 
     timeline = iter([0.0, 0.03, 0.12])
-    monkeypatch.setattr("pyslow.search.root.time.perf_counter", lambda: next(timeline))
+    monkeypatch.setattr("pygomoku.search.root.time.perf_counter", lambda: next(timeline))
 
     result = searcher.search(board, SearchLimits(max_depth=6, root_width=8, time_limit_ms=700.0))
     assert result.depth == 1
@@ -578,7 +578,7 @@ def test_alphabeta_returns_negative_inf_when_candidate_list_is_empty(monkeypatch
     searcher = AlphaBetaSearcher(load_default_config())
 
     monkeypatch.setattr(
-        "pyslow.search.alphabeta.generate_candidates",
+        "pygomoku.search.alphabeta.generate_candidates",
         lambda *args, **kwargs: type(
             "Generated",
             (),

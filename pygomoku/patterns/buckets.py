@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pyslow.patterns.shapes import ShapeLabel
+from pygomoku.patterns.shapes import ShapeLabel
 
 DOUBLE_SHAPE: tuple[tuple[int, ...], ...] = (
     (1,),

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from pyslow.constants import HASHF_ALPHA, HASHF_BETA, HASHF_EMPTY, HASHF_EXACT
+from pygomoku.constants import HASHF_ALPHA, HASHF_BETA, HASHF_EMPTY, HASHF_EXACT
 
 
 @dataclass(frozen=True)

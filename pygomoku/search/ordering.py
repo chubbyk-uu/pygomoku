@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import os
 
-from pyslow.board import Board
-from pyslow.search.movegen import Candidate
+from pygomoku.board import Board
+from pygomoku.search.movegen import Candidate
 
 _ORDERING_BACKEND_MODE = os.getenv("PYSLOW_ORDERING_BACKEND", "auto").lower()
 _USING_CYTHON_ORDERING_BACKEND = False
 
 if _ORDERING_BACKEND_MODE != "python":
     try:
-        from pyslow.search._ordering_cy import getmi_raw as _getmi_native
+        from pygomoku.search._ordering_cy import getmi_raw as _getmi_native
     except ImportError:
         if _ORDERING_BACKEND_MODE == "cython":
             raise

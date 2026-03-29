@@ -26,8 +26,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 ZHOU_SRC = REPO_ROOT / "opponent" / "zhou" / "src"
 DEFAULT_MAX_MOVES = 120
 DEFAULT_PARALLEL = 10
-DEFAULT_ENGINE_TYPE = "pyslow"
-DEFAULT_PYSLOW_CMD = f"{shlex.quote(sys.executable)} -m pyslow.gomocup_engine"
+DEFAULT_ENGINE_TYPE = "pygomoku"
+DEFAULT_PYGOMOKU_CMD = f"{shlex.quote(sys.executable)} -m pygomoku.gomocup_engine"
 
 FIXED_OPENINGS_5: list[tuple[int, int]] = [
     (7, 7),
@@ -185,7 +185,7 @@ class _GomocupEngine:
         self._initialized = True
 
     def _sync_full_board(self, board: Any) -> str:
-        from pyslow.board import move_to_xy
+        from pygomoku.board import move_to_xy
 
         if not self._initialized:
             self._ensure_process()
@@ -201,7 +201,7 @@ class _GomocupEngine:
         return self._read_meaningful_line()
 
     def find_best_move(self, board: Any) -> tuple[int, int] | None:
-        from pyslow.board import move_to_xy
+        from pygomoku.board import move_to_xy
 
         if not self._initialized:
             response = self._sync_full_board(board)
@@ -247,13 +247,13 @@ class _GomocupEngine:
         self._initialized = False
 
 
-class _PyslowDirectEngine:
+class _PygomokuDirectEngine:
     def __init__(self, *, depth: int, width: int, color: str, name: str) -> None:
         _ensure_paths()
         from dataclasses import replace
 
-        from pyslow.config import load_default_config
-        from pyslow.search.root import RootSearcher, SearchLimits
+        from pygomoku.config import load_default_config
+        from pygomoku.search.root import RootSearcher, SearchLimits
 
         base = load_default_config()
         config = replace(base, root_search=replace(base.root_search, depth=depth, wide=width))
@@ -265,7 +265,7 @@ class _PyslowDirectEngine:
         self.last_trace: dict[str, Any] | None = None
 
     def find_best_move(self, board: Any) -> tuple[int, int] | None:
-        from pyslow.board import move_to_xy
+        from pygomoku.board import move_to_xy
 
         result = self._searcher.search(board, self._limits)
         self.last_stats = {
@@ -316,31 +316,31 @@ def _play_task(
     engine_type: str,
     engine_command: str,
     engine_name: str,
-    pyslow_depth: int,
-    pyslow_width: int,
+    pygomoku_depth: int,
+    pygomoku_width: int,
     zhou_depth: int,
     max_moves: int,
 ) -> dict[str, Any]:
     _ensure_paths()
-    from pyslow.board import Board as PyslowBoard
-    from pyslow.board import xy_to_move
-    from pyslow.constants import BLACK as PYSLOW_BLACK
-    from pyslow.constants import WHITE as PYSLOW_WHITE
+    from pygomoku.board import Board as PygomokuBoard
+    from pygomoku.board import xy_to_move
+    from pygomoku.constants import BLACK as PYGOMOKU_BLACK
+    from pygomoku.constants import WHITE as PYGOMOKU_WHITE
     from gomoku.board import Board as ZhouBoard
     from gomoku.config import Player as ZhouPlayer
 
     engine_is_black = task.engine_color == "BLACK"
-    if engine_type == "pyslow":
-        command = f"{engine_command} --depth {pyslow_depth} --width {pyslow_width}"
+    if engine_type == "pygomoku":
+        command = f"{engine_command} --depth {pygomoku_depth} --width {pygomoku_width}"
         engine_impl = _GomocupEngine(
             command=command,
             name=engine_name,
             color=task.engine_color,
         )
-    elif engine_type == "pyslow-direct":
-        engine_impl = _PyslowDirectEngine(
-            depth=pyslow_depth,
-            width=pyslow_width,
+    elif engine_type == "pygomoku-direct":
+        engine_impl = _PygomokuDirectEngine(
+            depth=pygomoku_depth,
+            width=pygomoku_width,
             color=task.engine_color,
             name=engine_name,
         )
@@ -351,7 +351,7 @@ def _play_task(
         color="WHITE" if engine_is_black else "BLACK",
     )
 
-    pyslow_board = PyslowBoard()
+    pygomoku_board = PygomokuBoard()
     zhou_board = ZhouBoard()
     move_records: list[dict[str, Any]] = []
     times_engine: list[float] = []
@@ -359,7 +359,7 @@ def _play_task(
 
     opening_x, opening_y = task.opening_xy
     opening_row, opening_col = opening_y, opening_x
-    pyslow_board.play(xy_to_move(opening_x, opening_y), PYSLOW_BLACK)
+    pygomoku_board.play(xy_to_move(opening_x, opening_y), PYGOMOKU_BLACK)
     zhou_board.place(opening_row, opening_col, ZhouPlayer.BLACK)
     move_records.append(
         {
@@ -385,7 +385,7 @@ def _play_task(
             current_player_name = "BLACK" if current_black else "WHITE"
             engine_turn = (current_black and engine_is_black) or ((not current_black) and (not engine_is_black))
             engine = engine_impl if engine_turn else zhou_engine
-            active_board = pyslow_board if engine_turn else zhou_board
+            active_board = pygomoku_board if engine_turn else zhou_board
 
             t0 = time.perf_counter()
             move_xy = engine.find_best_move(active_board)
@@ -403,10 +403,10 @@ def _play_task(
 
             x, y = move_xy
             row, col = y, x
-            pyslow_side = PYSLOW_BLACK if current_black else PYSLOW_WHITE
+            pygomoku_side = PYGOMOKU_BLACK if current_black else PYGOMOKU_WHITE
             zhou_side = ZhouPlayer.BLACK if current_black else ZhouPlayer.WHITE
 
-            pyslow_board.play(xy_to_move(x, y), pyslow_side)
+            pygomoku_board.play(xy_to_move(x, y), pygomoku_side)
             placed = zhou_board.place(row, col, zhou_side)
             if not placed:
                 raise RuntimeError(f"zhou board rejected legal move {(row, col)} from {engine.__class__.__name__}")
@@ -428,14 +428,14 @@ def _play_task(
             )
             move_no += 1
 
-            if pyslow_board.winner != 0:
+            if pygomoku_board.winner != 0:
                 winner = current_player_name
                 if (winner == "BLACK" and engine_is_black) or (winner == "WHITE" and not engine_is_black):
                     winner_engine = engine_name
                 else:
                     winner_engine = "zhou"
                 break
-            if move_no >= max_moves or pyslow_board.move_count >= pyslow_board.size * pyslow_board.size:
+            if move_no >= max_moves or pygomoku_board.move_count >= pygomoku_board.size * pygomoku_board.size:
                 winner = "DRAW"
                 winner_engine = "DRAW"
                 break
@@ -476,8 +476,8 @@ def _build_payload(
     opening_set: str,
     openings: list[tuple[int, int]],
     engine_color: str,
-    pyslow_depth: int,
-    pyslow_width: int,
+    pygomoku_depth: int,
+    pygomoku_width: int,
     zhou_depth: int,
     max_moves: int,
     games: list[dict[str, Any]],
@@ -494,8 +494,8 @@ def _build_payload(
         "engine_type": engine_type,
         "engine_color": engine_color,
         "params": {
-            "pyslow_depth": pyslow_depth,
-            "pyslow_width": pyslow_width,
+            "pygomoku_depth": pygomoku_depth,
+            "pygomoku_width": pygomoku_width,
             "zhou_depth": zhou_depth,
             "max_moves": max_moves,
         },
@@ -512,11 +512,11 @@ def _build_payload(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--opening-set", choices=sorted(OPENING_SETS), default="5")
-    parser.add_argument("--engine-type", choices=("pyslow", "pyslow-direct"), default=DEFAULT_ENGINE_TYPE)
+    parser.add_argument("--engine-type", choices=("pygomoku", "pygomoku-direct"), default=DEFAULT_ENGINE_TYPE)
     parser.add_argument("--engine-cmd", type=str, default=None)
     parser.add_argument("--engine-name", type=str, default=None)
-    parser.add_argument("--pyslow-depth", type=int, default=5)
-    parser.add_argument("--pyslow-width", type=int, default=15)
+    parser.add_argument("--pygomoku-depth", type=int, default=5)
+    parser.add_argument("--pygomoku-width", type=int, default=15)
     parser.add_argument("--zhou-depth", type=int, default=5)
     parser.add_argument("--parallel", type=int, default=DEFAULT_PARALLEL)
     parser.add_argument("--max-moves", type=int, default=DEFAULT_MAX_MOVES)
@@ -532,8 +532,9 @@ def main() -> None:
 
     engine_command = args.engine_cmd
     if engine_command is None:
-        engine_command = DEFAULT_PYSLOW_CMD
-    engine_name = args.engine_name or args.engine_type
+        engine_command = DEFAULT_PYGOMOKU_CMD
+    engine_type = args.engine_type
+    engine_name = args.engine_name or engine_type
     output_black = args.output_black or _default_output(engine_name, "black")
     output_white = args.output_white or _default_output(engine_name, "white")
 
@@ -550,11 +551,11 @@ def main() -> None:
             executor.submit(
                 _play_task,
                 task,
-                engine_type=args.engine_type,
+                engine_type=engine_type,
                 engine_command=engine_command,
                 engine_name=engine_name,
-                pyslow_depth=args.pyslow_depth,
-                pyslow_width=args.pyslow_width,
+                pygomoku_depth=args.pygomoku_depth,
+                pygomoku_width=args.pygomoku_width,
                 zhou_depth=args.zhou_depth,
                 max_moves=args.max_moves,
             ): task
@@ -574,12 +575,12 @@ def main() -> None:
     if args.colors in {"both", "black"}:
         payload_black = _build_payload(
             engine_name=engine_name,
-            engine_type=args.engine_type,
+            engine_type=engine_type,
             opening_set=args.opening_set,
             openings=openings,
             engine_color="BLACK",
-            pyslow_depth=args.pyslow_depth,
-            pyslow_width=args.pyslow_width,
+            pygomoku_depth=args.pygomoku_depth,
+            pygomoku_width=args.pygomoku_width,
             zhou_depth=args.zhou_depth,
             max_moves=args.max_moves,
             games=results_by_color["BLACK"],
@@ -590,12 +591,12 @@ def main() -> None:
     if args.colors in {"both", "white"}:
         payload_white = _build_payload(
             engine_name=engine_name,
-            engine_type=args.engine_type,
+            engine_type=engine_type,
             opening_set=args.opening_set,
             openings=openings,
             engine_color="WHITE",
-            pyslow_depth=args.pyslow_depth,
-            pyslow_width=args.pyslow_width,
+            pygomoku_depth=args.pygomoku_depth,
+            pygomoku_width=args.pygomoku_width,
             zhou_depth=args.zhou_depth,
             max_moves=args.max_moves,
             games=results_by_color["WHITE"],

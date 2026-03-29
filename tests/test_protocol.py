@@ -1,7 +1,7 @@
 """Protocol tests."""
 
-from pyslow.protocol.gomocup import GomocupProtocol
-from pyslow.search.root import SearchLimits
+from pygomoku.protocol.gomocup import GomocupProtocol
+from pygomoku.search.root import SearchLimits
 
 
 def _proto() -> GomocupProtocol:
@@ -44,7 +44,7 @@ def test_protocol_about_returns_metadata() -> None:
     proto = _proto()
     response = proto.handle_line("ABOUT")
     assert len(response) == 1
-    assert 'name="pyslow"' in response[0]
+    assert 'name="pygomoku"' in response[0]
 
 
 def test_protocol_takeback_undoes_last_move() -> None:

@@ -5,13 +5,13 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from pyslow.board import Board, move_to_xy, xy_to_move
-from pyslow.config import EngineConfig
-from pyslow.constants import BOARD_SIZE, EMPTY, WIN
-from pyslow.eval.caches import EvalCaches
-from pyslow.eval.local import attack_level, move_value
-from pyslow.patterns.line import Line
-from pyslow.patterns.shapes import DIAGONAL_DOWN, DIAGONAL_UP, HORIZONTAL, VERTICAL
+from pygomoku.board import Board, move_to_xy, xy_to_move
+from pygomoku.config import EngineConfig
+from pygomoku.constants import BOARD_SIZE, EMPTY, WIN
+from pygomoku.eval.caches import EvalCaches
+from pygomoku.eval.local import attack_level, move_value
+from pygomoku.patterns.line import Line
+from pygomoku.patterns.shapes import DIAGONAL_DOWN, DIAGONAL_UP, HORIZONTAL, VERTICAL
 
 _COVER_DIRS: tuple[tuple[int, int], ...] = (
     (-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1),
@@ -35,8 +35,8 @@ _USING_CYTHON_MOVEGEN_BACKEND = False
 
 if _MOVEGEN_BACKEND_MODE != "python":
     try:
-        from pyslow.search._movegen_cy import candidate_stats_raw as _candidate_stats_native
-        from pyslow.search._movegen_cy import covered_moves_raw as _covered_moves_native
+        from pygomoku.search._movegen_cy import candidate_stats_raw as _candidate_stats_native
+        from pygomoku.search._movegen_cy import covered_moves_raw as _covered_moves_native
     except ImportError:
         if _MOVEGEN_BACKEND_MODE == "cython":
             raise

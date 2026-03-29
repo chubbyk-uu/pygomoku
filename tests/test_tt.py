@@ -1,12 +1,12 @@
 """Transposition table tests."""
 
-from pyslow.board import Board, xy_to_move
-from pyslow.config import load_default_config
-from pyslow.constants import HASHF_ALPHA, HASHF_BETA, HASHF_EXACT
-from pyslow.eval.caches import EvalCaches
-from pyslow.eval.local import recompute_all
-from pyslow.search.alphabeta import AlphaBetaSearcher, SearchStats
-from pyslow.search.tt import TTEntry, TranspositionTable
+from pygomoku.board import Board, xy_to_move
+from pygomoku.config import load_default_config
+from pygomoku.constants import HASHF_ALPHA, HASHF_BETA, HASHF_EXACT
+from pygomoku.eval.caches import EvalCaches
+from pygomoku.eval.local import recompute_all
+from pygomoku.search.alphabeta import AlphaBetaSearcher, SearchStats
+from pygomoku.search.tt import TTEntry, TranspositionTable
 
 
 def test_tt_exact_hit_returns_value_and_best_move() -> None:

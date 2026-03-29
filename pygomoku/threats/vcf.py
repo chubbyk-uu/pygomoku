@@ -4,8 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
-from pyslow.board import Board, move_to_xy
-from pyslow.threats.threat_board import ThreatBoardView
+from pygomoku.board import Board, move_to_xy
+from pygomoku.threats.threat_board import ThreatBoardView
 
 
 @dataclass(frozen=True)

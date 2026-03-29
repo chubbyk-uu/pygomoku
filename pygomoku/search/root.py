@@ -5,16 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 import time
 
-from pyslow.board import Board, move_to_xy, xy_to_move
-from pyslow.config import EngineConfig
-from pyslow.constants import INF, WIN
-from pyslow.eval.caches import EvalCaches
-from pyslow.eval.local import recompute_all
-from pyslow.search.alphabeta import AlphaBetaSearcher, SearchStats
-from pyslow.search.movegen import generate_candidates
-from pyslow.search.ordering import order_candidates
-from pyslow.search.tt import TranspositionTable
-from pyslow.threats.vcf import VCFSearcher
+from pygomoku.board import Board, move_to_xy, xy_to_move
+from pygomoku.config import EngineConfig
+from pygomoku.constants import INF, WIN
+from pygomoku.eval.caches import EvalCaches
+from pygomoku.eval.local import recompute_all
+from pygomoku.search.alphabeta import AlphaBetaSearcher, SearchStats
+from pygomoku.search.movegen import generate_candidates
+from pygomoku.search.ordering import order_candidates
+from pygomoku.search.tt import TranspositionTable
+from pygomoku.threats.vcf import VCFSearcher
 
 _CLASSIC_RAND_SEED = 1232356
 _CLASSIC_FALLBACK_STATE = (

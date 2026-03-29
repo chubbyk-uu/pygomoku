@@ -7,9 +7,9 @@ import cProfile
 import io
 import pstats
 
-from pyslow.board import Board, xy_to_move
-from pyslow.config import load_default_config
-from pyslow.search.root import RootSearcher, SearchLimits
+from pygomoku.board import Board, xy_to_move
+from pygomoku.config import load_default_config
+from pygomoku.search.root import RootSearcher, SearchLimits
 
 
 def build_midgame_board() -> Board:

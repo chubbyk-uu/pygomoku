@@ -1,6 +1,6 @@
 """Optional Cython helpers for threat-board hot paths."""
 
-from pyslow.constants import BOARD_SIZE
+from pygomoku.constants import BOARD_SIZE
 
 cdef int _EMPTY = 0
 cdef int _SENTINEL = 1024

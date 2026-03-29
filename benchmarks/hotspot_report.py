@@ -14,9 +14,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from pyslow.board import Board
-from pyslow.config import load_default_config
-from pyslow.search.root import RootSearcher, SearchLimits
+from pygomoku.board import Board
+from pygomoku.config import load_default_config
+from pygomoku.search.root import RootSearcher, SearchLimits
 
 
 def run_selfplay_case(depth: int, width: int, plies: int) -> tuple[float, int]:

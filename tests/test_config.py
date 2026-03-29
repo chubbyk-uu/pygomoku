@@ -1,7 +1,7 @@
 """Configuration tests."""
 
-from pyslow.config import DEFAULT_EVAL_PARA, adjust_loaded_parameters, load_default_config
-from pyslow.constants import DSHAPE_SIZE
+from pygomoku.config import DEFAULT_EVAL_PARA, adjust_loaded_parameters, load_default_config
+from pygomoku.constants import DSHAPE_SIZE
 
 
 def test_default_parameter_count() -> None:

@@ -6,16 +6,16 @@ from dataclasses import dataclass
 from math import log
 import os
 
-from pyslow.board import Board
-from pyslow.config import EngineConfig
-from pyslow.constants import HASHF_ALPHA, HASHF_BETA, HASHF_EXACT, INF, WIN
-from pyslow.eval.caches import EvalCaches
-from pyslow.eval.global_eval import evaluate_board
-from pyslow.eval.local import value_wide_compute
-from pyslow.search.movegen import generate_candidates
-from pyslow.search.ordering import order_candidates, order_candidates_root_classic
-from pyslow.search.tt import TTEntry, TranspositionTable
-from pyslow.threats.vcf import VCFSearcher
+from pygomoku.board import Board
+from pygomoku.config import EngineConfig
+from pygomoku.constants import HASHF_ALPHA, HASHF_BETA, HASHF_EXACT, INF, WIN
+from pygomoku.eval.caches import EvalCaches
+from pygomoku.eval.global_eval import evaluate_board
+from pygomoku.eval.local import value_wide_compute
+from pygomoku.search.movegen import generate_candidates
+from pygomoku.search.ordering import order_candidates, order_candidates_root_classic
+from pygomoku.search.tt import TTEntry, TranspositionTable
+from pygomoku.threats.vcf import VCFSearcher
 
 _DEBUG_TT_KEY = int(os.getenv("PYSLOW_DEBUG_TT_KEY", "0"))
 _DEBUG_ROOT_KEY = int(os.getenv("PYSLOW_DEBUG_ROOT_KEY", "0"))

@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from pyslow.board import Board, xy_to_move
-from pyslow.config import EngineConfig, RuntimeOptions, load_default_config
-from pyslow.search.root import RootSearcher, SearchLimits
+from pygomoku.board import Board, xy_to_move
+from pygomoku.config import EngineConfig, RuntimeOptions, load_default_config
+from pygomoku.search.root import RootSearcher, SearchLimits
 
 
 ABOUT_TEXT = (
-    'name="pyslow", version="0.1", author="OpenAI", country="China", '
+    'name="pygomoku", version="0.1", author="OpenAI", country="China", '
     'www="https://example.invalid/"'
 )
 

@@ -1,9 +1,9 @@
 """GUI helper tests that do not require pygame."""
 
 import time
-from pyslow.board import xy_to_move
-from pyslow.constants import BLACK, WHITE
-from pyslow.gui import (
+from pygomoku.board import xy_to_move
+from pygomoku.constants import BLACK, WHITE
+from pygomoku.gui import (
     GomokuGuiApp,
     GuiLayout,
     compute_undo_steps,

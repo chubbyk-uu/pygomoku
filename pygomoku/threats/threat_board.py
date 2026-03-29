@@ -5,10 +5,10 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
-from pyslow.board import Board, move_to_xy, xy_to_move
-from pyslow.constants import BOARD_SIZE
-from pyslow.patterns.line import Line
-from pyslow.patterns.shapes import DIAGONAL_DOWN, DIAGONAL_UP, HORIZONTAL, VERTICAL
+from pygomoku.board import Board, move_to_xy, xy_to_move
+from pygomoku.constants import BOARD_SIZE
+from pygomoku.patterns.line import Line
+from pygomoku.patterns.shapes import DIAGONAL_DOWN, DIAGONAL_UP, HORIZONTAL, VERTICAL
 
 THREAT_DIRS: tuple[tuple[int, int], ...] = (
     (-2, -2), (-1, -1), (2, 2), (1, 1),
@@ -20,10 +20,10 @@ THREAT_DIRS: tuple[tuple[int, int], ...] = (
 _THREAT_BOARD_BACKEND_MODE = os.getenv("PYSLOW_THREAT_BOARD_BACKEND", "auto").lower()
 if _THREAT_BOARD_BACKEND_MODE != "python":
     try:
-        from pyslow.threats._threat_board_cy import build_views as _build_views_native
-        from pyslow.threats._threat_board_cy import broken_four_point_for_side_raw as _broken_four_point_for_side_native
-        from pyslow.threats._threat_board_cy import broken_four_reply_raw as _broken_four_reply_native
-        from pyslow.threats._threat_board_cy import threat_moves_grid as _threat_moves_native
+        from pygomoku.threats._threat_board_cy import build_views as _build_views_native
+        from pygomoku.threats._threat_board_cy import broken_four_point_for_side_raw as _broken_four_point_for_side_native
+        from pygomoku.threats._threat_board_cy import broken_four_reply_raw as _broken_four_reply_native
+        from pygomoku.threats._threat_board_cy import threat_moves_grid as _threat_moves_native
     except ImportError:
         if _THREAT_BOARD_BACKEND_MODE == "cython":
             raise

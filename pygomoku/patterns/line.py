@@ -5,10 +5,10 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from pyslow.board import Board
-from pyslow.constants import BLACK, BOARD_SIZE, EMPTY, WHITE
-from pyslow.patterns.shape_table import SHAPE_TABLE
-from pyslow.patterns.shapes import (
+from pygomoku.board import Board
+from pygomoku.constants import BLACK, BOARD_SIZE, EMPTY, WHITE
+from pygomoku.patterns.shape_table import SHAPE_TABLE
+from pygomoku.patterns.shapes import (
     DIAGONAL_DOWN,
     DIAGONAL_UP,
     HORIZONTAL,
@@ -100,8 +100,8 @@ _shape_raw_from_cells_impl = _shape_raw_from_cells_python
 
 if _BACKEND_MODE != "python":
     try:
-        from pyslow.patterns._line_cy import extract_cells as _extract_cells_cy
-        from pyslow.patterns._line_cy import shape_raw_from_cells as _shape_raw_from_cells_cy
+        from pygomoku.patterns._line_cy import extract_cells as _extract_cells_cy
+        from pygomoku.patterns._line_cy import shape_raw_from_cells as _shape_raw_from_cells_cy
     except ImportError:
         if _BACKEND_MODE == "cython":
             raise

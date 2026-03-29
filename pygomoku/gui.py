@@ -8,11 +8,11 @@ import queue
 import threading
 from typing import Protocol, Sequence
 
-from pyslow.board import Board, move_to_xy, xy_to_move
-from pyslow.config import load_default_config
-from pyslow.constants import BLACK, BOARD_SIZE, EMPTY, WHITE
-from pyslow.search.root import SearchLimits
-from pyslow.search.root import RootSearcher
+from pygomoku.board import Board, move_to_xy, xy_to_move
+from pygomoku.config import load_default_config
+from pygomoku.constants import BLACK, BOARD_SIZE, EMPTY, WHITE
+from pygomoku.search.root import SearchLimits
+from pygomoku.search.root import RootSearcher
 
 
 DEFAULT_DEPTH = 5
@@ -288,7 +288,7 @@ def main() -> None:
         raise SystemExit("pygame is required for the GUI. Install it with `pip install pygame`.") from exc
 
     pygame.init()
-    pygame.display.set_caption("pyslow Gomoku")
+    pygame.display.set_caption("pygomoku")
 
     app = GomokuGuiApp(depth=args.depth, width=args.width)
     layout = app.layout
@@ -361,14 +361,14 @@ def main() -> None:
             cy = y0 + my * layout.cell_size
             pygame.draw.circle(screen, red, (cx, cy), layout.cell_size // 2 - 1, 3)
 
-        header = title_font.render("pyslow Gomoku", True, text)
+        header = title_font.render("pygomoku", True, text)
         screen.blit(header, (layout.left_margin + layout.board_pixels + 34, 92))
 
         lines = [
             f"Depth: {app.search_limits.max_depth}",
             f"Width: {app.search_limits.root_width}",
-            f"Side: {'Black' if app.human_side == BLACK else 'White' if app.human_side == WHITE else '-'}",
-            "Left top is (0,0)",
+            f"AI Side: {'White' if app.human_side == BLACK else 'Black' if app.human_side == WHITE else '-'}",
+            "Coord: x=col, y=row",
             "",
             "Controls:",
             "U: undo",

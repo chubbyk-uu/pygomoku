@@ -16,13 +16,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from benchmarks.profile_search import build_midgame_board
-from pyslow.board import Board, move_to_xy
-from pyslow.config import load_default_config
-import pyslow.eval.caches as caches_mod
-import pyslow.eval.global_eval as global_eval_mod
-import pyslow.eval.local as local_mod
-import pyslow.search.alphabeta as alphabeta_mod
-from pyslow.search.root import RootSearcher, SearchLimits
+from pygomoku.board import Board, move_to_xy
+from pygomoku.config import load_default_config
+import pygomoku.eval.caches as caches_mod
+import pygomoku.eval.global_eval as global_eval_mod
+import pygomoku.eval.local as local_mod
+import pygomoku.search.alphabeta as alphabeta_mod
+from pygomoku.search.root import RootSearcher, SearchLimits
 
 
 @dataclass

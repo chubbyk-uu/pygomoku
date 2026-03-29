@@ -2,9 +2,9 @@
 
 from importlib.util import find_spec
 
-from pyslow.patterns.buckets import DOUBLE_SHAPE, bucket_for_lines
-from pyslow.patterns.line import Line, _shape_raw_from_cells_python, line_backend_name
-from pyslow.patterns.shapes import (
+from pygomoku.patterns.buckets import DOUBLE_SHAPE, bucket_for_lines
+from pygomoku.patterns.line import Line, _shape_raw_from_cells_python, line_backend_name
+from pygomoku.patterns.shapes import (
     DIAGONAL_DOWN,
     DIAGONAL_UP,
     DIRECTION_IDS,
@@ -13,8 +13,8 @@ from pyslow.patterns.shapes import (
     ShapeLabel,
     VERTICAL,
 )
-from pyslow.board import Board, xy_to_move
-from pyslow.constants import BLACK, WHITE
+from pygomoku.board import Board, xy_to_move
+from pygomoku.constants import BLACK, WHITE
 
 
 def test_shape_labels_match_expected_values() -> None:
@@ -79,9 +79,9 @@ def test_line_shape_raw_matches_shape_wrapper() -> None:
 
 
 def test_optional_cython_shape_backend_matches_python_helper() -> None:
-    if find_spec("pyslow.patterns._line_cy") is None:
+    if find_spec("pygomoku.patterns._line_cy") is None:
         return
-    from pyslow.patterns._line_cy import shape_raw_from_cells
+    from pygomoku.patterns._line_cy import shape_raw_from_cells
 
     board = Board()
     board.play(xy_to_move(7, 7))

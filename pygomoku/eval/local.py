@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import os
 
-from pyslow.board import Board
-from pyslow.config import EngineConfig
-from pyslow.constants import BLACK, BOARD_SIZE, EMPTY, WHITE
-from pyslow.eval.caches import EvalCaches
-from pyslow.patterns.buckets import bucket_for_lines
-from pyslow.patterns.line import Line
-from pyslow.patterns.shapes import DIAGONAL_DOWN, DIAGONAL_UP, HORIZONTAL, VERTICAL, ShapeLabel
+from pygomoku.board import Board
+from pygomoku.config import EngineConfig
+from pygomoku.constants import BLACK, BOARD_SIZE, EMPTY, WHITE
+from pygomoku.eval.caches import EvalCaches
+from pygomoku.patterns.buckets import bucket_for_lines
+from pygomoku.patterns.line import Line
+from pygomoku.patterns.shapes import DIAGONAL_DOWN, DIAGONAL_UP, HORIZONTAL, VERTICAL, ShapeLabel
 
 _FOUR_DIRECTIONS = (HORIZONTAL, VERTICAL, DIAGONAL_DOWN, DIAGONAL_UP)
 
@@ -98,10 +98,10 @@ _USING_CYTHON_LOCAL_BACKEND = False
 
 if _LOCAL_BACKEND_MODE != "python":
     try:
-        from pyslow.eval._local_cy import compute_bucket_and_attack_raw as _compute_bucket_and_attack_native
-        from pyslow.eval._local_cy import compute_direction_shape_raw as _compute_direction_shape_native
-        from pyslow.eval._local_cy import compute_point_cache_entry as _compute_point_cache_entry_native
-        from pyslow.eval._local_cy import value_wide_update as _value_wide_update_native
+        from pygomoku.eval._local_cy import compute_bucket_and_attack_raw as _compute_bucket_and_attack_native
+        from pygomoku.eval._local_cy import compute_direction_shape_raw as _compute_direction_shape_native
+        from pygomoku.eval._local_cy import compute_point_cache_entry as _compute_point_cache_entry_native
+        from pygomoku.eval._local_cy import value_wide_update as _value_wide_update_native
     except ImportError:
         if _LOCAL_BACKEND_MODE == "cython":
             raise

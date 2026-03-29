@@ -1,8 +1,8 @@
 """Optional Cython helpers for line extraction and raw shape lookup."""
 
-from pyslow.constants import BLACK, EMPTY, WHITE
-from pyslow.patterns.shape_table import SHAPE_TABLE
-from pyslow.patterns.shapes import DIAGONAL_DOWN, DIAGONAL_UP, HORIZONTAL, VERTICAL
+from pygomoku.constants import BLACK, EMPTY, WHITE
+from pygomoku.patterns.shape_table import SHAPE_TABLE
+from pygomoku.patterns.shapes import DIAGONAL_DOWN, DIAGONAL_UP, HORIZONTAL, VERTICAL
 
 
 def extract_cells(object grid, int size, int pivot, int direction, int sentinel):

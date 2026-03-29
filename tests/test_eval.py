@@ -3,13 +3,13 @@
 import random
 from importlib.util import find_spec
 
-from pyslow.board import Board, xy_to_move
-from pyslow.config import load_default_config
-from pyslow.constants import BOARD_SIZE
-from pyslow.eval.caches import EvalCaches
-from pyslow.eval.caches import caches_backend_name
-from pyslow.eval.global_eval import _evaluate_last5_branch, _evaluate_next43_branch, _find_last5_target, evaluate_board
-from pyslow.eval.local import (
+from pygomoku.board import Board, xy_to_move
+from pygomoku.config import load_default_config
+from pygomoku.constants import BOARD_SIZE
+from pygomoku.eval.caches import EvalCaches
+from pygomoku.eval.caches import caches_backend_name
+from pygomoku.eval.global_eval import _evaluate_last5_branch, _evaluate_next43_branch, _find_last5_target, evaluate_board
+from pygomoku.eval.local import (
     attack_level,
     compute_bucket_and_attack,
     compute_direction_shape,
@@ -19,7 +19,7 @@ from pyslow.eval.local import (
     recompute_point_caches,
     value_wide_compute,
 )
-from pyslow.patterns.shapes import ShapeLabel
+from pygomoku.patterns.shapes import ShapeLabel
 
 
 def test_eval_caches_start_with_zeroed_storage() -> None:
@@ -91,10 +91,10 @@ def test_recompute_point_caches_finds_black_five_threat() -> None:
 
 
 def test_optional_cython_local_helpers_match_python_path() -> None:
-    if find_spec("pyslow.eval._local_cy") is None:
+    if find_spec("pygomoku.eval._local_cy") is None:
         return
 
-    from pyslow.eval._local_cy import compute_bucket_and_attack_raw, compute_direction_shape_raw
+    from pygomoku.eval._local_cy import compute_bucket_and_attack_raw, compute_direction_shape_raw
 
     board = Board()
     board.play(xy_to_move(7, 7))

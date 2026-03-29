@@ -1,0 +1,1 @@
+"""pygomoku package."""

@@ -11,9 +11,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from pyslow.board import Board, move_to_xy
-from pyslow.config import load_default_config
-from pyslow.search.root import RootSearcher, SearchLimits
+from pygomoku.board import Board, move_to_xy
+from pygomoku.config import load_default_config
+from pygomoku.search.root import RootSearcher, SearchLimits
 
 
 def run_selfplay(plies: int, depth: int, width: int, node_limit: int | None) -> None:
