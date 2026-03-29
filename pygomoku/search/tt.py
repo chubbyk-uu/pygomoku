@@ -45,6 +45,7 @@ class TranspositionTable:
         bucket[slot] = entry
 
     def probe(self, key: int, depth: int, alpha: int, beta: int) -> ProbeResult:
+        fallback_best_move = -1
         for entry in self._bucket(key):
             if entry.key != key:
                 continue
@@ -62,7 +63,17 @@ class TranspositionTable:
                         window_alpha=alpha,
                         window_beta=min(beta, entry.value + 1),
                     )
-                if entry.flag == HASHF_BETA and entry.value >= beta:
-                    return ProbeResult(value=entry.value, best_move=-1, hit=True)
-            return ProbeResult(value=None, best_move=entry.best_move, hit=False)
-        return ProbeResult(value=None, best_move=-1, hit=False)
+                if entry.flag == HASHF_BETA:
+                    if entry.value >= beta:
+                        return ProbeResult(value=entry.value, best_move=-1, hit=True)
+                    return ProbeResult(
+                        value=None,
+                        best_move=entry.best_move,
+                        hit=False,
+                        has_window=True,
+                        window_alpha=max(alpha, entry.value),
+                        window_beta=beta,
+                    )
+            # depth insufficient: record best_move but continue to check the other slot
+            fallback_best_move = entry.best_move
+        return ProbeResult(value=None, best_move=fallback_best_move, hit=False)

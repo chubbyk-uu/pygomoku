@@ -48,14 +48,40 @@ def test_tt_alpha_entry_returns_unknown_with_best_move_when_no_cut() -> None:
     assert result.best_move == 17
 
 
-def test_tt_beta_entry_returns_unknown_with_best_move_when_no_cut() -> None:
+def test_tt_beta_entry_narrows_alpha_window_when_no_cut() -> None:
     table = TranspositionTable(bucket_bits=2)
     table.store(TTEntry(key=5, value=80, flag=HASHF_BETA, depth=4, priority=9, best_move=17))
     result = table.probe(5, depth=4, alpha=0, beta=100)
     assert result.hit is False
-    assert result.has_window is False
+    assert result.has_window is True
+    assert result.window_alpha == 80
+    assert result.window_beta == 100
     assert result.value is None
     assert result.best_move == 17
+
+
+def test_tt_beta_entry_alpha_already_above_value_keeps_alpha() -> None:
+    table = TranspositionTable(bucket_bits=2)
+    table.store(TTEntry(key=5, value=30, flag=HASHF_BETA, depth=4, priority=9, best_move=17))
+    result = table.probe(5, depth=4, alpha=50, beta=100)
+    assert result.has_window is True
+    assert result.window_alpha == 50  # max(50, 30)
+    assert result.window_beta == 100
+
+
+def test_tt_second_slot_checked_when_first_has_insufficient_depth() -> None:
+    # entry[0]: same key, shallow depth (insufficient) - should not block entry[1]
+    # entry[1]: same key, deep exact hit - should be found
+    table = TranspositionTable(bucket_bits=1)
+    shallow = TTEntry(key=2, value=99, flag=HASHF_EXACT, depth=1, priority=100, best_move=5)
+    deep = TTEntry(key=2, value=42, flag=HASHF_EXACT, depth=6, priority=10, best_move=7)
+    table.store(shallow)   # goes to slot 0 (high priority)
+    table.store(deep)      # goes to slot 1 (lower priority)
+    # requesting depth=5: slot 0 has depth=1 (insufficient), slot 1 has depth=6 (sufficient)
+    result = table.probe(2, depth=5, alpha=-200, beta=200)
+    assert result.hit is True
+    assert result.value == 42
+    assert result.best_move == 7
 
 
 def test_tt_prefers_second_slot_when_first_has_higher_priority() -> None:
