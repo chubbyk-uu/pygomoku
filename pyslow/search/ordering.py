@@ -113,7 +113,7 @@ def order_candidates(
     return tuple(sorted(candidates, key=sort_key))
 
 
-def order_candidates_root_slowrenju(
+def order_candidates_root_classic(
     board: Board,
     candidates: tuple[Candidate, ...],
     side: int,

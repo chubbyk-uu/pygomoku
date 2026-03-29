@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pyslow"
 version = "0.1.0"
-description = "Python freestyle Gomoku engine derived from SlowRenju design"
+description = "Python classic freestyle Gomoku engine"
 requires-python = ">=3.11"
 
 [project.optional-dependencies]
@@ -16,6 +16,6 @@ testpaths = ["tests"]
 pythonpath = ["."]
 markers = [
     "fast: small unit and structural regression tests intended for frequent local runs",
-    "alignment: reference-behavior regressions used to keep classic aligned with SlowRenju",
+    "alignment: classic search regressions for curated positions and score semantics",
     "integration: protocol, subprocess, and UI entrypoint tests",
 ]

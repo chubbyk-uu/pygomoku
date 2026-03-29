@@ -13,7 +13,7 @@ from pyslow.eval.caches import EvalCaches
 from pyslow.eval.global_eval import evaluate_board
 from pyslow.eval.local import value_wide_compute
 from pyslow.search.movegen import generate_candidates
-from pyslow.search.ordering import order_candidates, order_candidates_root_slowrenju
+from pyslow.search.ordering import order_candidates, order_candidates_root_classic
 from pyslow.search.tt import TTEntry, TranspositionTable
 from pyslow.threats.vcf import VCFSearcher
 
@@ -152,7 +152,7 @@ class AlphaBetaSearcher:
             beta = min(beta, probe.window_beta)
 
         if depth <= 0:
-            # SlowRenju leaf nodes use `vv = -value(c, opo)` with
+            # Classic leaf nodes use `vv = -value(c, opo)` with
             # `c = bmove % 2 ? 1 : -1`, i.e. evaluate from the opponent-color
             # perspective and negate back to the side-to-move score.
             score = int(-evaluate_board(board, caches, -side, opo, self.config))
@@ -183,7 +183,7 @@ class AlphaBetaSearcher:
             preserve_scan_order=root,
         )
         if root:
-            ordered = order_candidates_root_slowrenju(board, generated.candidates, side)
+            ordered = order_candidates_root_classic(board, generated.candidates, side)
         else:
             ordered = order_candidates(board, generated.candidates, side, probe.best_move)
         if generated.win_priority and ordered:

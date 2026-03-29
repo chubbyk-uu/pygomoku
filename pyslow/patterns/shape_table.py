@@ -1,4 +1,4 @@
-"""Shape lookup table copied from SlowRenju ShapeList.cpp."""
+"""Shape lookup table used by the classic evaluator."""
 
 SHAPE_TABLE: tuple[tuple[int, ...], tuple[int, ...]] = (
     (

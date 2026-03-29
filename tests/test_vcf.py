@@ -5,7 +5,7 @@ from pyslow.threats.threat_board import ThreatBoardView, forcing_threat_moves, t
 from pyslow.threats.vcf import VCFResult, VCFSearcher, _MemoEntry
 
 
-def test_threat_moves_use_reference_vcf_offsets() -> None:
+def test_threat_moves_use_expected_vcf_offsets() -> None:
     board = Board()
     board.play(xy_to_move(7, 7))
     moves = threat_moves(board, 1)
@@ -24,7 +24,7 @@ def test_threat_moves_only_expand_from_current_side_stones() -> None:
     assert xy_to_move(1, 0) not in moves
 
 
-def test_threat_moves_follow_reference_xy_scan_order() -> None:
+def test_threat_moves_follow_expected_xy_scan_order() -> None:
     board = Board()
     board.play(xy_to_move(7, 7))
     moves = threat_moves(board, 1)
@@ -67,7 +67,7 @@ def test_vcf_search_finds_immediate_forcing_threat() -> None:
     assert move_to_xy(result.move) in {(2, 7), (6, 7)}
 
 
-def test_vcf_begin_result_mapping_matches_reference_on_found_position() -> None:
+def test_vcf_begin_result_mapping_matches_expected_on_found_position() -> None:
     board = Board()
     board.play(xy_to_move(3, 7))
     board.play(xy_to_move(0, 0))
@@ -100,7 +100,7 @@ def test_vcf_search_can_report_solved_negative() -> None:
     assert result.solved
 
 
-def test_vcf_begin_result_mapping_matches_reference_on_negative_and_unsolved_positions() -> None:
+def test_vcf_begin_result_mapping_matches_expected_on_negative_and_unsolved_positions() -> None:
     solved_negative = Board()
     solved_negative.play(xy_to_move(7, 7))
     solved_negative.play(xy_to_move(8, 7))
@@ -124,7 +124,7 @@ def test_vcf_sequence_key_is_order_invariant_within_side_lists() -> None:
     assert key1 == key2
 
 
-def test_vcf_begin_depth_is_capped_like_reference() -> None:
+def test_vcf_begin_depth_is_capped_as_expected() -> None:
     assert VCFSearcher._normalize_begin_depth(8) == 5
     assert VCFSearcher._normalize_begin_depth(6) == 4
     assert VCFSearcher._normalize_begin_depth(4) == 4
@@ -250,7 +250,7 @@ def test_threat_board_view_reports_broken_four_reply_flag_shape() -> None:
     assert isinstance(ambiguous, bool)
 
 
-def test_broken_four_point_for_side_preserves_reference_scan_order() -> None:
+def test_broken_four_point_for_side_preserves_expected_scan_order() -> None:
     board = Board()
     board.play(xy_to_move(3, 7))
     board.play(xy_to_move(0, 0))
@@ -290,7 +290,7 @@ def test_broken_four_point_for_side_returns_current_reply_on_conflict(monkeypatc
     assert ambiguous is True
 
 
-def test_broken_four_reply_combines_direction_conflicts_like_reference(monkeypatch) -> None:
+def test_broken_four_reply_combines_direction_conflicts_as_expected(monkeypatch) -> None:
     board = Board()
     view = ThreatBoardView.from_board(board)
 
@@ -348,7 +348,7 @@ def test_threat_board_view_counts_b4_for_stone() -> None:
     assert view.b4_count(5, 7) >= 1
 
 
-def test_threat_board_view_b4_and_double4_match_reference_on_cross_position() -> None:
+def test_threat_board_view_b4_and_double4_match_expected_on_cross_position() -> None:
     board = Board()
     for idx, (x, y) in enumerate(
         [(5, 7), (0, 0), (6, 7), (2, 0), (7, 7), (4, 0), (8, 7), (6, 0), (7, 5), (8, 0), (7, 6), (10, 0), (7, 8)]
@@ -362,7 +362,7 @@ def test_threat_board_view_b4_and_double4_match_reference_on_cross_position() ->
     assert not view.is_double3r(7, 7)
 
 
-def test_threat_board_view_a3r_and_double3r_match_reference_on_cross_position() -> None:
+def test_threat_board_view_a3r_and_double3r_match_expected_on_cross_position() -> None:
     board = Board()
     for idx, (x, y) in enumerate([(6, 7), (0, 0), (8, 7), (2, 0), (7, 7), (4, 0), (7, 6), (6, 0), (7, 8)]):
         board.play(xy_to_move(x, y), 1 if idx % 2 == 0 else -1)

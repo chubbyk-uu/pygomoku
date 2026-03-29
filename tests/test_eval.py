@@ -261,7 +261,7 @@ def test_shape_cache_contains_valid_labels_for_empty_point() -> None:
         assert 0 <= label <= ShapeLabel.L6
 
 
-def test_find_last5_target_preserves_reference_scan_order() -> None:
+def test_find_last5_target_preserves_expected_scan_order() -> None:
     board = Board()
     board.play(xy_to_move(3, 7))
     board.play(xy_to_move(0, 0))
@@ -338,7 +338,7 @@ def test_value_wide_incremental_matches_full_recompute_on_random_sequences() -> 
                 assert incremental.attack_cache == full_after_undo.attack_cache
 
 
-def test_value_wide_matches_reference_on_handpicked_points() -> None:
+def test_value_wide_matches_expected_on_handpicked_points() -> None:
     board = Board()
     moves = [(7, 7), (7, 6), (8, 7), (6, 6), (9, 7), (5, 5), (6, 7), (8, 6)]
     for idx, (x, y) in enumerate(moves):
@@ -399,7 +399,7 @@ def test_value_wide_matches_reference_on_handpicked_points() -> None:
         assert caches.shape_cache[1][x][y] == point["shape_white"]
 
 
-def test_global_eval_matches_reference_on_handpicked_positions() -> None:
+def test_global_eval_matches_expected_on_handpicked_positions() -> None:
     config = load_default_config()
     positions = {
         "quiet": ([(7, 7), (7, 6), (8, 7), (6, 6), (9, 7), (5, 5), (6, 7), (8, 6)], 15000, -15000),
@@ -417,7 +417,7 @@ def test_global_eval_matches_reference_on_handpicked_positions() -> None:
         assert evaluate_board(board, caches, -1, 0, config) == white_expected
 
 
-def test_value_wide_incremental_snapshots_match_reference_sequence() -> None:
+def test_value_wide_incremental_snapshots_match_expected_sequence() -> None:
     board = Board()
     caches = EvalCaches()
     sequence = [(7, 7), (7, 6), (8, 7), (6, 6), (9, 7), (5, 5), (6, 7), (8, 6)]

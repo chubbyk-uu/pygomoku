@@ -17,14 +17,14 @@ from pyslow.board import Board, xy_to_move
 from pyslow.constants import BLACK, WHITE
 
 
-def test_shape_labels_match_reference_values() -> None:
+def test_shape_labels_match_expected_values() -> None:
     assert ShapeLabel.L0 == 0
     assert ShapeLabel.L4S == 10
     assert ShapeLabel.L5 == 12
     assert ShapeLabel.L6 == 13
 
 
-def test_direction_ids_match_reference_order() -> None:
+def test_direction_ids_match_expected_order() -> None:
     assert DIRECTION_IDS == (HORIZONTAL, VERTICAL, DIAGONAL_DOWN, DIAGONAL_UP)
 
 
@@ -47,7 +47,7 @@ def test_bucket_for_lines_orders_inputs() -> None:
     assert bucket_for_lines(2, 4) == DOUBLE_SHAPE[4][2]
 
 
-def test_line_extraction_reference_direction_zero() -> None:
+def test_line_extraction_direction_zero() -> None:
     board = Board()
     board.play(xy_to_move(7, 7))
     board.play(xy_to_move(7, 8))
@@ -92,7 +92,7 @@ def test_optional_cython_shape_backend_matches_python_helper() -> None:
     assert shape_raw_from_cells(line.cells, 7, True) == _shape_raw_from_cells_python(line.cells, 7, True)
 
 
-def test_line_a3pb_returns_reference_encoded_targets() -> None:
+def test_line_a3pb_returns_expected_encoded_targets() -> None:
     board = Board()
     board.grid[7][7] = BLACK
     board.grid[7][8] = BLACK

@@ -4,10 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import argparse
-from pathlib import Path
 import queue
-import shlex
-import subprocess
 import threading
 from typing import Protocol, Sequence
 
@@ -20,11 +17,6 @@ from pyslow.search.root import RootSearcher
 
 DEFAULT_DEPTH = 5
 DEFAULT_WIDTH = 20
-DEFAULT_GOMOCUP_DEPTH = 8
-DEFAULT_GOMOCUP_WIDTH = 24
-DEFAULT_GOMOCUP_CANDIDATES = (
-    Path("SlowRenju/slowrenju_linux"),
-)
 
 
 @dataclass(frozen=True)
@@ -77,13 +69,6 @@ def _wrap_text(text: str, max_chars: int) -> list[str]:
 
 def default_search_limits() -> SearchLimits:
     return SearchLimits(max_depth=DEFAULT_DEPTH, root_width=DEFAULT_WIDTH)
-
-
-def detect_default_gomocup_command() -> str | None:
-    for candidate in DEFAULT_GOMOCUP_CANDIDATES:
-        if candidate.exists() and candidate.is_file():
-            return str(candidate)
-    return None
 
 
 def compute_undo_steps(move_sides: Sequence[int], human_side: int) -> int:
@@ -192,99 +177,12 @@ class LocalEngineBackend:
         return
 
 
-class GomocupEngineBackend:
-    def __init__(self, command: str, *, depth: int, width: int) -> None:
-        self._command = command
-        self._depth = depth
-        self._width = width
-        self._proc: subprocess.Popen[str] | None = None
-        self._lock = threading.Lock()
-
-    def _ensure_process(self) -> subprocess.Popen[str]:
-        proc = self._proc
-        if proc is not None and proc.poll() is None:
-            return proc
-        argv = shlex.split(self._command)
-        if not argv:
-            raise ValueError("empty Gomocup command")
-        self._proc = subprocess.Popen(
-            argv,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1,
-        )
-        self._send_line("START 15")
-        self._read_meaningful_line()
-        return self._proc
-
-    def _send_line(self, line: str) -> None:
-        proc = self._ensure_process()
-        assert proc.stdin is not None
-        proc.stdin.write(line + "\n")
-        proc.stdin.flush()
-
-    def _read_meaningful_line(self) -> str:
-        proc = self._ensure_process()
-        assert proc.stdout is not None
-        while True:
-            line = proc.stdout.readline()
-            if not line:
-                stderr = ""
-                if proc.stderr is not None:
-                    stderr = proc.stderr.read()
-                raise RuntimeError(f"Gomocup engine exited unexpectedly: {stderr.strip()}")
-            text = line.strip()
-            if not text:
-                continue
-            if text.upper().startswith("MESSAGE"):
-                continue
-            return text
-
-    def find_best_move(self, board: Board, limits: SearchLimits) -> int:
-        with self._lock:
-            self._send_line("RESTART")
-            self._read_meaningful_line()
-            self._send_line(f"INFO depth {self._depth}")
-            self._send_line(f"INFO width {self._width}")
-            self._send_line(f"INFO max_node {limits.node_limit or 0}")
-            self._send_line("BOARD")
-            engine_side = board.side_to_move
-            for index, played in enumerate(board.move_history):
-                x, y = move_to_xy(played.move)
-                side = 1 if played.side == engine_side else 2
-                self._send_line(f"{x},{y},{side}")
-            self._send_line("DONE")
-            response = self._read_meaningful_line()
-            if "," not in response:
-                raise RuntimeError(f"unexpected Gomocup move response: {response}")
-            x_str, y_str = response.split(",", 1)
-            return xy_to_move(int(x_str), int(y_str))
-
-    def close(self) -> None:
-        proc = self._proc
-        if proc is None:
-            return
-        if proc.poll() is None:
-            try:
-                self._send_line("END")
-            except Exception:
-                pass
-            try:
-                proc.wait(timeout=1)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-        self._proc = None
-
-
 class GomokuGuiApp:
     def __init__(
         self,
         *,
         depth: int = DEFAULT_DEPTH,
         width: int = DEFAULT_WIDTH,
-        gomocup_command: str | None = None,
     ) -> None:
         self.layout = GuiLayout()
         self.board = Board()
@@ -292,34 +190,11 @@ class GomokuGuiApp:
         self.search_limits = SearchLimits(max_depth=depth, root_width=width)
         self.status_text = "Choose black or white to start."
         self.engine_busy = False
-        self.gomocup_command = gomocup_command or detect_default_gomocup_command()
-        self.gomocup_depth = DEFAULT_GOMOCUP_DEPTH
-        self.gomocup_width = DEFAULT_GOMOCUP_WIDTH
-        self.engine_mode = "local"
         self.engine = EngineWorker(self._build_backend())
         self._engine_generation = 0
 
     def _build_backend(self) -> EngineBackend:
-        if self.engine_mode == "gomocup":
-            if not self.gomocup_command:
-                raise ValueError("Gomocup command is not configured")
-            return GomocupEngineBackend(
-                self.gomocup_command,
-                depth=self.gomocup_depth,
-                width=self.gomocup_width,
-            )
         return LocalEngineBackend()
-
-    def switch_engine_mode(self) -> None:
-        if not self.gomocup_command:
-            self.status_text = "No Gomocup command configured."
-            return
-        self.engine.close()
-        self.engine_mode = "gomocup" if self.engine_mode == "local" else "local"
-        self.engine = EngineWorker(self._build_backend())
-        self._engine_generation = self.engine.new_generation()
-        self.engine_busy = False
-        self.status_text = f"Engine mode: {self.engine_mode}."
 
     def close(self) -> None:
         self.engine.close()
@@ -405,7 +280,6 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--depth", type=int, default=DEFAULT_DEPTH)
     parser.add_argument("--width", type=int, default=DEFAULT_WIDTH)
-    parser.add_argument("--gomocup-cmd", type=str, default=None)
     args = parser.parse_args()
 
     try:
@@ -416,7 +290,7 @@ def main() -> None:
     pygame.init()
     pygame.display.set_caption("pyslow Gomoku")
 
-    app = GomokuGuiApp(depth=args.depth, width=args.width, gomocup_command=args.gomocup_cmd)
+    app = GomokuGuiApp(depth=args.depth, width=args.width)
     layout = app.layout
     screen = pygame.display.set_mode((layout.width, layout.height))
     clock = pygame.time.Clock()
@@ -442,7 +316,6 @@ def main() -> None:
         button_left = layout.board_left + (layout.board_pixels - total_button_width) // 2
         black_button = pygame.Rect(button_left, 18, button_width, 36)
         white_button = pygame.Rect(button_left + button_width + button_gap, 18, button_width, 36)
-        engine_button = pygame.Rect(layout.left_margin + layout.board_pixels + 34, 20, 270, 34)
         pygame.draw.rect(
             screen,
             panel,
@@ -492,19 +365,14 @@ def main() -> None:
         screen.blit(header, (layout.left_margin + layout.board_pixels + 34, 92))
 
         lines = [
-            f"Engine mode: {app.engine_mode}",
             f"Depth: {app.search_limits.max_depth}",
             f"Width: {app.search_limits.root_width}",
             f"Side: {'Black' if app.human_side == BLACK else 'White' if app.human_side == WHITE else '-'}",
-            f"Gomocup: {'ready' if app.gomocup_command else 'missing'}",
-            f"G-depth: {app.gomocup_depth}",
-            f"G-width: {app.gomocup_width}",
             "Left top is (0,0)",
             "",
             "Controls:",
             "U: undo",
             "R: restart",
-            "E: switch engine",
             "",
         ]
         lines.extend(_wrap_text(app.status_text, 22))
@@ -522,17 +390,12 @@ def main() -> None:
         white_label = body_font.render("Play White", True, black_color)
         screen.blit(black_label, (black_button.centerx - black_label.get_width() // 2, black_button.centery - black_label.get_height() // 2))
         screen.blit(white_label, (white_button.centerx - white_label.get_width() // 2, white_button.centery - white_label.get_height() // 2))
-        pygame.draw.rect(screen, blue if app.engine_mode == "gomocup" else panel, engine_button, border_radius=6)
-        pygame.draw.rect(screen, grid_color, engine_button, 1, border_radius=6)
-        engine_text = "Switch to Gomocup" if app.engine_mode == "local" else "Switch to Local"
-        engine_label = small_font.render(engine_text, True, text)
-        screen.blit(engine_label, (engine_button.centerx - engine_label.get_width() // 2, engine_button.centery - engine_label.get_height() // 2))
-        return black_button, white_button, engine_button
+        return black_button, white_button
 
     running = True
     try:
         while running:
-            black_button, white_button, engine_button = draw_board()
+            black_button, white_button = draw_board()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
@@ -541,15 +404,11 @@ def main() -> None:
                         app.undo()
                     elif event.key == pygame.K_r:
                         app.restart()
-                    elif event.key == pygame.K_e:
-                        app.switch_engine_mode()
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if black_button.collidepoint(event.pos):
                         app.start_game(BLACK)
                     elif white_button.collidepoint(event.pos):
                         app.start_game(WHITE)
-                    elif engine_button.collidepoint(event.pos):
-                        app.switch_engine_mode()
                     else:
                         cell = pixel_to_cell(event.pos, layout)
                         if cell is not None:

@@ -28,11 +28,6 @@ DEFAULT_MAX_MOVES = 120
 DEFAULT_PARALLEL = 10
 DEFAULT_ENGINE_TYPE = "pyslow"
 DEFAULT_PYSLOW_CMD = f"{shlex.quote(sys.executable)} -m pyslow.gomocup_engine"
-DEFAULT_SLOWRENJU_CMD = str(REPO_ROOT / "SlowRenju" / "slowrenju_linux")
-DEFAULT_SLOWRENJU_DEPTH = 5
-DEFAULT_SLOWRENJU_WIDTH = 20
-DEFAULT_SLOWRENJU_TIMEOUT_TURN_MS = 1500
-DEFAULT_SLOWRENJU_TIME_LEFT_MS = 30000
 
 FIXED_OPENINGS_5: list[tuple[int, int]] = [
     (7, 7),
@@ -323,10 +318,6 @@ def _play_task(
     engine_name: str,
     pyslow_depth: int,
     pyslow_width: int,
-    slowrenju_depth: int | None,
-    slowrenju_width: int | None,
-    slowrenju_timeout_turn_ms: int,
-    slowrenju_time_left_ms: int,
     zhou_depth: int,
     max_moves: int,
 ) -> dict[str, Any]:
@@ -352,16 +343,6 @@ def _play_task(
             width=pyslow_width,
             color=task.engine_color,
             name=engine_name,
-        )
-    elif engine_type == "slowrenju":
-        engine_impl = _GomocupEngine(
-            command=engine_command,
-            name=engine_name,
-            color=task.engine_color,
-            depth=slowrenju_depth,
-            width=slowrenju_width,
-            timeout_turn_ms=slowrenju_timeout_turn_ms,
-            time_left_ms=slowrenju_time_left_ms,
         )
     else:
         raise ValueError(f"unsupported engine_type: {engine_type}")
@@ -497,10 +478,6 @@ def _build_payload(
     engine_color: str,
     pyslow_depth: int,
     pyslow_width: int,
-    slowrenju_depth: int | None,
-    slowrenju_width: int | None,
-    slowrenju_timeout_turn_ms: int,
-    slowrenju_time_left_ms: int,
     zhou_depth: int,
     max_moves: int,
     games: list[dict[str, Any]],
@@ -519,10 +496,6 @@ def _build_payload(
         "params": {
             "pyslow_depth": pyslow_depth,
             "pyslow_width": pyslow_width,
-            "slowrenju_depth": slowrenju_depth,
-            "slowrenju_width": slowrenju_width,
-            "slowrenju_timeout_turn_ms": slowrenju_timeout_turn_ms,
-            "slowrenju_time_left_ms": slowrenju_time_left_ms,
             "zhou_depth": zhou_depth,
             "max_moves": max_moves,
         },
@@ -539,15 +512,11 @@ def _build_payload(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--opening-set", choices=sorted(OPENING_SETS), default="5")
-    parser.add_argument("--engine-type", choices=("pyslow", "pyslow-direct", "slowrenju"), default=DEFAULT_ENGINE_TYPE)
+    parser.add_argument("--engine-type", choices=("pyslow", "pyslow-direct"), default=DEFAULT_ENGINE_TYPE)
     parser.add_argument("--engine-cmd", type=str, default=None)
     parser.add_argument("--engine-name", type=str, default=None)
     parser.add_argument("--pyslow-depth", type=int, default=5)
     parser.add_argument("--pyslow-width", type=int, default=15)
-    parser.add_argument("--slowrenju-depth", type=int, default=DEFAULT_SLOWRENJU_DEPTH)
-    parser.add_argument("--slowrenju-width", type=int, default=DEFAULT_SLOWRENJU_WIDTH)
-    parser.add_argument("--slowrenju-timeout-turn", type=int, default=DEFAULT_SLOWRENJU_TIMEOUT_TURN_MS)
-    parser.add_argument("--slowrenju-time-left", type=int, default=DEFAULT_SLOWRENJU_TIME_LEFT_MS)
     parser.add_argument("--zhou-depth", type=int, default=5)
     parser.add_argument("--parallel", type=int, default=DEFAULT_PARALLEL)
     parser.add_argument("--max-moves", type=int, default=DEFAULT_MAX_MOVES)
@@ -563,7 +532,7 @@ def main() -> None:
 
     engine_command = args.engine_cmd
     if engine_command is None:
-        engine_command = DEFAULT_PYSLOW_CMD if args.engine_type == "pyslow" else DEFAULT_SLOWRENJU_CMD
+        engine_command = DEFAULT_PYSLOW_CMD
     engine_name = args.engine_name or args.engine_type
     output_black = args.output_black or _default_output(engine_name, "black")
     output_white = args.output_white or _default_output(engine_name, "white")
@@ -586,10 +555,6 @@ def main() -> None:
                 engine_name=engine_name,
                 pyslow_depth=args.pyslow_depth,
                 pyslow_width=args.pyslow_width,
-                slowrenju_depth=args.slowrenju_depth,
-                slowrenju_width=args.slowrenju_width,
-                slowrenju_timeout_turn_ms=args.slowrenju_timeout_turn,
-                slowrenju_time_left_ms=args.slowrenju_time_left,
                 zhou_depth=args.zhou_depth,
                 max_moves=args.max_moves,
             ): task
@@ -615,10 +580,6 @@ def main() -> None:
             engine_color="BLACK",
             pyslow_depth=args.pyslow_depth,
             pyslow_width=args.pyslow_width,
-            slowrenju_depth=args.slowrenju_depth,
-            slowrenju_width=args.slowrenju_width,
-            slowrenju_timeout_turn_ms=args.slowrenju_timeout_turn,
-            slowrenju_time_left_ms=args.slowrenju_time_left,
             zhou_depth=args.zhou_depth,
             max_moves=args.max_moves,
             games=results_by_color["BLACK"],
@@ -635,10 +596,6 @@ def main() -> None:
             engine_color="WHITE",
             pyslow_depth=args.pyslow_depth,
             pyslow_width=args.pyslow_width,
-            slowrenju_depth=args.slowrenju_depth,
-            slowrenju_width=args.slowrenju_width,
-            slowrenju_timeout_turn_ms=args.slowrenju_timeout_turn,
-            slowrenju_time_left_ms=args.slowrenju_time_left,
             zhou_depth=args.zhou_depth,
             max_moves=args.max_moves,
             games=results_by_color["WHITE"],

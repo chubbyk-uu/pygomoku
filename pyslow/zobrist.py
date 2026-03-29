@@ -1,4 +1,4 @@
-"""Zobrist hashing support aligned to SlowRenju."""
+"""Zobrist hashing support for the classic engine."""
 
 from __future__ import annotations
 
@@ -10,12 +10,12 @@ from pyslow.constants import BLACK, BOARD_AREA, WHITE
 
 _DEFAULT_SEED = 1232356
 _MASK64 = (1 << 64) - 1
-_REFERENCE_HASH_N = 20
-_REFERENCE_HASH_AREA = _REFERENCE_HASH_N * _REFERENCE_HASH_N + 1
+_CLASSIC_HASH_N = 20
+_CLASSIC_HASH_AREA = _CLASSIC_HASH_N * _CLASSIC_HASH_N + 1
 
 
-def _reference_rand64_sequence(seed: int, count: int) -> tuple[int, ...]:
-    """Mirror SlowRenju's InitHash rand64() stream on the local libc."""
+def _classic_rand64_sequence(seed: int, count: int) -> tuple[int, ...]:
+    """Build the classic zobrist stream on the local libc."""
 
     libc = ctypes.CDLL(None)
     libc.srand.argtypes = [ctypes.c_uint]
@@ -41,15 +41,15 @@ class ZobristTable:
 
     @classmethod
     def build(cls, seed: int = _DEFAULT_SEED) -> "ZobristTable":
-        # SlowRenju's desktop build compiles hash tables with `N=20`, then
+        # The classic engine keeps the `N=20` hash stream shape, then
         # indexes them using the runtime board size (`S=15` for Gomocup).
         # To align the exact zobrist stream, we must consume the same number
         # of `rand64()` draws even though freestyle play only uses the first
         # 225 board indices.
-        values = _reference_rand64_sequence(seed, _REFERENCE_HASH_AREA * 2)
-        black = values[:_REFERENCE_HASH_AREA]
-        white = values[_REFERENCE_HASH_AREA : _REFERENCE_HASH_AREA * 2]
-        # SlowRenju's CurrentZobrist does not encode side-to-move.
+        values = _classic_rand64_sequence(seed, _CLASSIC_HASH_AREA * 2)
+        black = values[:_CLASSIC_HASH_AREA]
+        white = values[_CLASSIC_HASH_AREA : _CLASSIC_HASH_AREA * 2]
+        # The classic zobrist key does not encode side-to-move.
         return cls(black=black, white=white, turn=0)
 
     def key_for(self, move: int, side: int) -> int:

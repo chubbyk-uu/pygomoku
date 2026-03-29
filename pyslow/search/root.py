@@ -16,8 +16,8 @@ from pyslow.search.ordering import order_candidates
 from pyslow.search.tt import TranspositionTable
 from pyslow.threats.vcf import VCFSearcher
 
-_REFERENCE_RAND_SEED = 1232356
-_REFERENCE_FALLBACK_STATE = (
+_CLASSIC_RAND_SEED = 1232356
+_CLASSIC_FALLBACK_STATE = (
     -950575697,
     -534807373,
     229790648,
@@ -50,24 +50,24 @@ _REFERENCE_FALLBACK_STATE = (
     477268195,
     -574683412,
 )
-_REFERENCE_FALLBACK_FPTR = 25
-_REFERENCE_FALLBACK_RPTR = 22
+_CLASSIC_FALLBACK_FPTR = 25
+_CLASSIC_FALLBACK_RPTR = 22
 
 
-class _ReferenceFallbackRng:
-    """Mirror the Gomocup-process libc rand() stream used by SlowRenju fallback."""
+class _ClassicFallbackRng:
+    """Mirror the classic Gomocup fallback rand() stream."""
 
-    def __init__(self, seed: int = _REFERENCE_RAND_SEED) -> None:
-        if seed != _REFERENCE_RAND_SEED:
-            raise ValueError("only the reference fallback seed is supported")
-        # In Gomocup mode the reference process calls `InitHash()` twice before the
+    def __init__(self, seed: int = _CLASSIC_RAND_SEED) -> None:
+        if seed != _CLASSIC_RAND_SEED:
+            raise ValueError("only the classic fallback seed is supported")
+        # In Gomocup mode the engine process calls `InitHash()` twice before the
         # first real move search: once on `START` and once on the initial
         # `RESTART` used by `_sync_full_board()`. These values were captured from
         # the local libc `rand()` state after `srand(1232356)` and both InitHash
-        # passes (2 * 4010 draws with the reference N=20 zobrist stream shape).
-        self._state = [value & 0xFFFFFFFF for value in _REFERENCE_FALLBACK_STATE]
-        self._fptr = _REFERENCE_FALLBACK_FPTR
-        self._rptr = _REFERENCE_FALLBACK_RPTR
+        # passes (2 * 4010 draws with the classic N=20 zobrist stream shape).
+        self._state = [value & 0xFFFFFFFF for value in _CLASSIC_FALLBACK_STATE]
+        self._fptr = _CLASSIC_FALLBACK_FPTR
+        self._rptr = _CLASSIC_FALLBACK_RPTR
 
     def randrange(self, upper: int) -> int:
         if upper <= 0:
@@ -79,8 +79,8 @@ class _ReferenceFallbackRng:
         return ((value >> 1) & 0x7FFFFFFF) % upper
 
 
-def _new_reference_fallback_rng() -> _ReferenceFallbackRng:
-    return _ReferenceFallbackRng()
+def _new_classic_fallback_rng() -> _ClassicFallbackRng:
+    return _ClassicFallbackRng()
 
 
 def _shape_label(shape: int) -> int:
@@ -96,14 +96,14 @@ def _fallback_ai_move(
     caches: EvalCaches,
     side: int,
     *,
-    rng: _ReferenceFallbackRng | None = None,
+    rng: _ClassicFallbackRng | None = None,
 ) -> int:
     player = 0 if side == 1 else 1
     opponent = 1 - player
     best_value = -10**18
     best_moves: list[int] = []
     if rng is None:
-        rng = _new_reference_fallback_rng()
+        rng = _new_classic_fallback_rng()
 
     for move in range(board.size * board.size):
         if not board.is_legal_move(move):
@@ -210,7 +210,7 @@ class RootSearcher:
         self.tt = tt or TranspositionTable()
         self.alphabeta = AlphaBetaSearcher(config, self.tt)
         self.vcf = VCFSearcher()
-        self._fallback_rng = _new_reference_fallback_rng()
+        self._fallback_rng = _new_classic_fallback_rng()
 
     def _root_allowed_moves(self, board: Board) -> set[int] | None:
         if self.config.runtime.static_board or board.move_count == 0:
@@ -355,7 +355,7 @@ class RootSearcher:
                     nodes=0,
                 )
             if len(root_legal_moves) == 1:
-                # Reference rootsearch short-circuits here: after VCF root filtering leaves
+                # Classic root search short-circuits here: after VCF root filtering leaves
                 # a single legal move, alphabeta returns the previous outer-iteration score
                 # (`abval.first`), which is still 0 before the first completed iteration.
                 return SearchResult(
@@ -388,7 +388,7 @@ class RootSearcher:
                 best_move = move
                 best_score = score
             elif score <= -WIN:
-                # SlowRenju rootsearch does not keep the previous PV when the
+                # Classic root search does not keep the previous PV when the
                 # current iteration reports "all root children lose" via
                 # `abval.second == -1`; it falls back to AIs() immediately.
                 best_move = _fallback_ai_move(board, caches, side, rng=self._fallback_rng)

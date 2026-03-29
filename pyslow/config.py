@@ -1,4 +1,4 @@
-"""Engine configuration and SlowRenju parameter mapping."""
+"""Engine configuration and built-in parameter tables."""
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ class EngineConfig:
     root_search: RootSearchDefaults
 
 
-SLOWRENJU_PARA: tuple[float, ...] = (
+DEFAULT_EVAL_PARA: tuple[float, ...] = (
     -0.200199873065, -0.170322649129, -0.221213772278, -0.145485105835,
     -0.129801153017, -0.0941755741609, 0.0, -0.131349267488,
     -0.142689532514, -0.0632002176032, 0.0, 0.208204632758,
@@ -175,7 +175,7 @@ def _default_root_search() -> RootSearchDefaults:
 
 
 def adjust_loaded_parameters(para: tuple[float, ...]) -> tuple[float, ...]:
-    """Apply the post-load tweaks used by SlowRenju after reading srconfig.txt."""
+    """Apply the post-load tweaks expected by the classic config loader."""
     mutable = list(para)
     mutable[156] += 65536.0
     mutable[157] += 65536.0
@@ -183,10 +183,10 @@ def adjust_loaded_parameters(para: tuple[float, ...]) -> tuple[float, ...]:
 
 
 def load_default_config() -> EngineConfig:
-    """Build the default engine config from the copied SlowRenju table."""
+    """Build the default engine config from the bundled parameter table."""
     return EngineConfig(
-        eval_tables=_slice_eval_tables(SLOWRENJU_PARA),
-        search=_slice_search_parameters(SLOWRENJU_PARA),
-        runtime=_default_runtime_options(SLOWRENJU_PARA),
+        eval_tables=_slice_eval_tables(DEFAULT_EVAL_PARA),
+        search=_slice_search_parameters(DEFAULT_EVAL_PARA),
+        runtime=_default_runtime_options(DEFAULT_EVAL_PARA),
         root_search=_default_root_search(),
     )

@@ -65,7 +65,7 @@ def test_protocol_board_mode_reconstructs_position() -> None:
     assert "," in response[0]
 
 
-def test_protocol_board_mode_reconstructs_interleaved_color_order_like_reference() -> None:
+def test_protocol_board_mode_reconstructs_interleaved_color_order_as_expected() -> None:
     proto = _proto()
     proto.handle_line("START 15")
     proto.handle_line("BOARD")
@@ -98,13 +98,13 @@ def test_protocol_info_max_node_zero_means_unlimited() -> None:
     assert proto.node_limit is None
 
 
-def test_protocol_info_timeout_turn_zero_matches_reference_floor() -> None:
+def test_protocol_info_timeout_turn_zero_matches_expected_floor() -> None:
     proto = _proto()
     proto.handle_line("INFO timeout_turn 0")
     assert proto.timeout_turn_ms == 200.0
 
 
-def test_protocol_info_timeout_match_zero_matches_reference_large_default() -> None:
+def test_protocol_info_timeout_match_zero_matches_expected_large_default() -> None:
     proto = _proto()
     proto.handle_line("INFO timeout_match 0")
     assert proto.time_left_ms == 99999999.0
@@ -127,7 +127,7 @@ def test_protocol_search_move_falls_back_if_engine_returns_illegal_move(monkeypa
     assert response != "7,7"
 
 
-def test_protocol_unknown_command_silently_ignored_like_reference() -> None:
+def test_protocol_unknown_command_silently_ignored_as_expected() -> None:
     proto = _proto()
     assert proto.handle_line("FOOBAR") == []
     assert proto.handle_line("XYZZY 123") == []

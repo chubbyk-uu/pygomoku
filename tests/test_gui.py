@@ -4,8 +4,6 @@ import time
 from pyslow.board import xy_to_move
 from pyslow.constants import BLACK, WHITE
 from pyslow.gui import (
-    DEFAULT_GOMOCUP_DEPTH,
-    DEFAULT_GOMOCUP_WIDTH,
     GomokuGuiApp,
     GuiLayout,
     compute_undo_steps,
@@ -19,11 +17,6 @@ def test_default_gui_search_limits_match_current_playable_settings() -> None:
     limits = default_search_limits()
     assert limits.max_depth == 5
     assert limits.root_width == 20
-
-
-def test_default_gui_gomocup_limits_match_slowrenju_baseline() -> None:
-    assert DEFAULT_GOMOCUP_DEPTH == 8
-    assert DEFAULT_GOMOCUP_WIDTH == 24
 
 
 def test_compute_undo_steps_rewinds_full_pair_after_ai_move() -> None:

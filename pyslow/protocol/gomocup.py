@@ -127,7 +127,7 @@ class GomocupProtocol:
             second_side_moves = white_moves
         elif sfn == opn - 1:
             # Engine plays as white (side -1, second mover)
-            # Reference: sfn==opn-1 means opponent (white/side=2) moved first
+            # Here `sfn==opn-1` means the opponent (white/side=2) moved first.
             first_side_moves = white_moves
             second_side_moves = black_moves
         else:

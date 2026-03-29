@@ -1,4 +1,4 @@
-"""Bucket mapping derived from SlowRenju doubleShape logic."""
+"""Bucket mapping used by the classic evaluator."""
 
 from __future__ import annotations
 

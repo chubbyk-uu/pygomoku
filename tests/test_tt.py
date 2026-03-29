@@ -74,7 +74,7 @@ def test_tt_default_bucket_bits_match_corrected_alignment_baseline() -> None:
     assert len(table.buckets) == 1 << 20
 
 
-def test_tt_winning_exact_store_adds_windepth_like_reference() -> None:
+def test_tt_winning_exact_store_adds_windepth_as_expected() -> None:
     board = Board()
     sequence = [
         (3, 7, 1),

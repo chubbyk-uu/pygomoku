@@ -16,7 +16,7 @@ def test_movegen_backend_name_is_supported() -> None:
     assert movegen_backend_name() in {"python", "cython"}
 
 
-def test_covered_moves_uses_reference_template() -> None:
+def test_covered_moves_uses_expected_template() -> None:
     board = Board()
     board.play(xy_to_move(7, 7))
     moves = covered_moves(board)
@@ -87,7 +87,7 @@ def test_generate_candidates_injects_preferred_move_score() -> None:
     assert any(candidate.move == preferred and candidate.order_score == 100 for candidate in result.candidates)
 
 
-def test_hostile_three_extension_matches_reference_bonus_on_known_fallback_position() -> None:
+def test_hostile_three_extension_matches_expected_bonus_on_known_fallback_position() -> None:
     board = Board()
     sequence = [
         (1, (7, 7)),
@@ -137,7 +137,7 @@ def test_hostile_three_extension_matches_reference_bonus_on_known_fallback_posit
     assert changed == {(8, 4): 10000, (8, 8): 10000}
 
 
-def test_generate_candidates_matches_reference_casen_on_known_fallback_position() -> None:
+def test_generate_candidates_matches_expected_casen_on_known_fallback_position() -> None:
     board = Board()
     sequence = [
         (1, (7, 7)),
