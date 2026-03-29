@@ -12,14 +12,14 @@
 
 该项目的直接目的，是让 `pyslow` 在实际对战中稳定战胜 `opponent/zhou/` 中的另一个五子棋程序 `zhou`。
 
-项目借鉴了 GitHub 上 `SlowRenju` 这个 C 语言五子棋项目的很多设计思想，包括搜索结构、评估思路和工程拆分方式。本文最后附有致谢说明。
+本项目可以理解为一个以 `SlowRenju` 为核心参考、面向 Python/Cython 的自由规则五子棋引擎重实现。本文最后附有致谢说明。
 
 本仓库以 GNU GPL v3.0 发布，完整文本见根目录 `LICENSE`。
 
 ## 特性概览
 
 - 15x15 自由规则五子棋
-- `classic` 主线搜索器
+- 当前主线引擎（仓库内部称 `classic`）
 - 迭代加深 + Alpha-Beta + TT + 候选点裁剪
 - VCF 战术搜索
 - Cython 可选加速
@@ -32,7 +32,7 @@
 
 这个仓库当前关注的是一条非常明确的工程路线：
 
-1. 保持 `classic` 引擎行为稳定、确定、可验证。
+1. 保持当前主线引擎（仓库内部称 `classic`）行为稳定、确定、可验证。
 2. 在不破坏语义的前提下，持续提升实战速度。
 3. 把热点逐步迁移到 Cython / native，加速搜索、评估和战术模块。
 4. 通过 GUI、Gomocup 协议和固定开局对战来做实际验证。
@@ -87,7 +87,7 @@ gomoku-py/
 
 ### 2. GUI
 
-`pyslow/gui.py` 提供本地人机对战界面，当前只使用仓库内的本地 `classic` 引擎，不再依赖外部二进制引擎切换。
+`pyslow/gui.py` 提供本地人机对战界面，当前只使用仓库内的主线引擎，不再依赖外部二进制引擎切换。
 
 ### 3. Gomocup 协议入口
 
@@ -445,7 +445,7 @@ PYTHONPATH=. python benchmarks/profile_search.py --depth 2 --width 12 --top 25
 
 ## 开发建议
 
-- 优先把 `classic` 当成当前唯一主线。
+- 优先把当前主线引擎当成唯一语义主线，仓库内部仍沿用 `classic` 这个名字。
 - 性能优化前先保证语义稳定。
 - 改热点时尽量保留 Python fallback。
 - 不要把“感觉更强”当成充分证据，尽量让修改有测试、基准或实战结果支撑。
@@ -460,4 +460,4 @@ PYTHONPATH=. python benchmarks/profile_search.py --depth 2 --width 12 --top 25
 
 感谢 GitHub 上的 `SlowRenju` https://github.com/wind23/SlowRenju 项目。
 
-虽然本项目当前已经收敛为自己的 Python `classic` 主线，但在搜索结构、评估思路、默认参数体系和工程设计上，确实参考了 `SlowRenju` 这个 C 语言五子棋项目。这个仓库的很多关键概念，并不是凭空设计出来的，而是在吸收和消化这些成熟经验之后逐步落地的。
+虽然本项目当前已经收敛为自己的 Python 主线引擎，但它仍然可以理解为一个以 `SlowRenju` 为核心参考、面向 Python/Cython 的自由规则五子棋引擎重实现。这个仓库的很多关键概念，并不是凭空设计出来的，而是在吸收和消化这些成熟经验之后逐步落地的。仓库内部仍沿用 `classic` 这个名字来指代这条主线。
