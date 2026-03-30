@@ -338,9 +338,9 @@ class AlphaBetaSearcher:
 
             if score > current:
                 current = score
-                best_move = candidate.move
             if score > alpha:
                 alpha = score
+                best_move = candidate.move
                 hash_flag = HASHF_EXACT
                 found_pv = True
             if root and score >= WIN:

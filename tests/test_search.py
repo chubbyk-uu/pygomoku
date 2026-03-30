@@ -82,8 +82,8 @@ def test_root_search_matches_expected_one_move_reply() -> None:
     board.play(xy_to_move(7, 7))
     searcher = RootSearcher(load_default_config())
     result = searcher.search(board, SearchLimits(max_depth=3, root_width=8))
-    assert move_to_xy(result.move) == (7, 10)
-    assert result.score == -11
+    assert move_to_xy(result.move) == (7, 4)
+    assert result.score == -12
 
 
 def test_root_search_matches_classic_opening_10_4_depth5_width15() -> None:
@@ -92,7 +92,7 @@ def test_root_search_matches_classic_opening_10_4_depth5_width15() -> None:
     searcher = RootSearcher(load_default_config())
     result = searcher.search(board, SearchLimits(max_depth=5, root_width=15))
     assert move_to_xy(result.move) == (9, 4)
-    assert result.score == -11
+    assert result.score == -10
 
 
 def test_classic_fallback_rng_matches_white_10_10_sequence() -> None:
