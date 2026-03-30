@@ -49,23 +49,26 @@ def test_generate_candidates_collapses_single_forcing_class() -> None:
     assert (x, y) in {(2, 7), (7, 7)}
 
 
-def test_generate_candidates_respects_root_allowed_mask_penalty() -> None:
+def test_generate_candidates_hard_filters_root_allowed_moves() -> None:
     board = Board()
     board.play(xy_to_move(7, 7))
     board.play(xy_to_move(8, 7))
     caches = EvalCaches()
     recompute_all(board, caches)
-    preferred = xy_to_move(7, 8)
+    allowed = {xy_to_move(7, 8)}
     result = generate_candidates(
         board,
         caches,
         1,
         load_default_config(),
-        root_allowed_moves={preferred},
+        root_allowed_moves=allowed,
         wide=5,
     )
     assert result.candidates
-    assert result.candidates[0].move == preferred
+    assert result.candidates[0].move == xy_to_move(7, 8)
+    # Hard filter: no candidate should be outside the allowed set
+    for c in result.candidates:
+        assert c.move in allowed
 
 
 def test_generate_candidates_injects_preferred_move_score() -> None:

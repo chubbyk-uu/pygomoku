@@ -281,7 +281,7 @@ class RootSearcher:
             trial.play(move, side)
             if not self.vcf.search(trial, -side, 7).found:
                 filtered.add(move)
-        return filtered if allowed_moves is not None else filtered
+        return filtered
 
     @staticmethod
     def _is_unstable(

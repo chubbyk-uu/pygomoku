@@ -56,6 +56,9 @@ def _find_last5_target(board: Board, caches: EvalCaches, side: int, config: Engi
 
 
 def _evaluate_last5_branch(board: Board, caches: EvalCaches, side: int, opo: int, config: EngineConfig) -> float:
+    # Temporarily place stone directly on grid (bypassing board.play) for
+    # evaluation only. Zobrist/history/winner are not updated because this
+    # is a speculative probe, not an actual move. Restored in finally block.
     target = _find_last5_target(board, caches, side, config)
     if target is None:
         return WIN
@@ -72,6 +75,7 @@ def _evaluate_last5_branch(board: Board, caches: EvalCaches, side: int, opo: int
 
 
 def _evaluate_next43_branch(board: Board, caches: EvalCaches, side: int, config: EngineConfig) -> bool:
+    # Direct grid writes for speculative probing — see _evaluate_last5_branch.
     size = board.size
     grid = board.grid
     next_eval = config.eval_tables.next_eval

@@ -221,7 +221,7 @@ def generate_candidates(
     for move in moves:
         vbw = vbw_map[move]
         if root_allowed_moves is not None and move not in root_allowed_moves:
-            vbw -= 5000
+            continue
         if hsflag:
             vbw -= 5000
             if self_attack_map.get(move, 0) >= 4:
@@ -243,8 +243,7 @@ def generate_candidates(
             break
         if score <= -WIN and score >= -200000000:
             continue
-        if score > -200000000 or (-300000000 <= score <= 250000000):
-            candidates.append(
+        candidates.append(
                 Candidate(
                     move=move,
                     order_score=score,
