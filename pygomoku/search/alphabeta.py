@@ -7,7 +7,7 @@ from math import log
 import os
 import time
 
-from pygomoku.board import Board
+from pygomoku.board import Board, move_to_xy
 from pygomoku.config import EngineConfig
 from pygomoku.constants import HASHF_ALPHA, HASHF_BETA, HASHF_EXACT, INF, WIN
 from pygomoku.eval.caches import EvalCaches
@@ -43,26 +43,28 @@ def _terminal_score(board: Board, side: int, ply: int) -> int | None:
     return -INF + ply
 
 
-def _rootbonus(board: Board, x: int, y: int) -> int:
-    is_corner = False
-    half_corner = 0
-    for xx in range(board.size):
-        for yy in range(board.size):
-            if board.at(xx, yy) == 0:
-                continue
-            cur_height = min(xx, yy, board.size - 1 - xx, board.size - 1 - yy)
-            if cur_height <= 2:
-                if cur_height == 2:
-                    half_corner += 1
-                    if half_corner >= 2:
-                        is_corner = True
-                        break
-                else:
-                    is_corner = True
-                    break
-        if is_corner:
-            break
+def _compute_corner_state(board: Board) -> tuple[bool, int]:
+    """Scan existing board stones to determine corner-game state.
 
+    Returns (is_corner, half_corner_count) where half_corner_count is the
+    number of stones currently at height exactly 2. is_corner is True when
+    any stone is at height <= 1, or when two or more stones are at height 2.
+    half_corner_count is only meaningful when is_corner is False.
+    """
+    half = 0
+    for played in board.move_history:
+        mx, my = move_to_xy(played.move)
+        h = min(mx, my, board.size - 1 - mx, board.size - 1 - my)
+        if h <= 1:
+            return True, half
+        if h == 2:
+            half += 1
+            if half >= 2:
+                return True, half
+    return False, half
+
+
+def _rootbonus(board: Board, x: int, y: int, is_corner: bool) -> int:
     height = min(x, y, board.size - 1 - x, board.size - 1 - y)
     if is_corner:
         bonus = 0.0
@@ -221,6 +223,7 @@ class AlphaBetaSearcher:
         child_wide = min((wide * self.config.root_search.ratio_num) // self.config.root_search.ratio_den + 1, wide)
         case_count = len(ordered)
 
+        pre_corner, pre_half = _compute_corner_state(board) if root else (False, 0)
         running_downf = downf
         for index, candidate in enumerate(ordered):
             snapshot = caches.snapshot()
@@ -248,7 +251,9 @@ class AlphaBetaSearcher:
                 atdown = int(self.config.search.atdown3)
             if root:
                 x, y = board.move_history[-1].move % board.size, board.move_history[-1].move // board.size
-                atdown += _rootbonus(board, x, y)
+                h = min(x, y, board.size - 1 - x, board.size - 1 - y)
+                is_corner = pre_corner or h <= 1 or (h == 2 and pre_half >= 1)
+                atdown += _rootbonus(board, x, y, is_corner)
 
             attempt_depth = depth - depthdown
             score = 0

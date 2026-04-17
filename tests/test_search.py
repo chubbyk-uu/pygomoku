@@ -7,7 +7,7 @@ from pygomoku.board import Board, move_to_xy, xy_to_move
 from pygomoku.config import load_default_config
 from pygomoku.eval.caches import EvalCaches
 from pygomoku.eval.local import recompute_all
-from pygomoku.search.alphabeta import AlphaBetaSearcher, SearchStats, _rootbonus
+from pygomoku.search.alphabeta import AlphaBetaSearcher, SearchStats, _rootbonus, _compute_corner_state
 from pygomoku.constants import HASHF_ALPHA, HASHF_EXACT, INF
 from pygomoku.search.root import RootSearcher, SearchLimits, _fallback_ai_move, _new_classic_fallback_rng
 from pygomoku.search.tt import TTEntry
@@ -298,14 +298,65 @@ def test_rootbonus_prefers_low_height_moves() -> None:
     board = Board()
     board.play(xy_to_move(7, 7))
     board.play(xy_to_move(8, 8))
-    assert _rootbonus(board, 1, 1) > _rootbonus(board, 7, 7)
+    # Pre-existing stones are all at height >= 6; is_corner is determined per candidate.
+    # (1,1): h=1 → is_corner=True; (7,7): h=7 → is_corner=False
+    assert _rootbonus(board, 1, 1, is_corner=True) > _rootbonus(board, 7, 7, is_corner=False)
 
 
 def test_rootbonus_corner_mode_still_rewards_near_edge_moves() -> None:
     board = Board()
     board.play(xy_to_move(0, 0))
     board.play(xy_to_move(14, 14))
-    assert _rootbonus(board, 1, 1) > 0
+    # Stone at (0,0) has h=0 → pre_corner=True for all candidates.
+    assert _rootbonus(board, 1, 1, is_corner=True) > 0
+
+
+def test_rootbonus_precomputed_is_corner_matches_full_scan() -> None:
+    """_compute_corner_state + per-candidate formula gives same is_corner as a full board scan."""
+
+    def full_scan_is_corner(board: Board, cx: int, cy: int) -> bool:
+        """Reference: scan the board (including candidate stone at cx,cy) for corner state."""
+        half = 0
+        for xx in range(board.size):
+            for yy in range(board.size):
+                if board.grid[yy][xx] == 0:
+                    continue
+                h = min(xx, yy, board.size - 1 - xx, board.size - 1 - yy)
+                if h <= 1:
+                    return True
+                if h == 2:
+                    half += 1
+                    if half >= 2:
+                        return True
+        return False
+
+    cases: list[tuple[list[tuple[int, int]], list[tuple[int, int]]]] = [
+        # (pre-existing moves, candidate positions to test — must not overlap with pre-existing)
+        ([], [(7, 7), (0, 0), (1, 1), (2, 2)]),
+        ([(7, 7), (8, 8)], [(1, 1), (0, 0), (3, 3), (2, 2)]),
+        ([(0, 0), (14, 14)], [(1, 1), (7, 7), (2, 2)]),
+        ([(2, 7), (7, 2)], [(2, 2), (3, 3), (1, 1), (7, 7)]),
+    ]
+
+    for existing_moves, candidates in cases:
+        board = Board()
+        for i, (ex, ey) in enumerate(existing_moves):
+            board.play(xy_to_move(ex, ey), 1 if i % 2 == 0 else -1)
+
+        pre_corner, pre_half = _compute_corner_state(board)
+
+        for cx, cy in candidates:
+            # Simulate playing the candidate to get the full board state for the reference scan.
+            board.play(xy_to_move(cx, cy), board.side_to_move)
+            expected = full_scan_is_corner(board, cx, cy)
+            board.undo()
+
+            h = min(cx, cy, board.size - 1 - cx, board.size - 1 - cy)
+            got = pre_corner or h <= 1 or (h == 2 and pre_half >= 1)
+            assert got == expected, (
+                f"is_corner mismatch for candidate ({cx},{cy}) on board {existing_moves}: "
+                f"precomputed={got}, full_scan={expected}"
+            )
 
 
 def test_root_vcf_filter_keeps_only_moves_that_break_opponent_vcf(monkeypatch) -> None:
