@@ -18,6 +18,16 @@ def test_protocol_start_rejects_other_sizes() -> None:
     assert proto.handle_line("START 20") == ["ERROR Size error."]
 
 
+def test_protocol_start_rejects_non_numeric_size() -> None:
+    proto = _proto()
+    assert proto.handle_line("START foo") == ["ERROR Size error."]
+
+
+def test_protocol_rectstart_rejects_non_numeric_size() -> None:
+    proto = _proto()
+    assert proto.handle_line("RECTSTART 15,foo") == ["ERROR Size error."]
+
+
 def test_protocol_begin_returns_move() -> None:
     proto = _proto()
     proto.handle_line("START 15")
@@ -38,6 +48,18 @@ def test_protocol_turn_rejects_illegal_repeat_move() -> None:
     proto.handle_line("START 15")
     proto.handle_line("TURN 7,7")
     assert proto.handle_line("TURN 7,7") == ["ERROR Illegal move."]
+
+
+def test_protocol_turn_rejects_non_numeric_coordinates() -> None:
+    proto = _proto()
+    proto.handle_line("START 15")
+    assert proto.handle_line("TURN a,b") == ["ERROR Turn format error."]
+
+
+def test_protocol_turn_rejects_out_of_range_coordinates() -> None:
+    proto = _proto()
+    proto.handle_line("START 15")
+    assert proto.handle_line("TURN 15,15") == ["ERROR Turn format error."]
 
 
 def test_protocol_about_returns_metadata() -> None:
@@ -63,6 +85,20 @@ def test_protocol_board_mode_reconstructs_position() -> None:
     response = proto.handle_line("DONE")
     assert len(response) == 1
     assert "," in response[0]
+
+
+def test_protocol_board_mode_rejects_non_numeric_triplet() -> None:
+    proto = _proto()
+    proto.handle_line("START 15")
+    proto.handle_line("BOARD")
+    assert proto.handle_line("7,7,foo") == ["ERROR Board format error."]
+
+
+def test_protocol_board_mode_rejects_out_of_range_coordinates() -> None:
+    proto = _proto()
+    proto.handle_line("START 15")
+    proto.handle_line("BOARD")
+    assert proto.handle_line("15,0,1") == ["ERROR Board format error."]
 
 
 def test_protocol_board_mode_reconstructs_interleaved_color_order_as_expected() -> None:
@@ -108,6 +144,21 @@ def test_protocol_info_timeout_match_zero_matches_expected_large_default() -> No
     proto = _proto()
     proto.handle_line("INFO timeout_match 0")
     assert proto.time_left_ms == 99999999.0
+
+
+def test_protocol_info_invalid_numeric_values_are_ignored() -> None:
+    proto = _proto()
+    proto.handle_line("INFO timeout_turn 500")
+    proto.handle_line("INFO timeout_turn foo")
+    proto.handle_line("INFO time_left bar")
+    proto.handle_line("INFO max_node baz")
+    proto.handle_line("INFO compute_vcf qux")
+    proto.handle_line("INFO static zed")
+    assert proto.timeout_turn_ms == 500.0
+    assert proto.time_left_ms is None
+    assert proto.node_limit is None
+    assert proto.config.runtime.compute_vcf is True
+    assert proto.config.runtime.static_board is True
 
 
 def test_protocol_search_move_falls_back_if_engine_returns_illegal_move(monkeypatch) -> None:

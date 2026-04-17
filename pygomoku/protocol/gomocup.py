@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Callable, TypeVar
 
 from pygomoku.board import Board, xy_to_move
-from pygomoku.config import EngineConfig, RuntimeOptions, load_default_config
+from pygomoku.config import EngineConfig, load_default_config
 from pygomoku.search.root import RootSearcher, SearchLimits
 
 
@@ -13,6 +14,8 @@ ABOUT_TEXT = (
     'name="pygomoku", version="0.1", author="OpenAI", country="China", '
     'www="https://example.invalid/"'
 )
+
+_T = TypeVar("_T")
 
 
 class GomocupProtocol:
@@ -50,7 +53,12 @@ class GomocupProtocol:
             parts = raw.split(",")
             if len(parts) != 3:
                 return ["ERROR Board format error."]
-            x, y, side = (int(part.strip()) for part in parts)
+            parsed = self._parse_many(parts, int)
+            if parsed is None:
+                return ["ERROR Board format error."]
+            x, y, side = parsed
+            if not self._in_bounds(x, y):
+                return ["ERROR Board format error."]
             self.board_lines.append((x, y, side))
             return []
 
@@ -60,7 +68,9 @@ class GomocupProtocol:
         if command == "START":
             if len(parts) != 2:
                 return ["ERROR Size error."]
-            size = int(parts[1])
+            size = self._parse_one(parts[1], int)
+            if size is None:
+                return ["ERROR Size error."]
             if size != 15:
                 return ["ERROR Size error."]
             self._reset_engine()
@@ -69,7 +79,10 @@ class GomocupProtocol:
         if command == "RECTSTART":
             if len(parts) != 2 or "," not in parts[1]:
                 return ["ERROR Size error."]
-            sx, sy = (int(part) for part in parts[1].split(",", 1))
+            parsed = self._parse_many(parts[1].split(",", 1), int)
+            if parsed is None:
+                return ["ERROR Size error."]
+            sx, sy = parsed
             if sx != 15 or sy != 15:
                 return ["ERROR Size error."]
             self._reset_engine()
@@ -85,8 +98,14 @@ class GomocupProtocol:
         if command == "TURN":
             if len(parts) != 2 or "," not in parts[1]:
                 return ["ERROR Turn format error."]
-            x, y = (int(part) for part in parts[1].split(",", 1))
-            move = xy_to_move(x, y)
+            parsed = self._parse_many(parts[1].split(",", 1), int)
+            if parsed is None:
+                return ["ERROR Turn format error."]
+            x, y = parsed
+            try:
+                move = xy_to_move(x, y)
+            except ValueError:
+                return ["ERROR Turn format error."]
             if not self.board.is_legal_move(move):
                 return ["ERROR Illegal move."]
             self._play_xy(x, y, self.board.side_to_move)
@@ -121,6 +140,27 @@ class GomocupProtocol:
         self.board_mode = False
         self.board_lines.clear()
 
+    @staticmethod
+    def _parse_one(raw: str, parser: Callable[[str], _T]) -> _T | None:
+        try:
+            return parser(raw)
+        except ValueError:
+            return None
+
+    @classmethod
+    def _parse_many(cls, values: list[str], parser: Callable[[str], _T]) -> tuple[_T, ...] | None:
+        parsed: list[_T] = []
+        for value in values:
+            item = cls._parse_one(value.strip(), parser)
+            if item is None:
+                return None
+            parsed.append(item)
+        return tuple(parsed)
+
+    @staticmethod
+    def _in_bounds(x: int, y: int) -> bool:
+        return 0 <= x < 15 and 0 <= y < 15
+
     def _play_xy(self, x: int, y: int, side: int) -> None:
         self.board.side_to_move = side
         self.board.play(xy_to_move(x, y), side)
@@ -145,13 +185,18 @@ class GomocupProtocol:
             return ["ERROR Board error."]
 
         self.board = Board()
-        for idx in range(max(len(first_side_moves), len(second_side_moves))):
-            if idx < len(first_side_moves):
-                x, y = first_side_moves[idx]
-                self._play_xy(x, y, self.board.side_to_move)
-            if idx < len(second_side_moves):
-                x, y = second_side_moves[idx]
-                self._play_xy(x, y, self.board.side_to_move)
+        try:
+            for idx in range(max(len(first_side_moves), len(second_side_moves))):
+                if idx < len(first_side_moves):
+                    x, y = first_side_moves[idx]
+                    self._play_xy(x, y, self.board.side_to_move)
+                if idx < len(second_side_moves):
+                    x, y = second_side_moves[idx]
+                    self._play_xy(x, y, self.board.side_to_move)
+        except ValueError:
+            self.board = Board()
+            self.board_lines.clear()
+            return ["ERROR Board error."]
 
         self.board_lines.clear()
         return [self._search_move()]
@@ -162,22 +207,37 @@ class GomocupProtocol:
         key = args[0].lower()
         value = args[1]
         if key == "timeout_turn":
-            parsed = float(value)
+            parsed = self._parse_one(value, float)
+            if parsed is None:
+                return
             self.timeout_turn_ms = 200.0 if parsed == 0 else parsed
         elif key == "timeout_match":
-            parsed = float(value)
+            parsed = self._parse_one(value, float)
+            if parsed is None:
+                return
             self.time_left_ms = 99999999.0 if parsed == 0 else parsed
         elif key == "time_left":
-            self.time_left_ms = float(value)
+            parsed = self._parse_one(value, float)
+            if parsed is None:
+                return
+            self.time_left_ms = parsed
         elif key == "max_node":
-            parsed = int(value)
+            parsed = self._parse_one(value, int)
+            if parsed is None:
+                return
             self.node_limit = None if parsed <= 0 else parsed
         elif key == "compute_vcf":
-            runtime = replace(self.config.runtime, compute_vcf=bool(int(value)))
+            parsed = self._parse_one(value, int)
+            if parsed is None:
+                return
+            runtime = replace(self.config.runtime, compute_vcf=bool(parsed))
             self.config = replace(self.config, runtime=runtime)
             self._searcher = None
         elif key == "static":
-            runtime = replace(self.config.runtime, static_board=bool(int(value) % 2))
+            parsed = self._parse_one(value, int)
+            if parsed is None:
+                return
+            runtime = replace(self.config.runtime, static_board=bool(parsed % 2))
             self.config = replace(self.config, runtime=runtime)
             self._searcher = None
 
