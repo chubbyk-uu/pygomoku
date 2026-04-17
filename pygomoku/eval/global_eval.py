@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from math import floor
+import os
 
 from pygomoku.board import Board
 from pygomoku.config import EngineConfig
@@ -13,10 +14,28 @@ from pygomoku.patterns.line import Line
 from pygomoku.patterns.shapes import DIAGONAL_DOWN, DIAGONAL_UP, HORIZONTAL, VERTICAL
 
 _DIR_MAP = (3, 1, 2, 0, 0, 0, 2, 1, 3)
+_GLOBAL_EVAL_BACKEND_MODE = os.getenv("PYSLOW_GLOBAL_EVAL_BACKEND", "auto").lower()
+_USING_CYTHON_GLOBAL_EVAL_BACKEND = False
+
+if _GLOBAL_EVAL_BACKEND_MODE != "python":
+    try:
+        from pygomoku.eval._global_eval_cy import evaluate_board_main_raw as _evaluate_board_main_native
+    except ImportError:
+        if _GLOBAL_EVAL_BACKEND_MODE == "cython":
+            raise
+        _evaluate_board_main_native = None
+    else:
+        _USING_CYTHON_GLOBAL_EVAL_BACKEND = True
+else:
+    _evaluate_board_main_native = None
 
 
 def _ga(value: int) -> int:
     return value & 0xFF
+
+
+def global_eval_backend_name() -> str:
+    return "cython" if _USING_CYTHON_GLOBAL_EVAL_BACKEND else "python"
 
 
 def _decode_b4_reply(board_size: int, x: int, y: int, direction_index: int, encoded: int) -> tuple[int, int] | None:
@@ -120,13 +139,14 @@ def _evaluate_next43_branch(board: Board, caches: EvalCaches, side: int, config:
     return False
 
 
-def evaluate_board(board: Board, caches: EvalCaches, side: int, opo: int, config: EngineConfig) -> float:
-    offensive = 0.0
-    defensive = 0.0
-    dgn = 0
+def _evaluate_board_main(
+    board: Board,
+    caches: EvalCaches,
+    side: int,
+    config: EngineConfig,
+) -> tuple[float, int]:
     player = 0 if side == BLACK else 1
     opponent = 1 - player
-    size = board.size
     grid = board.grid
     shape_cache_player = caches.shape_cache[player]
     shape_cache_opponent = caches.shape_cache[opponent]
@@ -134,10 +154,23 @@ def evaluate_board(board: Board, caches: EvalCaches, side: int, opo: int, config
     opponent_values = caches.value_cache[opponent]
     last_eval = config.eval_tables.last_eval
     next_eval = config.eval_tables.next_eval
-
+    size = board.size
+    if _evaluate_board_main_native is not None:
+        return _evaluate_board_main_native(
+            grid,
+            shape_cache_player,
+            shape_cache_opponent,
+            player_values,
+            opponent_values,
+            last_eval,
+            next_eval,
+            side,
+            size,
+        )
+    offensive = 0.0
+    defensive = 0.0
+    dgn = 0
     for x in range(size):
-        player_shape_col = shape_cache_player[x]
-        opponent_shape_col = shape_cache_opponent[x]
         player_value_col = player_values[x]
         opponent_value_col = opponent_values[x]
         for y in range(size):
@@ -175,8 +208,11 @@ def evaluate_board(board: Board, caches: EvalCaches, side: int, opo: int, config
             else:
                 offensive += last_eval[player_value_col[y]]
                 defensive += next_eval[opponent_value_col[y]]
+    return offensive - defensive, dgn
 
-    total = offensive - defensive
+
+def evaluate_board(board: Board, caches: EvalCaches, side: int, opo: int, config: EngineConfig) -> float:
+    total, dgn = _evaluate_board_main(board, caches, side, config)
     if -32768 < total < 32768:
         return total - config.search.drift + dgn * config.search.dgn
 

@@ -11,6 +11,7 @@ def build_extensions() -> list[Extension]:
         ("pygomoku.patterns._line_cy", Path("pygomoku/patterns/_line_cy.pyx")),
         ("pygomoku.eval._local_cy", Path("pygomoku/eval/_local_cy.pyx")),
         ("pygomoku.eval._caches_cy", Path("pygomoku/eval/_caches_cy.pyx")),
+        ("pygomoku.eval._global_eval_cy", Path("pygomoku/eval/_global_eval_cy.pyx")),
         ("pygomoku.search._movegen_cy", Path("pygomoku/search/_movegen_cy.pyx")),
         ("pygomoku.search._ordering_cy", Path("pygomoku/search/_ordering_cy.pyx")),
         ("pygomoku.threats._threat_board_cy", Path("pygomoku/threats/_threat_board_cy.pyx")),

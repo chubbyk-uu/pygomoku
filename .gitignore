@@ -45,3 +45,4 @@ pygomoku/eval/_caches_cy.c
 pygomoku/search/_movegen_cy.c
 pygomoku/search/_ordering_cy.c
 pygomoku/threats/_threat_board_cy.c
+pygomoku/eval/_global_eval_cy.c

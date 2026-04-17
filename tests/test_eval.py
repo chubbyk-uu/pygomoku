@@ -8,7 +8,14 @@ from pygomoku.config import load_default_config
 from pygomoku.constants import BOARD_SIZE
 from pygomoku.eval.caches import EvalCaches
 from pygomoku.eval.caches import caches_backend_name
-from pygomoku.eval.global_eval import _evaluate_last5_branch, _evaluate_next43_branch, _find_last5_target, evaluate_board
+from pygomoku.eval.global_eval import (
+    _evaluate_board_main,
+    _evaluate_last5_branch,
+    _evaluate_next43_branch,
+    _find_last5_target,
+    evaluate_board,
+    global_eval_backend_name,
+)
 from pygomoku.eval.local import (
     attack_level,
     compute_bucket_and_attack,
@@ -38,6 +45,10 @@ def test_local_backend_name_is_supported() -> None:
 
 def test_caches_backend_name_is_supported() -> None:
     assert caches_backend_name() in {"python", "cython"}
+
+
+def test_global_eval_backend_name_is_supported() -> None:
+    assert global_eval_backend_name() in {"python", "cython"}
 
 
 def test_eval_caches_reset_restores_zero_state() -> None:
@@ -112,6 +123,37 @@ def test_optional_cython_local_helpers_match_python_path() -> None:
         compute_direction_shape(board, 8, 8, 3, 1),
     )
     assert compute_bucket_and_attack(shapes) == compute_bucket_and_attack_raw(*shapes)
+
+
+def test_optional_cython_global_helper_matches_python_path(monkeypatch) -> None:
+    if find_spec("pygomoku.eval._global_eval_cy") is None:
+        return
+
+    from pygomoku.eval._global_eval_cy import evaluate_board_main_raw
+
+    board = Board()
+    moves = [(7, 7), (7, 6), (8, 7), (6, 6), (9, 7), (5, 5), (6, 7), (8, 6)]
+    for idx, (x, y) in enumerate(moves):
+        board.play(xy_to_move(x, y), 1 if idx % 2 == 0 else -1)
+    caches = EvalCaches()
+    config = load_default_config()
+    recompute_all(board, caches)
+
+    monkeypatch.setattr("pygomoku.eval.global_eval._evaluate_board_main_native", None)
+    py_total, py_dgn = _evaluate_board_main(board, caches, 1, config)
+    cy_total, cy_dgn = evaluate_board_main_raw(
+        board.grid,
+        caches.shape_cache[0],
+        caches.shape_cache[1],
+        caches.value_cache[0],
+        caches.value_cache[1],
+        config.eval_tables.last_eval,
+        config.eval_tables.next_eval,
+        1,
+        board.size,
+    )
+    assert py_total == cy_total
+    assert py_dgn == cy_dgn
 
 
 def test_recompute_all_populates_board_shadow_from_board() -> None:
