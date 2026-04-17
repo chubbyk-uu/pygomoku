@@ -1,6 +1,7 @@
 """Search regression tests."""
 
 from dataclasses import replace
+from types import SimpleNamespace
 
 from pygomoku.board import Board, move_to_xy, xy_to_move
 from pygomoku.config import load_default_config
@@ -454,27 +455,80 @@ def test_root_skips_vcf_paths_when_runtime_disables_it(monkeypatch) -> None:
     assert board.is_legal_move(result.move)
 
 
-def test_root_iteration_budget_expands_when_line_is_unstable() -> None:
-    budget = RootSearcher._iteration_budget_ms(30000.0, 10, 100, 20, 101, 101)
-    assert budget == 30000.0 / 7.0 - 100.0
-
-
-def test_root_iteration_budget_shrinks_when_line_is_stable() -> None:
-    budget = RootSearcher._iteration_budget_ms(30000.0, 20, 100, 20, 100, 100)
-    assert budget == 30000.0 / 15.0 - 100.0
-
-
 def test_root_search_stops_early_under_time_budget(monkeypatch) -> None:
     board = Board()
     board.play(xy_to_move(7, 7))
     board.play(xy_to_move(6, 7))
     searcher = RootSearcher(load_default_config())
 
-    timeline = iter([0.0, 0.03, 0.12])
-    monkeypatch.setattr("pygomoku.search.root.time.perf_counter", lambda: next(timeline))
+    timeline = iter([0.0, 0.0, 0.2])
+    monkeypatch.setattr("pygomoku.search.root.time", SimpleNamespace(perf_counter=lambda: next(timeline)))
+    monkeypatch.setattr("pygomoku.search.alphabeta.time", SimpleNamespace(perf_counter=lambda: 0.0))
 
-    result = searcher.search(board, SearchLimits(max_depth=6, root_width=8, time_limit_ms=700.0))
+    result = searcher.search(board, SearchLimits(max_depth=6, root_width=8, time_limit_ms=100.0))
     assert result.depth == 1
+
+
+def test_root_search_with_none_time_limit_matches_limit_free_search() -> None:
+    board = Board()
+    board.play(xy_to_move(7, 7))
+    board.play(xy_to_move(7, 4))
+    searcher = RootSearcher(load_default_config())
+
+    without_time_limit = searcher.search(board, SearchLimits(max_depth=3, root_width=8))
+    explicit_none = searcher.search(board, SearchLimits(max_depth=3, root_width=8, time_limit_ms=None))
+
+    assert explicit_none.move == without_time_limit.move
+    assert explicit_none.score == without_time_limit.score
+    assert explicit_none.depth == without_time_limit.depth
+
+
+def test_alphabeta_returns_zero_when_deadline_expired_at_entry(monkeypatch) -> None:
+    board = Board()
+    board.play(xy_to_move(7, 7))
+    board.play(xy_to_move(6, 7))
+    caches = EvalCaches()
+    recompute_all(board, caches)
+    searcher = AlphaBetaSearcher(load_default_config())
+
+    monkeypatch.setattr("pygomoku.search.alphabeta.time", SimpleNamespace(perf_counter=lambda: 1.0))
+    stats = SearchStats(deadline_s=0.5)
+    score, move = searcher.search(
+        board,
+        caches,
+        board.side_to_move,
+        3,
+        -INF,
+        INF,
+        8,
+        stats=stats,
+    )
+    assert stats.stop is True
+    assert (score, move) == (0, -1)
+
+
+def test_alphabeta_returns_zero_when_deadline_expires_on_periodic_check(monkeypatch) -> None:
+    board = Board()
+    board.play(xy_to_move(7, 7))
+    board.play(xy_to_move(6, 7))
+    caches = EvalCaches()
+    recompute_all(board, caches)
+    searcher = AlphaBetaSearcher(load_default_config())
+
+    monkeypatch.setattr("pygomoku.search.alphabeta.time", SimpleNamespace(perf_counter=lambda: 1.0))
+    stats = SearchStats(nodes=255, deadline_s=0.5)
+    score, move = searcher.search(
+        board,
+        caches,
+        board.side_to_move,
+        3,
+        -INF,
+        INF,
+        8,
+        stats=stats,
+    )
+    assert stats.stop is True
+    assert (score, move) == (0, -1)
 
 
 def test_root_search_reports_completed_depth_without_overshooting_limit() -> None:

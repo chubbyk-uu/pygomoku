@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import log
 import os
+import time
 
 from pygomoku.board import Board
 from pygomoku.config import EngineConfig
@@ -30,6 +31,8 @@ class SearchStats:
     cutoffs: int = 0
     stop: bool = False
     node_limit: int | None = None
+    deadline_s: float | None = None
+    time_check_mask: int = 0xFF
 
 
 def _terminal_score(board: Board, side: int, ply: int) -> int | None:
@@ -120,10 +123,16 @@ class AlphaBetaSearcher:
         original_beta = beta
         if stats is None:
             stats = SearchStats()
+        next_node = stats.nodes + 1
         if stats.node_limit is not None and stats.nodes >= stats.node_limit:
             stats.stop = True
             return 0, -1
-        stats.nodes += 1
+        if stats.deadline_s is not None and (
+            next_node == 1 or (next_node & stats.time_check_mask) == 0
+        ) and time.perf_counter() >= stats.deadline_s:
+            stats.stop = True
+            return 0, -1
+        stats.nodes = next_node
 
         terminal = _terminal_score(board, side, ply)
         if terminal is not None:
@@ -242,6 +251,7 @@ class AlphaBetaSearcher:
                 atdown += _rootbonus(board, x, y)
 
             attempt_depth = depth - depthdown
+            score = 0
             while True:
                 if found_pv:
                     score, _ = self.search(
@@ -259,6 +269,8 @@ class AlphaBetaSearcher:
                         root_depth=root_depth,
                         priority_base=priority_base,
                     )
+                    if stats.stop:
+                        break
                     score = -atdown - score
                     if alpha < score < beta:
                         score, _ = self.search(
@@ -276,6 +288,8 @@ class AlphaBetaSearcher:
                             root_depth=root_depth,
                             priority_base=priority_base,
                         )
+                        if stats.stop:
+                            break
                         score = -atdown - score
                 else:
                     score, _ = self.search(
@@ -293,6 +307,8 @@ class AlphaBetaSearcher:
                         root_depth=root_depth,
                         priority_base=priority_base,
                     )
+                    if stats.stop:
+                        break
                     score = -atdown - score
                 if score >= WIN:
                     break
@@ -304,6 +320,8 @@ class AlphaBetaSearcher:
 
             board.undo()
             caches.restore_snapshot(snapshot)
+            if stats.stop:
+                break
 
             if _DEBUG_ROOT_KEY and root and board.zobrist_key == _DEBUG_ROOT_KEY:
                 print(
@@ -351,6 +369,9 @@ class AlphaBetaSearcher:
 
         if current <= original_alpha and hash_flag != HASHF_BETA:
             hash_flag = HASHF_ALPHA
+
+        if stats.stop:
+            return current, best_move
 
         store_depth = hash_depth
         if (current >= WIN and current > original_alpha) or (current <= -WIN and current < original_beta):

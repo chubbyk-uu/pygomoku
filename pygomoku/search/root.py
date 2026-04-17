@@ -283,40 +283,6 @@ class RootSearcher:
                 filtered.add(move)
         return filtered
 
-    @staticmethod
-    def _is_unstable(
-        current_score: int,
-        current_move: int,
-        prev_score: int | None,
-        prev_move: int | None,
-        prev_prev_move: int | None,
-    ) -> bool:
-        if prev_score is None or prev_move is None:
-            return True
-        if current_score <= prev_score - 5:
-            return True
-        if current_move != prev_move:
-            return True
-        if prev_prev_move is not None and prev_move != prev_prev_move:
-            return True
-        return False
-
-    @classmethod
-    def _iteration_budget_ms(
-        cls,
-        base_time_limit_ms: float | None,
-        current_score: int,
-        current_move: int,
-        prev_score: int | None,
-        prev_move: int | None,
-        prev_prev_move: int | None,
-    ) -> float | None:
-        if base_time_limit_ms is None:
-            return None
-        if cls._is_unstable(current_score, current_move, prev_score, prev_move, prev_prev_move):
-            return max(1.0, base_time_limit_ms / 7.0 - 100.0)
-        return max(1.0, base_time_limit_ms / 15.0 - 100.0)
-
     def search(self, board: Board, limits: SearchLimits | None = None) -> SearchResult:
         if limits is None:
             limits = SearchLimits(
@@ -339,10 +305,8 @@ class RootSearcher:
         best_move = -1
         best_score = -INF
         total_nodes = 0
-        prev_score: int | None = None
-        prev_move: int | None = None
-        prev_prev_move: int | None = None
         search_start = time.perf_counter()
+        deadline_s = None if limits.time_limit_ms is None else search_start + limits.time_limit_ms / 1000.0
         root_allowed_moves = self._root_allowed_moves(board)
         root_allowed_moves = self._apply_opponent_vcf_filter(board, side, root_allowed_moves)
         if root_allowed_moves is not None:
@@ -367,7 +331,9 @@ class RootSearcher:
 
         completed_depth = 0
         for depth in range(1, limits.max_depth + 1):
-            stats = SearchStats(node_limit=limits.node_limit)
+            if deadline_s is not None and time.perf_counter() >= deadline_s:
+                break
+            stats = SearchStats(node_limit=limits.node_limit, deadline_s=deadline_s)
             score, move = self.alphabeta.search(
                 board,
                 caches,
@@ -382,11 +348,10 @@ class RootSearcher:
                 root_allowed_moves=root_allowed_moves,
             )
             total_nodes += stats.nodes
+            if stats.stop:
+                break
             completed_depth = depth
             if move != -1:
-                prev_prev_move = prev_move
-                prev_move = best_move if best_move != -1 else move
-                prev_score = best_score if best_move != -1 else score
                 best_move = move
                 best_score = score
             elif score <= -WIN:
@@ -395,20 +360,8 @@ class RootSearcher:
                 # `abval.second == -1`; it falls back to AIs() immediately.
                 best_move = _fallback_ai_move(board, caches, side, rng=self._fallback_rng)
                 best_score = score
-            budget_ms = self._iteration_budget_ms(
-                limits.time_limit_ms,
-                score,
-                move,
-                prev_score,
-                prev_move,
-                prev_prev_move,
-            )
             if stats.stop or score >= WIN or score <= -WIN:
                 break
-            if budget_ms is not None:
-                elapsed_ms = (time.perf_counter() - search_start) * 1000.0
-                if elapsed_ms >= budget_ms / 3.0:
-                    break
 
         if best_move == -1:
             best_move = _fallback_ai_move(board, caches, side, rng=self._fallback_rng)
