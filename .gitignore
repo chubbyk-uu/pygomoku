@@ -1,6 +1,6 @@
 # Local-only helper files
-AGENTS.md
 docs/
+.codex
 
 # Python
 __pycache__/
