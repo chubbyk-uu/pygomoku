@@ -365,7 +365,8 @@ class RootSearcher:
                     nodes=0,
                 )
 
-        for depth in range(1, limits.max_depth + 2):
+        completed_depth = 0
+        for depth in range(1, limits.max_depth + 1):
             stats = SearchStats(node_limit=limits.node_limit)
             score, move = self.alphabeta.search(
                 board,
@@ -381,6 +382,7 @@ class RootSearcher:
                 root_allowed_moves=root_allowed_moves,
             )
             total_nodes += stats.nodes
+            completed_depth = depth
             if move != -1:
                 prev_prev_move = prev_move
                 prev_move = best_move if best_move != -1 else move
@@ -410,4 +412,4 @@ class RootSearcher:
 
         if best_move == -1:
             best_move = _fallback_ai_move(board, caches, side, rng=self._fallback_rng)
-        return SearchResult(move=best_move, score=best_score, depth=depth, nodes=total_nodes)
+        return SearchResult(move=best_move, score=best_score, depth=completed_depth, nodes=total_nodes)

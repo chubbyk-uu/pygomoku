@@ -15,7 +15,7 @@ from pygomoku.search.root import SearchLimits
 from pygomoku.search.root import RootSearcher
 
 
-DEFAULT_DEPTH = 5
+DEFAULT_DEPTH = 6
 DEFAULT_WIDTH = 20
 
 

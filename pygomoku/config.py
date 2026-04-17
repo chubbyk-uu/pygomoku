@@ -171,7 +171,7 @@ def _default_runtime_options(para: tuple[float, ...]) -> RuntimeOptions:
 
 
 def _default_root_search() -> RootSearchDefaults:
-    return RootSearchDefaults(depth=24, wide=60, ratio_num=1, ratio_den=1)
+    return RootSearchDefaults(depth=25, wide=60, ratio_num=1, ratio_den=1)
 
 
 def adjust_loaded_parameters(para: tuple[float, ...]) -> tuple[float, ...]:

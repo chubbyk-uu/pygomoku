@@ -81,16 +81,16 @@ def test_root_search_matches_expected_one_move_reply() -> None:
     board = Board()
     board.play(xy_to_move(7, 7))
     searcher = RootSearcher(load_default_config())
-    result = searcher.search(board, SearchLimits(max_depth=3, root_width=8))
+    result = searcher.search(board, SearchLimits(max_depth=4, root_width=8))
     assert move_to_xy(result.move) == (7, 4)
     assert result.score == -12
 
 
-def test_root_search_matches_classic_opening_10_4_depth5_width15() -> None:
+def test_root_search_matches_classic_opening_10_4_depth6_width15() -> None:
     board = Board()
     board.play(xy_to_move(10, 4))
     searcher = RootSearcher(load_default_config())
-    result = searcher.search(board, SearchLimits(max_depth=5, root_width=15))
+    result = searcher.search(board, SearchLimits(max_depth=6, root_width=15))
     assert move_to_xy(result.move) == (9, 4)
     assert result.score == -10
 
@@ -477,6 +477,16 @@ def test_root_search_stops_early_under_time_budget(monkeypatch) -> None:
     assert result.depth == 1
 
 
+def test_root_search_reports_completed_depth_without_overshooting_limit() -> None:
+    board = Board()
+    board.play(xy_to_move(7, 7))
+    board.play(xy_to_move(7, 4))
+    searcher = RootSearcher(load_default_config())
+
+    result = searcher.search(board, SearchLimits(max_depth=3, root_width=8))
+    assert result.depth == 3
+
+
 def test_root_search_uses_classic_ais_fallback_when_root_move_is_missing() -> None:
     board = Board()
     sequence = [
@@ -522,7 +532,7 @@ def test_root_search_matches_expected_value_on_simple_tt_alpha_seed() -> None:
         )
     )
 
-    result = searcher.search(board, SearchLimits(max_depth=3, root_width=8))
+    result = searcher.search(board, SearchLimits(max_depth=4, root_width=8))
     assert move_to_xy(result.move) == (6, 6)
     assert result.score == 13
     assert result.depth == 4

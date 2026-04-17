@@ -34,7 +34,7 @@ def test_read_config_flag_defaults_to_false() -> None:
 
 def test_root_search_defaults_match_expected_entry() -> None:
     config = load_default_config()
-    assert config.root_search.depth == 24
+    assert config.root_search.depth == 25
     assert config.root_search.wide == 60
     assert config.root_search.ratio_num == 1
     assert config.root_search.ratio_den == 1

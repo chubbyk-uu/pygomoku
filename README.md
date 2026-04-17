@@ -249,8 +249,12 @@ python -m pygomoku.gui
 也可以显式指定搜索参数：
 
 ```bash
-python -m pygomoku.gui --depth 5 --width 20
+python -m pygomoku.gui --depth 6 --width 20
 ```
+
+当前用户入口默认深度为 `6`。这是因为主线已修正 `max_depth` 的迭代边界，
+现在传入的深度就是实际完成的搜索深度；为保持默认实际搜索强度接近修正前的常用配置，
+GUI / Gomocup / 对战脚本的默认 `pygomoku` 深度统一调整为 `6`。
 
 如果没有安装 `pygame`，GUI 不会启动。
 
@@ -265,7 +269,7 @@ python -m pygomoku.gomocup_engine
 指定固定搜索参数：
 
 ```bash
-python -m pygomoku.gomocup_engine --depth 5 --width 20
+python -m pygomoku.gomocup_engine --depth 6 --width 20
 ```
 
 这一路径适合：
@@ -336,7 +340,7 @@ python opponent/run_pygomoku_vs_zhou.py --help
 python opponent/run_pygomoku_vs_zhou.py \
   --engine-type pygomoku-direct \
   --opening-set 5 \
-  --pygomoku-depth 5 \
+  --pygomoku-depth 6 \
   --pygomoku-width 20 \
   --zhou-depth 5 \
   --parallel 10 \
@@ -352,7 +356,7 @@ python opponent/run_pygomoku_vs_zhou.py \
 python opponent/run_pygomoku_vs_zhou.py \
   --engine-type pygomoku \
   --opening-set 5 \
-  --pygomoku-depth 5 \
+  --pygomoku-depth 6 \
   --pygomoku-width 20 \
   --zhou-depth 5 \
   --parallel 10 \
@@ -368,7 +372,7 @@ Gomocup 协议引擎进程，更接近外部对战环境，但 Gomocup 协议链
 python opponent/run_pygomoku_vs_zhou.py \
   --engine-type pygomoku-direct \
   --opening-set 9 \
-  --pygomoku-depth 5 \
+  --pygomoku-depth 6 \
   --pygomoku-width 20 \
   --zhou-depth 5 \
   --parallel 18 \
@@ -412,7 +416,7 @@ python opponent/run_pygomoku_vs_zhou.py \
 
 - `--engine-type`：选择 `pygomoku-direct` 或 `pygomoku`。前者直接调用 Python 引擎入口，后者通过 `python -m pygomoku.gomocup_engine` 拉起 Gomocup 协议进程。
 - `--opening-set`：选择固定开局集合，目前支持 `5` 和 `9`。
-- `--pygomoku-depth`：`pygomoku` 的搜索深度，默认5。
+- `--pygomoku-depth`：`pygomoku` 的搜索深度，默认6。
 - `--pygomoku-width`：`pygomoku` 根节点候选宽度，默认20，通常越大搜索越多，但也越慢。
 - `--zhou-depth`：`zhou` 的搜索深度，默认5。
 - `--parallel`：并行对局进程数，决定批量测试速度，也会显著影响机器负载。

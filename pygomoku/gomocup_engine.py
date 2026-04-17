@@ -8,7 +8,7 @@ import sys
 from pygomoku.protocol.gomocup import GomocupProtocol
 from pygomoku.search.root import SearchLimits
 
-DEFAULT_DEPTH = 5
+DEFAULT_DEPTH = 6
 DEFAULT_WIDTH = 20
 
 

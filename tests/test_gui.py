@@ -15,7 +15,7 @@ from pygomoku.gui import (
 
 def test_default_gui_search_limits_match_current_playable_settings() -> None:
     limits = default_search_limits()
-    assert limits.max_depth == 5
+    assert limits.max_depth == 6
     assert limits.root_width == 20
 
 

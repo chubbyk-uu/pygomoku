@@ -574,7 +574,7 @@ def main() -> None:
     parser.add_argument("--engine-type", choices=("pygomoku", "pygomoku-direct"), default=DEFAULT_ENGINE_TYPE)
     parser.add_argument("--engine-cmd", type=str, default=None)
     parser.add_argument("--engine-name", type=str, default=None)
-    parser.add_argument("--pygomoku-depth", type=int, default=5)
+    parser.add_argument("--pygomoku-depth", type=int, default=6)
     parser.add_argument("--pygomoku-width", type=int, default=15)
     parser.add_argument("--zhou-depth", type=int, default=5)
     parser.add_argument("--parallel", type=int, default=DEFAULT_PARALLEL)
