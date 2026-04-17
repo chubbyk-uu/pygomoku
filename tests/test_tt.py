@@ -97,7 +97,18 @@ def test_tt_prefers_second_slot_when_first_has_higher_priority() -> None:
 def test_tt_default_bucket_bits_match_corrected_alignment_baseline() -> None:
     table = TranspositionTable()
     assert table.bucket_mask == (1 << 20) - 1
-    assert len(table.buckets) == 1 << 20
+
+
+def test_tt_starts_empty_and_grows_on_store() -> None:
+    table = TranspositionTable(bucket_bits=4)
+    assert len(table.buckets) == 0
+    table.store(TTEntry(key=3, value=10, flag=HASHF_EXACT, depth=2, priority=5, best_move=7))
+    assert len(table.buckets) == 1
+    table.store(TTEntry(key=4, value=20, flag=HASHF_EXACT, depth=2, priority=5, best_move=8))
+    assert len(table.buckets) == 2
+    # Storing to the same slot (key & mask collision) must not grow the dict.
+    table.store(TTEntry(key=3 + 16, value=30, flag=HASHF_EXACT, depth=1, priority=1, best_move=9))
+    assert len(table.buckets) == 2
 
 
 def test_tt_winning_exact_store_adds_windepth_as_expected() -> None:

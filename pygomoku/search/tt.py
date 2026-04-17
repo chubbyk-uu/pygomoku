@@ -27,18 +27,23 @@ class ProbeResult:
     window_beta: int = 0
 
 
+_EMPTY_BUCKET: tuple[TTEntry, TTEntry] = (TTEntry(), TTEntry())
+
+
 class TranspositionTable:
     def __init__(self, bucket_bits: int = 20) -> None:
         self.bucket_mask = (1 << bucket_bits) - 1
-        self.buckets: list[list[TTEntry]] = [
-            [TTEntry(), TTEntry()] for _ in range(1 << bucket_bits)
-        ]
+        self.buckets: dict[int, list[TTEntry]] = {}
 
-    def _bucket(self, key: int) -> list[TTEntry]:
-        return self.buckets[key & self.bucket_mask]
+    def _bucket(self, key: int) -> list[TTEntry] | tuple[TTEntry, TTEntry]:
+        return self.buckets.get(key & self.bucket_mask, _EMPTY_BUCKET)
 
     def store(self, entry: TTEntry) -> None:
-        bucket = self._bucket(entry.key)
+        slot_key = entry.key & self.bucket_mask
+        bucket = self.buckets.get(slot_key)
+        if bucket is None:
+            bucket = [TTEntry(), TTEntry()]
+            self.buckets[slot_key] = bucket
         slot = 0
         if bucket[0].flag != HASHF_EMPTY and bucket[0].priority > entry.priority:
             slot = 1
