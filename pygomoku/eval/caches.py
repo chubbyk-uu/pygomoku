@@ -114,6 +114,16 @@ class EvalCaches:
         shape_col[direction] = value
 
     def snapshot(self) -> EvalSnapshot:
+        """Capture evaluator-owned incremental state for later restore.
+
+        This is an internal undo mechanism for evaluator update paths. Shape
+        writes are tracked through ``set_shape_value()`` / ``_shape_log``;
+        value/attack writes are tracked through evaluator recomputation paths
+        that append to ``_value_log`` before mutating the caches.
+
+        Direct external writes to ``value_cache`` / ``attack_cache`` are not
+        part of this contract and are not guaranteed to be restored.
+        """
         self._active_snapshot_count += 1
         return EvalSnapshot(
             initialized=self.initialized,
@@ -123,6 +133,7 @@ class EvalCaches:
         )
 
     def restore_snapshot(self, snapshot: EvalSnapshot) -> None:
+        """Restore a snapshot captured through the evaluator logging contract."""
         self.initialized = snapshot.initialized
         self.board_shadow = _copy_board_shadow_any(snapshot.board_shadow)
         while len(self._shape_log) > snapshot.shape_log_len:

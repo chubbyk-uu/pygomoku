@@ -67,9 +67,11 @@ def test_eval_caches_reset_restores_zero_state() -> None:
 
 
 def test_eval_caches_snapshot_restore_roundtrip() -> None:
-    # Snapshot/restore covers: initialized flag, board_shadow, shape_cache (via log).
-    # value_cache and attack_cache are restored via _value_log, not by full copy;
-    # direct bare writes are not tracked — only writes through value_wide_compute are.
+    # Snapshot/restore is an evaluator-internal undo mechanism:
+    # board_shadow is copied, shape_cache is restored via _shape_log, and
+    # value_cache/attack_cache are restored via _value_log from evaluator-owned
+    # write paths. Direct bare writes to value/attack caches are intentionally
+    # outside this contract.
     caches = EvalCaches()
     caches.initialized = True
     caches.board_shadow[0][0] = 1
