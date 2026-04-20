@@ -6,6 +6,12 @@ import argparse
 import cProfile
 import io
 import pstats
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from pygomoku.board import Board, xy_to_move
 from pygomoku.config import load_default_config
