@@ -143,6 +143,7 @@ def value_wide_update(
     object attack_cache,
     int active_snapshots,
     object shape_log,
+    object value_log,
     int size=BOARD_SIZE,
 ):
     cdef list comp = [bytearray(size) for _ in range(size)]
@@ -153,6 +154,7 @@ def value_wide_update(
     cdef int diag_up_flag = 8
     cdef int x, y, xx, yy, fixed, seen, value, cell, flags
     cdef int bh, bv, bdd, bdu, wh, wv, wdd, wdu, bucket, attack
+    cdef int old_b, old_a
     cdef object comp_col
     cdef object shadow_col
     cdef object black_value_col
@@ -291,6 +293,11 @@ def value_wide_update(
                 bdd = shape_cache[0][x][y][DIAGONAL_DOWN]
                 bdu = shape_cache[0][x][y][DIAGONAL_UP]
                 bucket, attack = compute_bucket_and_attack_raw(bh, bv, bdd, bdu)
+                if active_snapshots:
+                    old_b = <int>black_value_col[y]
+                    old_a = <int>black_attack_col[y]
+                    if old_b != bucket or old_a != attack:
+                        value_log.append((0, x, y, old_b, old_a))
                 black_value_col[y] = bucket
                 black_attack_col[y] = attack
 
@@ -299,9 +306,23 @@ def value_wide_update(
                 wdd = shape_cache[1][x][y][DIAGONAL_DOWN]
                 wdu = shape_cache[1][x][y][DIAGONAL_UP]
                 bucket, attack = compute_bucket_and_attack_raw(wh, wv, wdd, wdu)
+                if active_snapshots:
+                    old_b = <int>white_value_col[y]
+                    old_a = <int>white_attack_col[y]
+                    if old_b != bucket or old_a != attack:
+                        value_log.append((1, x, y, old_b, old_a))
                 white_value_col[y] = bucket
                 white_attack_col[y] = attack
             elif cell != EMPTY:
+                if active_snapshots:
+                    old_b = <int>black_value_col[y]
+                    old_a = <int>black_attack_col[y]
+                    if old_b or old_a:
+                        value_log.append((0, x, y, old_b, old_a))
+                    old_b = <int>white_value_col[y]
+                    old_a = <int>white_attack_col[y]
+                    if old_b or old_a:
+                        value_log.append((1, x, y, old_b, old_a))
                 black_value_col[y] = 0
                 white_value_col[y] = 0
                 black_attack_col[y] = 0

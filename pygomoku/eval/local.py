@@ -163,10 +163,16 @@ def compute_bucket_and_attack(direction_shapes: tuple[int, int, int, int]) -> tu
 def recompute_point_caches(board: Board, caches: EvalCaches, x: int, y: int) -> None:
     active_snapshots = caches._active_snapshot_count
     shape_log_append = caches._shape_log.append
+    value_log_append = caches._value_log.append
     shape_cache = caches.shape_cache
 
     if board.grid[y][x] != EMPTY:
         for player in (0, 1):
+            if active_snapshots:
+                ob = caches.value_cache[player][x][y]
+                oa = caches.attack_cache[player][x][y]
+                if ob or oa:
+                    value_log_append((player, x, y, ob, oa))
             caches.value_cache[player][x][y] = 0
             caches.attack_cache[player][x][y] = 0
             shape_col = shape_cache[player][x][y]
@@ -224,6 +230,11 @@ def recompute_point_caches(board: Board, caches: EvalCaches, x: int, y: int) -> 
             if active_snapshots:
                 shape_log_append((player, x, y, DIAGONAL_UP, old))
             shape_col[DIAGONAL_UP] = d_up_shape
+        if active_snapshots:
+            ob = caches.value_cache[player][x][y]
+            oa = caches.attack_cache[player][x][y]
+            if ob != bucket or oa != attack:
+                value_log_append((player, x, y, ob, oa))
         caches.value_cache[player][x][y] = bucket
         caches.attack_cache[player][x][y] = attack
 
@@ -256,6 +267,7 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
             caches.attack_cache,
             caches._active_snapshot_count,
             caches._shape_log,
+            caches._value_log,
             size,
         )
         return
@@ -366,6 +378,7 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
     attack_cache_white = caches.attack_cache[1]
     active_snapshots = caches._active_snapshot_count
     shape_log_append = caches._shape_log.append
+    value_log_append = caches._value_log.append
     for x in range(size):
         shadow_col = shadow[x]
         comp_col = comp[x]
@@ -450,6 +463,10 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                         black_shape_col[y][DIAGONAL_UP],
                     )
                 )
+                if active_snapshots:
+                    ob = black_value_col[y]; oa = black_attack_col[y]
+                    if ob != bucket or oa != attack:
+                        value_log_append((0, x, y, ob, oa))
                 black_value_col[y] = bucket
                 black_attack_col[y] = attack
                 bucket, attack = compute_bucket_and_attack(
@@ -460,9 +477,20 @@ def value_wide_compute(board: Board, caches: EvalCaches) -> None:
                         white_shape_col[y][DIAGONAL_UP],
                     )
                 )
+                if active_snapshots:
+                    ob = white_value_col[y]; oa = white_attack_col[y]
+                    if ob != bucket or oa != attack:
+                        value_log_append((1, x, y, ob, oa))
                 white_value_col[y] = bucket
                 white_attack_col[y] = attack
             elif cell != EMPTY:
+                if active_snapshots:
+                    ob = black_value_col[y]; oa = black_attack_col[y]
+                    if ob or oa:
+                        value_log_append((0, x, y, ob, oa))
+                    ob = white_value_col[y]; oa = white_attack_col[y]
+                    if ob or oa:
+                        value_log_append((1, x, y, ob, oa))
                 black_value_col[y] = 0
                 white_value_col[y] = 0
                 black_attack_col[y] = 0

@@ -67,23 +67,20 @@ def test_eval_caches_reset_restores_zero_state() -> None:
 
 
 def test_eval_caches_snapshot_restore_roundtrip() -> None:
+    # Snapshot/restore covers: initialized flag, board_shadow, shape_cache (via log).
+    # value_cache and attack_cache are restored via _value_log, not by full copy;
+    # direct bare writes are not tracked — only writes through value_wide_compute are.
     caches = EvalCaches()
     caches.initialized = True
     caches.board_shadow[0][0] = 1
     caches.set_shape_value(0, 1, 1, 2, 99)
-    caches.value_cache[1][2][2] = 7
-    caches.attack_cache[1][3][3] = 5
     snapshot = caches.snapshot()
     caches.board_shadow[0][0] = 0
     caches.set_shape_value(0, 1, 1, 2, 0)
-    caches.value_cache[1][2][2] = 0
-    caches.attack_cache[1][3][3] = 0
     caches.restore_snapshot(snapshot)
     assert caches.initialized
     assert caches.board_shadow[0][0] == 1
     assert caches.shape_cache[0][1][1][2] == 99
-    assert caches.value_cache[1][2][2] == 7
-    assert caches.attack_cache[1][3][3] == 5
 
 
 def test_recompute_point_caches_finds_black_five_threat() -> None:
@@ -484,3 +481,137 @@ def test_value_wide_incremental_snapshots_match_expected_sequence() -> None:
                 caches.value_cache[1][px][py],
                 caches.attack_cache[1][px][py],
             ) == values
+
+
+# ---------------------------------------------------------------------------
+# P1: value_log-based snapshot/restore tests
+# ---------------------------------------------------------------------------
+
+def test_value_log_empty_on_fresh_caches() -> None:
+    caches = EvalCaches()
+    assert caches._value_log == []
+
+
+def test_value_log_not_written_without_active_snapshot() -> None:
+    board = Board()
+    board.play(xy_to_move(7, 7))
+    caches = EvalCaches()
+    recompute_all(board, caches)
+    # No snapshot active — value_log must stay empty even after value_wide_compute.
+    board.play(xy_to_move(8, 7))
+    value_wide_compute(board, caches)
+    assert caches._value_log == []
+
+
+def test_value_log_grows_after_snapshot_and_play() -> None:
+    board = Board()
+    board.play(xy_to_move(7, 7))
+    caches = EvalCaches()
+    recompute_all(board, caches)
+    snap = caches.snapshot()
+    board.play(xy_to_move(8, 7))
+    value_wide_compute(board, caches)
+    assert len(caches._value_log) > 0
+    board.undo()
+    caches.restore_snapshot(snap)
+
+
+def test_snapshot_value_log_len_field_is_recorded() -> None:
+    board = Board()
+    board.play(xy_to_move(7, 7))
+    caches = EvalCaches()
+    recompute_all(board, caches)
+
+    snap1 = caches.snapshot()
+    assert snap1.value_log_len == 0
+
+    board.play(xy_to_move(8, 7))
+    value_wide_compute(board, caches)
+    snap2 = caches.snapshot()
+    assert snap2.value_log_len > 0
+
+    board.undo()
+    value_wide_compute(board, caches)
+    caches.restore_snapshot(snap2)
+    board.undo()
+    caches.restore_snapshot(snap1)
+
+
+def test_restore_snapshot_reverts_value_and_attack_caches() -> None:
+    board = Board()
+    board.play(xy_to_move(7, 7))
+    board.play(xy_to_move(8, 7))
+    caches = EvalCaches()
+    recompute_all(board, caches)
+
+    before_value = [col[:] for col in caches.value_cache[0]]
+    before_attack = [col[:] for col in caches.attack_cache[0]]
+
+    snap = caches.snapshot()
+    board.play(xy_to_move(7, 8))
+    value_wide_compute(board, caches)
+
+    board.undo()
+    value_wide_compute(board, caches)
+    caches.restore_snapshot(snap)
+
+    assert caches.value_cache[0] == before_value
+    assert caches.attack_cache[0] == before_attack
+    assert caches._value_log == []
+
+
+def test_double_snapshot_restores_independently() -> None:
+    board = Board()
+    board.play(xy_to_move(7, 7))
+    caches = EvalCaches()
+    recompute_all(board, caches)
+    # Capture reference state before any snapshots.
+    initial_value = [col[:] for col in caches.value_cache[0]]
+    initial_attack = [col[:] for col in caches.attack_cache[0]]
+
+    outer = caches.snapshot()
+    board.play(xy_to_move(8, 7))
+    value_wide_compute(board, caches)
+    state_after_outer = [col[:] for col in caches.value_cache[0]]
+
+    inner = caches.snapshot()
+    board.play(xy_to_move(9, 7))
+    value_wide_compute(board, caches)
+
+    # Restore inner: should revert to state_after_outer
+    board.undo()
+    value_wide_compute(board, caches)
+    caches.restore_snapshot(inner)
+    assert caches.value_cache[0] == state_after_outer
+
+    # Restore outer: should revert to initial recompute_all state
+    board.undo()
+    value_wide_compute(board, caches)
+    caches.restore_snapshot(outer)
+    assert caches.value_cache[0] == initial_value
+    assert caches.attack_cache[0] == initial_attack
+    assert caches._value_log == []
+
+
+def test_value_log_cleared_on_reset() -> None:
+    board = Board()
+    board.play(xy_to_move(7, 7))
+    caches = EvalCaches()
+    recompute_all(board, caches)
+    snap = caches.snapshot()
+    board.play(xy_to_move(8, 7))
+    value_wide_compute(board, caches)
+    assert len(caches._value_log) > 0
+    caches.restore_snapshot(snap)
+    caches.reset()
+    assert caches._value_log == []
+
+
+def test_recompute_all_does_not_write_value_log() -> None:
+    # recompute_all is called before any snapshot, so active_snapshots=0.
+    board = Board()
+    for move in [(7, 7), (8, 7), (7, 8), (8, 8)]:
+        board.play(xy_to_move(*move))
+    caches = EvalCaches()
+    recompute_all(board, caches)
+    assert caches._value_log == []

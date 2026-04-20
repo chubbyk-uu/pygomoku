@@ -90,8 +90,7 @@ class EvalSnapshot:
     initialized: bool
     board_shadow: list[list[int]]
     shape_log_len: int
-    value_cache: list[list[list[int]]]
-    attack_cache: list[list[list[int]]]
+    value_log_len: int
 
 
 @dataclass
@@ -102,6 +101,7 @@ class EvalCaches:
     value_cache: list[list[list[int]]] = field(default_factory=_new_value_cache)
     attack_cache: list[list[list[int]]] = field(default_factory=_new_value_cache)
     _shape_log: list[tuple[int, int, int, int, int]] = field(default_factory=list, repr=False)
+    _value_log: list[tuple[int, int, int, int, int]] = field(default_factory=list, repr=False)
     _active_snapshot_count: int = field(default=0, repr=False)
 
     def set_shape_value(self, player: int, x: int, y: int, direction: int, value: int) -> None:
@@ -119,18 +119,19 @@ class EvalCaches:
             initialized=self.initialized,
             board_shadow=_copy_board_shadow_any(self.board_shadow),
             shape_log_len=len(self._shape_log),
-            value_cache=_copy_value_cache_any(self.value_cache),
-            attack_cache=_copy_value_cache_any(self.attack_cache),
+            value_log_len=len(self._value_log),
         )
 
     def restore_snapshot(self, snapshot: EvalSnapshot) -> None:
         self.initialized = snapshot.initialized
         self.board_shadow = _copy_board_shadow_any(snapshot.board_shadow)
-        self.value_cache = _copy_value_cache_any(snapshot.value_cache)
-        self.attack_cache = _copy_value_cache_any(snapshot.attack_cache)
         while len(self._shape_log) > snapshot.shape_log_len:
             player, x, y, direction, old_value = self._shape_log.pop()
             self.shape_cache[player][x][y][direction] = old_value
+        while len(self._value_log) > snapshot.value_log_len:
+            player, x, y, old_bucket, old_attack = self._value_log.pop()
+            self.value_cache[player][x][y] = old_bucket
+            self.attack_cache[player][x][y] = old_attack
         if self._active_snapshot_count:
             self._active_snapshot_count -= 1
 
@@ -150,6 +151,7 @@ class EvalCaches:
         self.value_cache = _copy_value_cache_any(other.value_cache)
         self.attack_cache = _copy_value_cache_any(other.attack_cache)
         self._shape_log.clear()
+        self._value_log.clear()
         self._active_snapshot_count = 0
 
     def reset(self) -> None:
@@ -159,4 +161,5 @@ class EvalCaches:
         self.value_cache = _new_value_cache()
         self.attack_cache = _new_value_cache()
         self._shape_log.clear()
+        self._value_log.clear()
         self._active_snapshot_count = 0
