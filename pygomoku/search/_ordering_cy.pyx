@@ -7,62 +7,83 @@ def getmi_raw(object grid, int x, int y, int c, int size=BOARD_SIZE):
     cdef int ret = 1
     cdef int opponent = -c
     cdef int ii, jj
+    cdef list grid_list = grid
+    cdef list row
 
-    ii, jj = x + 1, y
+    # horizontal right — row y is constant
+    row = grid_list[y]
+    ii = x + 1
     while ii <= x + 4 and ii < size:
-        if grid[jj][ii] == opponent:
+        if <int>row[ii] == opponent:
             break
         ret += 1
         ii += 1
 
-    ii, jj = x - 1, y
+    # horizontal left — same row
+    ii = x - 1
     while ii >= x - 4 and ii >= 0:
-        if grid[jj][ii] == opponent:
+        if <int>row[ii] == opponent:
             break
         ret += 1
         ii -= 1
 
-    ii, jj = x, y + 1
+    # vertical down — column x varies by row
+    jj = y + 1
     while jj <= y + 4 and jj < size:
-        if grid[jj][ii] == opponent:
+        row = grid_list[jj]
+        if <int>row[x] == opponent:
             break
         ret += 1
         jj += 1
 
-    ii, jj = x, y - 1
+    # vertical up
+    jj = y - 1
     while jj >= y - 4 and jj >= 0:
-        if grid[jj][ii] == opponent:
+        row = grid_list[jj]
+        if <int>row[x] == opponent:
             break
         ret += 1
         jj -= 1
 
-    ii, jj = x + 1, y + 1
+    # diagonal down-right
+    ii = x + 1
+    jj = y + 1
     while ii <= x + 4 and ii < size and jj < size:
-        if grid[jj][ii] == opponent:
+        row = grid_list[jj]
+        if <int>row[ii] == opponent:
             break
         ret += 1
         ii += 1
         jj += 1
 
-    ii, jj = x - 1, y - 1
+    # diagonal up-left
+    ii = x - 1
+    jj = y - 1
     while ii >= x - 4 and ii >= 0 and jj >= 0:
-        if grid[jj][ii] == opponent:
+        row = grid_list[jj]
+        if <int>row[ii] == opponent:
             break
         ret += 1
         ii -= 1
         jj -= 1
 
-    ii, jj = x - 1, y + 1
+    # diagonal up-right
+    ii = x - 1
+    jj = y + 1
     while ii >= x - 4 and ii >= 0 and jj < size:
-        if grid[jj][ii] == opponent:
+        row = grid_list[jj]
+        if <int>row[ii] == opponent:
             break
         ret += 1
         ii -= 1
         jj += 1
 
-    ii, jj = x + 1, y - 1
+    # diagonal down-left
+    ii = x + 1
+    jj = y - 1
     while ii <= x + 4 and ii < size and jj >= 0:
-        if grid[jj][ii] == opponent:
+        row = grid_list[jj]
+        if <int>row[ii] == opponent:
             break
         ret += 1
         ii += 1

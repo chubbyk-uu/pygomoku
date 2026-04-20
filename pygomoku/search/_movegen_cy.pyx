@@ -6,17 +6,23 @@ from pygomoku.constants import BOARD_SIZE, EMPTY
 def covered_moves_raw(object move_history, object grid, object cover_neighbors):
     cdef bytearray seen = bytearray(BOARD_SIZE * BOARD_SIZE)
     cdef list covered = []
+    cdef tuple cn = cover_neighbors
+    cdef list grid_list = grid
     cdef object played
+    cdef tuple neighbors
+    cdef list grid_row
     cdef int candidate
     cdef int x
     cdef int y
 
     for played in move_history:
-        for candidate in cover_neighbors[played.move]:
+        neighbors = cn[played.move]
+        for candidate in neighbors:
             if not seen[candidate]:
                 x = candidate % BOARD_SIZE
                 y = candidate // BOARD_SIZE
-                if grid[y][x] == EMPTY:
+                grid_row = grid_list[y]
+                if grid_row[x] == EMPTY:
                     seen[candidate] = 1
                     covered.append(candidate)
     covered.sort()
@@ -47,15 +53,27 @@ def candidate_stats_raw(
     cdef int vbw
     cdef int att1
     cdef int att2
+    cdef list pvc = player_value_cache
+    cdef list ovc = opponent_value_cache
+    cdef list pac = player_attack_cache
+    cdef list oac = opponent_attack_cache
+    cdef list pvc_col
+    cdef list ovc_col
+    cdef list pac_col
+    cdef list oac_col
 
     for move in moves:
         x = move % BOARD_SIZE
         y = move // BOARD_SIZE
-        bucket_self = player_value_cache[x][y]
-        bucket_opp = opponent_value_cache[x][y]
+        pvc_col = pvc[x]
+        ovc_col = ovc[x]
+        bucket_self = <int>pvc_col[y]
+        bucket_opp = <int>ovc_col[y]
         vbw = <int>(attack_value_table[bucket_self] + defend_value_table[bucket_opp])
-        att1 = player_attack_cache[x][y]
-        att2 = opponent_attack_cache[x][y]
+        pac_col = pac[x]
+        oac_col = oac[x]
+        att1 = <int>pac_col[y]
+        att2 = <int>oac_col[y]
         vbw_map[move] = vbw
         self_attack_map[move] = att1
         opp_attack_map[move] = att2
