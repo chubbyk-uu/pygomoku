@@ -6,6 +6,7 @@ from pygomoku.constants import HASHF_ALPHA, HASHF_BETA, HASHF_EXACT
 from pygomoku.eval.caches import EvalCaches
 from pygomoku.eval.local import recompute_all
 from pygomoku.search.alphabeta import AlphaBetaSearcher, SearchStats
+from pygomoku.search.root import RootSearcher, SearchLimits
 from pygomoku.search.tt import TTEntry, TranspositionTable
 
 
@@ -109,6 +110,79 @@ def test_tt_starts_empty_and_grows_on_store() -> None:
     # Storing to the same slot (key & mask collision) must not grow the dict.
     table.store(TTEntry(key=3 + 16, value=30, flag=HASHF_EXACT, depth=1, priority=1, best_move=9))
     assert len(table.buckets) == 2
+
+
+def test_tt_probe_does_not_create_bucket_on_empty_table() -> None:
+    table = TranspositionTable(bucket_bits=4)
+    result = table.probe(7, depth=1, alpha=-10, beta=10)
+    assert result.hit is False
+    assert result.value is None
+    assert result.best_move == -1
+    assert len(table.buckets) == 0
+
+
+def test_tt_probe_does_not_create_bucket_for_miss_in_existing_slot() -> None:
+    table = TranspositionTable(bucket_bits=2)
+    table.store(TTEntry(key=1, value=10, flag=HASHF_EXACT, depth=2, priority=5, best_move=7))
+    before = len(table.buckets)
+    # key=5 collides with key=1 when bucket_bits=2 because both map to slot 1.
+    result = table.probe(5, depth=2, alpha=-10, beta=10)
+    assert result.hit is False
+    assert result.value is None
+    assert result.best_move == -1
+    assert len(table.buckets) == before
+
+
+def test_tt_third_store_in_same_slot_replaces_second_slot_only() -> None:
+    table = TranspositionTable(bucket_bits=1)
+    high = TTEntry(key=2, value=10, flag=HASHF_EXACT, depth=4, priority=100, best_move=1)
+    low = TTEntry(key=4, value=20, flag=HASHF_EXACT, depth=4, priority=10, best_move=2)
+    newer_low = TTEntry(key=6, value=30, flag=HASHF_EXACT, depth=4, priority=5, best_move=3)
+    table.store(high)
+    table.store(low)
+    table.store(newer_low)
+
+    assert table.probe(2, depth=4, alpha=-50, beta=50).value == 10
+    assert table.probe(4, depth=4, alpha=-50, beta=50).value is None
+    result = table.probe(6, depth=4, alpha=-50, beta=50)
+    assert result.hit is True
+    assert result.value == 30
+    assert result.best_move == 3
+
+
+def test_tt_higher_priority_third_store_replaces_first_slot() -> None:
+    table = TranspositionTable(bucket_bits=1)
+    high = TTEntry(key=2, value=10, flag=HASHF_EXACT, depth=4, priority=100, best_move=1)
+    low = TTEntry(key=4, value=20, flag=HASHF_EXACT, depth=4, priority=10, best_move=2)
+    higher = TTEntry(key=6, value=30, flag=HASHF_EXACT, depth=4, priority=200, best_move=3)
+    table.store(high)
+    table.store(low)
+    table.store(higher)
+
+    assert table.probe(2, depth=4, alpha=-50, beta=50).value is None
+    assert table.probe(4, depth=4, alpha=-50, beta=50).value == 20
+    result = table.probe(6, depth=4, alpha=-50, beta=50)
+    assert result.hit is True
+    assert result.value == 30
+    assert result.best_move == 3
+
+
+def test_tt_lazy_buckets_grow_after_search_and_repeat_search_is_stable() -> None:
+    board = Board()
+    for move in [(7, 7), (7, 4), (8, 8), (6, 5)]:
+        board.play(xy_to_move(*move))
+
+    searcher = RootSearcher(load_default_config())
+    assert len(searcher.tt.buckets) == 0
+
+    first = searcher.search(board, SearchLimits(max_depth=3, root_width=8))
+    first_bucket_count = len(searcher.tt.buckets)
+    assert first_bucket_count > 0
+
+    second = searcher.search(board, SearchLimits(max_depth=3, root_width=8))
+    second_bucket_count = len(searcher.tt.buckets)
+    assert (second.move, second.score, second.depth) == (first.move, first.score, first.depth)
+    assert second_bucket_count >= first_bucket_count
 
 
 def test_tt_winning_exact_store_adds_windepth_as_expected() -> None:
