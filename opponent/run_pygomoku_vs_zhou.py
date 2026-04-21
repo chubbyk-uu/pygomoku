@@ -298,7 +298,8 @@ def _get_gomocup_engine(*, command: str, name: str, color: str) -> _GomocupEngin
 
 
 class _PygomokuDirectEngine:
-    def __init__(self, *, depth: int, width: int, color: str, name: str) -> None:
+    def __init__(self, *, depth: int, width: int, color: str, name: str,
+                 compute_vct: bool = False, vct_depth: int = 4) -> None:
         _ensure_paths()
         from dataclasses import replace
 
@@ -306,7 +307,11 @@ class _PygomokuDirectEngine:
         from pygomoku.search.root import RootSearcher, SearchLimits
 
         base = load_default_config()
-        config = replace(base, root_search=replace(base.root_search, depth=depth, wide=width))
+        config = replace(
+            base,
+            root_search=replace(base.root_search, depth=depth, wide=width),
+            runtime=replace(base.runtime, compute_vct=compute_vct, root_vct_depth=vct_depth),
+        )
         self._searcher = RootSearcher(config)
         self._limits = SearchLimits(max_depth=depth, root_width=width)
         self._color = color
@@ -370,7 +375,10 @@ def _play_task(
     pygomoku_width: int,
     zhou_depth: int,
     max_moves: int,
+    compute_vct: bool = False,
+    vct_depth: int = 4,
 ) -> dict[str, Any]:
+    kwargs = {"compute_vct": compute_vct, "vct_depth": vct_depth}
     _ensure_paths()
     from pygomoku.board import Board as PygomokuBoard
     from pygomoku.board import xy_to_move
@@ -391,6 +399,8 @@ def _play_task(
             width=pygomoku_width,
             color=task.engine_color,
             name=engine_name,
+            compute_vct=kwargs.get("compute_vct", False),
+            vct_depth=kwargs.get("vct_depth", 4),
         )
     else:
         raise ValueError(f"unsupported engine_type: {engine_type}")
@@ -583,6 +593,8 @@ def main() -> None:
     parser.add_argument("--output-black", type=Path, default=None)
     parser.add_argument("--output-white", type=Path, default=None)
     parser.add_argument("--limit-openings", type=int, default=None)
+    parser.add_argument("--compute-vct", action="store_true", default=False)
+    parser.add_argument("--vct-depth", type=int, default=4)
     args = parser.parse_args()
 
     openings = OPENING_SETS[args.opening_set]
@@ -617,6 +629,8 @@ def main() -> None:
                 pygomoku_width=args.pygomoku_width,
                 zhou_depth=args.zhou_depth,
                 max_moves=args.max_moves,
+                compute_vct=args.compute_vct,
+                vct_depth=args.vct_depth,
             ): task
             for task in tasks
         }
