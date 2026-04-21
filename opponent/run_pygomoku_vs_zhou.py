@@ -299,7 +299,7 @@ def _get_gomocup_engine(*, command: str, name: str, color: str) -> _GomocupEngin
 
 class _PygomokuDirectEngine:
     def __init__(self, *, depth: int, width: int, color: str, name: str,
-                 compute_vct: bool = False, vct_depth: int = 8) -> None:
+                 compute_vct: bool = False, vct_depth: int = 6) -> None:
         _ensure_paths()
         from dataclasses import replace
 
@@ -377,7 +377,7 @@ def _play_task(
     zhou_depth: int,
     max_moves: int,
     compute_vct: bool = False,
-    vct_depth: int = 8,
+    vct_depth: int = 6,
 ) -> dict[str, Any]:
     kwargs = {"compute_vct": compute_vct, "vct_depth": vct_depth}
     _ensure_paths()
@@ -401,7 +401,7 @@ def _play_task(
             color=task.engine_color,
             name=engine_name,
             compute_vct=kwargs.get("compute_vct", False),
-            vct_depth=kwargs.get("vct_depth", 8),
+            vct_depth=kwargs.get("vct_depth", 6),
         )
     else:
         raise ValueError(f"unsupported engine_type: {engine_type}")
@@ -595,7 +595,7 @@ def main() -> None:
     parser.add_argument("--output-white", type=Path, default=None)
     parser.add_argument("--limit-openings", type=int, default=None)
     parser.add_argument("--compute-vct", action="store_true", default=False)
-    parser.add_argument("--vct-depth", type=int, default=8)
+    parser.add_argument("--vct-depth", type=int, default=6)
     args = parser.parse_args()
 
     openings = OPENING_SETS[args.opening_set]
