@@ -26,6 +26,7 @@ This repository is released under the GNU GPL v3.0; the full text is in `LICENSE
 - Current mainline engine (referred to internally as `classic`)
 - Iterative deepening + Alpha-Beta + TT + candidate-move pruning
 - VCF tactical search
+- Root-only VCT tactical search
 - Optional Cython acceleration
 - Pygame GUI for human-vs-AI play
 - Gomocup protocol engine entry point
@@ -84,7 +85,7 @@ This is the heart of the repository.
 - `pygomoku/search/` — search main loop
 - `pygomoku/eval/` — position evaluation and incremental caches
 - `pygomoku/patterns/` — patterns and bucket semantics
-- `pygomoku/threats/` — VCF and other tactical modules
+- `pygomoku/threats/` — VCF / VCT tactical modules
 - `pygomoku/protocol/` — Gomocup protocol integration
 
 ### 2. GUI
@@ -255,6 +256,13 @@ python -m pygomoku.gui --depth 6 --width 20
 
 The default depth on user-facing entry points is `6`. This is because the mainline has fixed the iteration boundary of `max_depth`: the depth you pass in is now the depth that actually gets completed. To keep the default real search strength close to the configuration used before that fix, the default `pygomoku` depth across GUI / Gomocup / match scripts is uniformly `6`.
 
+The default runtime config also includes:
+
+- `compute_vct = True`
+- `root_vct_depth = 4`
+
+That is, the engine loaded with the default config has root VCT enabled at depth `4`.
+
 If `pygame` isn't installed, the GUI won't start.
 
 ## Running the Gomocup protocol engine
@@ -276,6 +284,12 @@ This path is suitable for:
 - Plugging into a Gomocup-protocol environment
 - Protocol-level matches against other AIs
 - Being launched as an engine subprocess by match scripts
+
+The Gomocup protocol layer also supports these runtime controls:
+
+- `INFO compute_vcf 0|1`
+- `INFO compute_vct 0|1`
+- `INFO root_vct_depth N`
 
 ## Tests
 
@@ -348,6 +362,23 @@ python opponent/run_pygomoku_vs_zhou.py \
 
 `pygomoku-direct` calls the Python engine entry point in-process, which is convenient for fast local validation. This path has been minimally exercised end-to-end.
 
+To explicitly enable VCT on the `pygomoku-direct` path:
+
+```bash
+python opponent/run_pygomoku_vs_zhou.py \
+  --engine-type pygomoku-direct \
+  --opening-set 5 \
+  --pygomoku-depth 6 \
+  --pygomoku-width 20 \
+  --zhou-depth 5 \
+  --parallel 10 \
+  --colors both \
+  --compute-vct \
+  --vct-depth 4
+```
+
+Note: the match script defaults to `compute_vct = False` on the `pygomoku-direct` path to make A/B comparisons convenient. Pass `--compute-vct` explicitly to enable it; this differs from `load_default_config()`.
+
 ### Using the Gomocup protocol entry for matches
 
 ```bash
@@ -408,6 +439,18 @@ Combined with `--colors both`, each fixed opening is tested with `pygomoku` play
 
 By default the script writes the black and white results to separate JSON files under `opponent/`, for later comparison and analysis.
 
+The `pygomoku-direct` path currently emits a root trace in the output, including:
+
+- `used_vcf`
+- `vcf_found`
+- `used_vct`
+- `vct_triggered`
+- `vct_found`
+- `vct_accepted`
+- `vct_reject_reason`
+- `vct_ms`
+- `tactical_path`
+
 ### Common arguments
 
 - `--engine-type`: pick `pygomoku-direct` or `pygomoku`. The former calls the Python engine entry directly; the latter launches a Gomocup-protocol process via `python -m pygomoku.gomocup_engine`.
@@ -419,6 +462,8 @@ By default the script writes the black and white results to separate JSON files 
 - `--colors`: choose `black`, `white`, or `both`.
 - `--limit-openings`: take only the first N fixed openings — useful for quick smoke runs.
 - `--max-moves`: per-game move cap, default 120, to avoid pathological games dragging on forever.
+- `--compute-vct`: `pygomoku-direct` only — explicitly enable root VCT.
+- `--vct-depth`: `pygomoku-direct` only — root VCT depth; the script default is `4`.
 - `--output-black` / `--output-white`: explicit JSON output paths for the black-side and white-side results.
 
 ## Performance and debugging
