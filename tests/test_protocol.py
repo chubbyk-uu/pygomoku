@@ -179,7 +179,7 @@ def test_protocol_info_invalid_numeric_values_are_ignored() -> None:
     assert proto.node_limit is None
     assert proto.config.runtime.compute_vcf is True
     assert proto.config.runtime.compute_vct is True
-    assert proto.config.runtime.root_vct_depth == 6
+    assert proto.config.runtime.root_vct_depth == 4
     assert proto.config.runtime.static_board is True
 
 

@@ -185,6 +185,7 @@ class VCTSearcher:
           1. Defender's own immediate wins (WIN5 / A4) — if any exist, try first.
           2. Forced squares from the attack (B4 reply or A3 gain squares).
           3. Defender's own B4 moves (create a counter-forcing sequence).
+
           4. Defender's own A3 moves (create a slower counter-sequence).
         """
         defender = -attacker

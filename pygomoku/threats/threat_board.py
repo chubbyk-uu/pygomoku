@@ -28,7 +28,7 @@ if _THREAT_BOARD_BACKEND_MODE != "python":
         from pygomoku.threats._threat_board_cy import b4_count_raw as _b4_count_native
         from pygomoku.threats._threat_board_cy import has_a4_raw as _has_a4_native
         from pygomoku.threats._threat_board_cy import a3_gain_squares_raw as _a3_gain_squares_native
-        from pygomoku.threats._threat_board_cy import a3r_count_notest_raw as _a3r_count_notest_native
+        from pygomoku.threats._threat_board_cy import a3r_count_raw as _a3r_count_native
     except ImportError:
         if _THREAT_BOARD_BACKEND_MODE == "cython":
             raise
@@ -39,7 +39,7 @@ if _THREAT_BOARD_BACKEND_MODE != "python":
         _b4_count_native = None
         _has_a4_native = None
         _a3_gain_squares_native = None
-        _a3r_count_notest_native = None
+        _a3r_count_native = None
 else:
     _build_views_native = None
     _broken_four_point_for_side_native = None
@@ -48,7 +48,7 @@ else:
     _b4_count_native = None
     _has_a4_native = None
     _a3_gain_squares_native = None
-    _a3r_count_notest_native = None
+    _a3r_count_native = None
 
 
 def _ga(value: int) -> int:
@@ -215,10 +215,8 @@ class ThreatBoardView:
         if point == 0:
             return 0
         side = point
-        # Fast path: skip a5test (renju adjustment) — may over-count by 1 in rare
-        # forbidden-pattern edge cases, acceptable for VCT trigger/defense checks.
-        if _a3r_count_notest_native is not None:
-            return _a3r_count_notest_native(self.x1, self.x2, self.x3, self.x4, x, y, self.board.size)
+        if _a3r_count_native is not None:
+            return _a3r_count_native(self.x1, self.x2, self.x3, self.x4, x, y, self.board.size)
         l1, l2, l3, l4, p1, p2, p3, p4 = self._lines_for(x, y)
         count = 0
         line_specs = (
