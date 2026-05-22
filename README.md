@@ -1,109 +1,109 @@
 # pygomoku
 
-`pygomoku` 是一个使用 Python 编写、并通过 native / Cython 加速关键热点的自由规则五子棋引擎项目。
+> 中文版 README：[README.cn.md](README.cn.md)
 
-项目目标不是做一个演示性质的小程序，而是做一个：
+`pygomoku` is a free-rule Gomoku engine project written primarily in Python, with hot paths accelerated via native / Cython extensions.
 
-- 自由无禁手的五子棋引擎
-- 具备较强实战能力、可持续迭代的搜索程序
-- 以 Python 为主实现，同时保留明确的 native 加速路径
-- 支持人机对战 GUI
-- 支持 Gomocup 协议，可与其他 AI 对战
+The goal of this project is not to ship a demo-quality program, but to build:
 
-该项目的直接目的，是让 `pygomoku` 在实际对战中稳定战胜 `opponent/zhou/` 中的另一个五子棋程序 `zhou`。
+- A free-rule (no forbidden moves) Gomoku engine
+- A search program with solid practical strength and a sustainable iteration path
+- A Python-first implementation that preserves a clear native acceleration path
+- Human-vs-AI GUI play
+- Gomocup-protocol support so it can play against other AIs
 
-本项目可以理解为一个以 `SlowRenju` 为核心参考、面向 Python/Cython 的自由规则五子棋引擎重实现。本文最后附有致谢说明。
+The immediate concrete goal is for `pygomoku` to reliably beat the in-repo opponent `zhou` (under `opponent/zhou/`) in real games.
 
-本项目开发过程中，主要使用 OpenAI Codex 作为工程协作工具。
+This project can be understood as a `SlowRenju`-inspired, Python/Cython-oriented reimplementation of a free-rule Gomoku engine. See the acknowledgements section at the end.
 
-本仓库以 GNU GPL v3.0 发布，完整文本见根目录 `LICENSE`。
+OpenAI Codex was the primary engineering collaboration tool used during development.
 
-## 特性概览
+This repository is released under the GNU GPL v3.0; the full text is in `LICENSE` at the repo root.
 
-- 15x15 自由规则五子棋
-- 当前主线引擎（仓库内部称 `classic`）
-- 迭代加深 + Alpha-Beta + TT + 候选点裁剪
-- VCF 战术搜索
-- Cython 可选加速
-- Pygame GUI 人机对战
-- Gomocup 协议引擎入口
-- 与仓库内 `zhou` 对手程序做固定开局对战测试
-- 完整的单元测试、搜索测试、协议测试和集成测试
+## Feature overview
 
-## 项目目标
+- 15x15 free-rule Gomoku
+- Current mainline engine (referred to internally as `classic`)
+- Iterative deepening + Alpha-Beta + TT + candidate-move pruning
+- VCF tactical search
+- Optional Cython acceleration
+- Pygame GUI for human-vs-AI play
+- Gomocup protocol engine entry point
+- Fixed-opening match script against the in-repo `zhou` opponent
+- Full unit, search, protocol, and integration test coverage
 
-这个仓库当前关注的是一条非常明确的工程路线：
+## Project goals
 
-1. 保持当前主线引擎（仓库内部称 `classic`）行为稳定、确定、可验证。
-2. 在不破坏语义的前提下，持续提升实战速度。
-3. 把热点逐步迁移到 Cython / native，加速搜索、评估和战术模块。
-4. 通过 GUI、Gomocup 协议和固定开局对战来做实际验证。
+This repository is currently focused on a very deliberate engineering trajectory:
 
-## 坐标约定
+1. Keep the current mainline engine (internally `classic`) stable, deterministic, and verifiable.
+2. Continuously improve practical speed without breaking semantics.
+3. Progressively migrate hot spots to Cython / native to accelerate search, evaluation, and tactical modules.
+4. Validate with the GUI, the Gomocup protocol, and fixed-opening matches.
 
-本项目统一使用 `(x, y)` 坐标：
+## Coordinate convention
 
-- `x` 表示列
-- `y` 表示行
+The whole project uses `(x, y)` coordinates:
 
-也就是说，坐标语义是“先列后行”。
+- `x` is the column
+- `y` is the row
 
-这一点要特别注意，因为仓库内对手程序 `zhou` 的很多内部逻辑更习惯使用
-`(row, col)`，也就是“先行后列”。两边在对战脚本里会做显式转换，但阅读日志、
-分析开局和手工构造测试局面时，仍然要始终记住这个差异。
+In other words, coordinates are "column first, then row".
 
-## 目录结构
+This is worth flagging because the in-repo opponent `zhou` mostly uses `(row, col)` internally. The match scripts perform explicit conversions on the boundary, but when reading logs, analysing openings, or hand-crafting test positions, always remember the difference.
 
-仓库当前主要由以下几部分组成：
+## Directory layout
+
+The repository is currently organised roughly as follows:
 
 ```text
 gomoku-py/
-├── pygomoku/                   # 主引擎代码
+├── pygomoku/                   # Main engine code
 │   ├── search/                 # root / alphabeta / movegen / ordering / tt
-│   ├── eval/                   # 局部评估、全局评估、缓存
-│   ├── patterns/               # 棋型、bucket、线型工具
+│   ├── eval/                   # local eval, global eval, caches
+│   ├── patterns/               # patterns, buckets, line utilities
 │   ├── threats/                # VCF / VCT / tactical board
-│   ├── protocol/               # Gomocup 协议适配
-│   ├── gomocup_engine.py       # Gomocup 协议命令行入口
-│   └── gui.py                  # Pygame GUI 入口
+│   ├── protocol/               # Gomocup protocol adapter
+│   ├── gomocup_engine.py       # Gomocup protocol CLI entry
+│   └── gui.py                  # Pygame GUI entry
 ├── opponent/
-│   ├── run_pygomoku_vs_zhou.py # pygomoku vs zhou 对战脚本
-│   └── zhou/                   # 仓库内对手程序
-├── benchmarks/                 # 性能与自对弈烟雾测试
-├── tests/                      # 测试
-├── setup.py                    # Cython 扩展构建
-└── pyproject.toml              # 项目配置
+│   ├── run_pygomoku_vs_zhou.py # pygomoku vs zhou match script
+│   └── zhou/                   # In-repo opponent program
+├── benchmarks/                 # Performance and self-play smoke tests
+├── tests/                      # Tests
+├── setup.py                    # Cython extension build
+└── pyproject.toml              # Project configuration
 ```
 
-## 核心组成
+## Core components
 
-### 1. 主引擎 `pygomoku/`
+### 1. Main engine `pygomoku/`
 
-这是仓库的核心部分。
+This is the heart of the repository.
 
-- `pygomoku/search/` 负责搜索主流程
-- `pygomoku/eval/` 负责局面评估与增量缓存
-- `pygomoku/patterns/` 负责棋型和 bucket 语义
-- `pygomoku/threats/` 负责 VCF 等战术模块
-- `pygomoku/protocol/` 负责 Gomocup 协议接入
+- `pygomoku/search/` — search main loop
+- `pygomoku/eval/` — position evaluation and incremental caches
+- `pygomoku/patterns/` — patterns and bucket semantics
+- `pygomoku/threats/` — VCF and other tactical modules
+- `pygomoku/protocol/` — Gomocup protocol integration
 
 ### 2. GUI
 
-`pygomoku/gui.py` 提供本地人机对战界面，当前只使用仓库内的主线引擎，不再依赖外部二进制引擎切换。
+`pygomoku/gui.py` provides a local human-vs-AI interface. It uses only the in-repo mainline engine; it no longer depends on swapping in external engine binaries.
 
-### 3. Gomocup 协议入口
+### 3. Gomocup protocol entry
 
-`pygomoku/gomocup_engine.py` 提供标准输入输出式的 Gomocup 引擎入口，便于和其他 AI 进行协议对战。
+`pygomoku/gomocup_engine.py` exposes a stdin/stdout-based Gomocup engine entry point, making it easy to play protocol-level matches against other AIs.
 
-### 4. 对手程序 `zhou`
+### 4. Opponent program `zhou`
 
-`opponent/zhou/` 是当前仓库内保留的对手程序。
+`opponent/zhou/` is the opponent program currently kept in-repo.
 
-`opponent/run_pygomoku_vs_zhou.py` 用于固定开局批量对战，是当前阶段很重要的实战验证工具。
+`opponent/run_pygomoku_vs_zhou.py` runs batched fixed-opening matches; it is an important practical validation tool at this stage.
 
-### 5. Cython 加速
+### 5. Cython acceleration
 
-仓库在多个热点模块中保留了 `.pyx` 扩展，例如：
+Several hot-path modules ship `.pyx` extensions, e.g.:
 
 - `patterns/_line_cy.pyx`
 - `eval/_local_cy.pyx`
@@ -112,65 +112,63 @@ gomoku-py/
 - `search/_ordering_cy.pyx`
 - `threats/_threat_board_cy.pyx`
 
-这些扩展是当前项目非常重要的一部分。
+These extensions are a very important part of the project as it stands.
 
-## 强烈建议 Cython 加速
+## Cython acceleration is strongly recommended
 
-这个项目**不编译 Cython 也可以运行**，因为 Python fallback 路径是保留的。
+This project **can run without compiling Cython**, because the Python fallback path is preserved.
 
-但是要明确：
+However:
 
-- 不编译时，功能上可以工作
-- 不编译时，速度通常会明显偏慢
-- 在搜索、局部评估、候选生成、战术判断等热点上，纯 Python 版本的实战效率会差很多
+- Without compilation, things work functionally.
+- Without compilation, the engine is meaningfully slower.
+- In search, local evaluation, candidate generation, and tactical judgement — the hottest paths — the pure-Python version is far weaker in practice.
 
-仓库当前已经验证过这一点：把 `pygomoku/` 下已编译的 `.so` 临时移走后，
-`tests/test_config.py` 与 `tests/test_search.py` 仍可通过，说明 fallback 到
-Python 实现是可用的；只是速度明显不适合作为常态运行方式。
+This has been verified in the repo: temporarily moving the compiled `.so` files out of `pygomoku/` still leaves `tests/test_config.py` and `tests/test_search.py` passing, confirming the Python fallback is usable; it is simply too slow to be a normal runtime mode.
 
-因此对实际使用来说：
+In practice:
 
-- 如果你只是阅读代码、做少量功能验证，可以先不编译
-- 如果你要跑较深搜索、GUI 实战、批量测试、与 `zhou` 对战，**强烈建议先编译 Cython**
+- If you are only reading code or doing small functional checks, you can skip compilation.
+- If you intend to run deeper searches, GUI matches, batch tests, or fight `zhou`, **compile Cython first**.
 
-简单说：
+Put plainly:
 
-- Python fallback 是“能跑”
-- Cython 编译是“能用得起来”
+- The Python fallback "runs."
+- The Cython build is what makes it actually "usable."
 
-## 环境要求
+## Environment requirements
 
-建议环境：
+Recommended environment:
 
-- Python 3.11 或更高版本
-- Linux 或 macOS
-- 可用的 C/C++ 编译工具链
+- Python 3.11 or newer
+- Linux or macOS
+- A working C/C++ toolchain
 - `pip`
 
-常用 Python 依赖：
+Common Python dependencies:
 
 - `Cython`
 - `pytest`
 - `pytest-xdist`
 - `pygame`
 
-## 安装
+## Installation
 
-### 基础安装
+### Basic install
 
-推荐先用可编辑方式安装主包：
+Editable install of the main package is recommended:
 
 ```bash
 pip install -e .
 ```
 
-如果你需要 GUI：
+If you need the GUI:
 
 ```bash
 pip install -e ".[gui]"
 ```
 
-如果你要做开发和测试，建议至少安装：
+For development and testing, install at least:
 
 ```bash
 pip install -U pip setuptools wheel
@@ -178,16 +176,15 @@ pip install cython pytest pytest-xdist pygame
 pip install -e ".[gui]"
 ```
 
-完成上述安装后，README 里的大多数命令都可以直接运行，不需要额外加
-`PYTHONPATH=.`。
+After the steps above, most commands in this README can be run directly without prefixing `PYTHONPATH=.`.
 
-## Cython 编译
+## Building Cython extensions
 
 ### Linux
 
-先准备编译环境。
+Prepare the build environment first.
 
-Debian / Ubuntu 常见做法：
+On Debian / Ubuntu the usual way is:
 
 ```bash
 sudo apt update
@@ -195,13 +192,13 @@ sudo apt install -y build-essential python3-dev
 python -m pip install -U pip setuptools wheel cython
 ```
 
-然后在仓库根目录编译：
+Then build at the repo root:
 
 ```bash
 python setup.py build_ext --inplace
 ```
 
-如果要跑对战，强烈建议把 `zhou` 的 Cython 扩展也编译出来，执行：
+If you intend to run matches, it is strongly recommended to also build `zhou`'s Cython extensions:
 
 ```bash
 python opponent/zhou/setup.py build_ext --inplace
@@ -209,132 +206,130 @@ python opponent/zhou/setup.py build_ext --inplace
 
 ### macOS
 
-先准备 Apple 的命令行编译工具：
+Install Apple's command-line build tools first:
 
 ```bash
 xcode-select --install
 python -m pip install -U pip setuptools wheel cython
 ```
 
-然后在仓库根目录编译：
+Then build at the repo root:
 
 ```bash
 python setup.py build_ext --inplace
 ```
 
-同时编译 `zhou`：
+And build `zhou` as well:
 
 ```bash
 python opponent/zhou/setup.py build_ext --inplace
 ```
 
-### 编译说明
+### Notes on the build
 
-编译完成后，热点模块会生成对应的本地扩展文件，运行时会优先尝试使用这些已编译模块。
+After compilation, hot-path modules generate native extension files; the runtime will prefer these compiled modules.
 
-如果你修改了 `.pyx` 文件，通常需要重新执行：
+If you modify a `.pyx` file, you generally need to rebuild:
 
 ```bash
 python setup.py build_ext --inplace
 ```
 
-## GUI 运行
+## Running the GUI
 
-GUI 入口是：
+The GUI entry point is:
 
 ```bash
 python -m pygomoku.gui
 ```
 
-也可以显式指定搜索参数：
+You can also pass explicit search parameters:
 
 ```bash
 python -m pygomoku.gui --depth 6 --width 20
 ```
 
-当前用户入口默认深度为 `6`。这是因为主线已修正 `max_depth` 的迭代边界，
-现在传入的深度就是实际完成的搜索深度；为保持默认实际搜索强度接近修正前的常用配置，
-GUI / Gomocup / 对战脚本的默认 `pygomoku` 深度统一调整为 `6`。
+The default depth on user-facing entry points is `6`. This is because the mainline has fixed the iteration boundary of `max_depth`: the depth you pass in is now the depth that actually gets completed. To keep the default real search strength close to the configuration used before that fix, the default `pygomoku` depth across GUI / Gomocup / match scripts is uniformly `6`.
 
-如果没有安装 `pygame`，GUI 不会启动。
+If `pygame` isn't installed, the GUI won't start.
 
-## Gomocup 协议运行
+## Running the Gomocup protocol engine
 
-命令行协议入口：
+The CLI protocol entry is:
 
 ```bash
 python -m pygomoku.gomocup_engine
 ```
 
-指定固定搜索参数：
+With fixed search parameters:
 
 ```bash
 python -m pygomoku.gomocup_engine --depth 6 --width 20
 ```
 
-这一路径适合：
+This path is suitable for:
 
-- 接入 Gomocup 协议环境
-- 与其他 AI 做协议对战
-- 被对战脚本作为引擎进程拉起
+- Plugging into a Gomocup-protocol environment
+- Protocol-level matches against other AIs
+- Being launched as an engine subprocess by match scripts
 
-## 测试
+## Tests
 
-### 推荐做法
+### Recommended
 
-仓库测试已经按用途做了分组，推荐优先使用并行运行。
+The tests are grouped by purpose; parallel runs are preferred.
 
-全量回归：
+Full regression:
 
 ```bash
 python -m pytest -n auto -q
 ```
 
-### 测试分组
+### Test groups
 
-快速测试：
+Fast tests:
 
 ```bash
 python -m pytest -m fast -q
 ```
 
-搜索 / 评估 / 战术相关测试：
+Search / evaluation / tactical tests:
 
 ```bash
 python -m pytest -m alignment -n auto -q
 ```
 
-协议 / GUI / 集成测试：
+Protocol / GUI / integration tests:
 
 ```bash
 python -m pytest -m integration -n auto -q
 ```
 
-### 基础 smoke 建议
+### Basic smoke
 
-如果你只是想快速确认主线没有坏：
+If you just want a quick check that mainline isn't broken:
 
 ```bash
 python -m pytest tests/test_config.py tests/test_search.py tests/test_protocol.py -n auto -q
 ```
 
-GUI 相关 smoke：
+GUI smoke:
 
 ```bash
 python -m pytest tests/test_gui.py -q
 ```
 
-## 与 `zhou` 的对战测试
+## Matches against `zhou`
 
-当前阶段一个非常重要的目标，是在对战中压过仓库内的 `zhou`。
+A very important goal at this stage is decisively beating the in-repo `zhou` in match play.
 
-对战脚本：
+Match script:
 
 ```bash
 python opponent/run_pygomoku_vs_zhou.py --help
 ```
 
-### 快速跑一组固定开局
+### Quick fixed-opening match
 
 ```bash
 python opponent/run_pygomoku_vs_zhou.py \
@@ -347,10 +342,9 @@ python opponent/run_pygomoku_vs_zhou.py \
   --colors both
 ```
 
-这里的 `pygomoku-direct` 表示直接在进程内调用 Python 引擎入口，适合做本地快速验证。
-这条路径已经做过最小实测。
+`pygomoku-direct` calls the Python engine entry point in-process, which is convenient for fast local validation. This path has been minimally exercised end-to-end.
 
-### 使用 Gomocup 协议入口对战
+### Using the Gomocup protocol entry for matches
 
 ```bash
 python opponent/run_pygomoku_vs_zhou.py \
@@ -363,10 +357,9 @@ python opponent/run_pygomoku_vs_zhou.py \
   --colors both
 ```
 
-这里的 `pygomoku` 表示通过 `python -m pygomoku.gomocup_engine` 拉起标准
-Gomocup 协议引擎进程，更接近外部对战环境，但 Gomocup 协议链路目前还没有专门优化，所以速度会稍慢。这条路径也已经做过最小实测。
+`pygomoku` here means launching a standard Gomocup-protocol engine process via `python -m pygomoku.gomocup_engine`. It is closer to an external match environment, but the Gomocup-protocol path has not been specifically optimised yet, so it is somewhat slower. This path has also been minimally exercised end-to-end.
 
-### 扩大到 9 个固定开局
+### Expanding to 9 fixed openings
 
 ```bash
 python opponent/run_pygomoku_vs_zhou.py \
@@ -379,14 +372,13 @@ python opponent/run_pygomoku_vs_zhou.py \
   --colors both
 ```
 
-### 固定开局集合说明
+### Fixed-opening sets
 
-对战脚本使用的是首手固定开局，坐标采用 `(x, y)`，范围是 `0..14`。
-也就是说 `(7, 7)` 是天元。
+The match script uses fixed first moves, in `(x, y)` coordinates in the range `0..14`. That is, `(7, 7)` is tengen.
 
-再次强调：这里的 `(x, y)` 是“列, 行”，不是 `zhou` 那边常见的“行, 列”。
+To reiterate: `(x, y)` here means "column, row", not the "row, column" convention that `zhou` tends to use internally.
 
-`--opening-set 5` 包含这 5 个首手：
+`--opening-set 5` covers these 5 first moves:
 
 - `(7, 7)`
 - `(4, 4)`
@@ -394,7 +386,7 @@ python opponent/run_pygomoku_vs_zhou.py \
 - `(10, 4)`
 - `(10, 10)`
 
-`--opening-set 9` 在上面 5 个基础上，再加 4 个更靠边角的位置：
+`--opening-set 9` adds 4 more corner-leaning positions on top of the 5 above:
 
 - `(2, 2)`
 - `(2, 12)`
@@ -406,35 +398,35 @@ python opponent/run_pygomoku_vs_zhou.py \
 - `(10, 10)`
 - `(7, 7)`
 
-如果再配合 `--colors both`，那么每个固定开局都会分别测试 `pygomoku` 执黑和执白两种情况。
+Combined with `--colors both`, each fixed opening is tested with `pygomoku` playing both black and white.
 
-### 输出结果
+### Output
 
-脚本默认会把黑白两边结果分别写到 `opponent/` 目录下的 JSON 文件，方便后续比较与分析。
+By default the script writes the black and white results to separate JSON files under `opponent/`, for later comparison and analysis.
 
-### 常用参数说明
+### Common arguments
 
-- `--engine-type`：选择 `pygomoku-direct` 或 `pygomoku`。前者直接调用 Python 引擎入口，后者通过 `python -m pygomoku.gomocup_engine` 拉起 Gomocup 协议进程。
-- `--opening-set`：选择固定开局集合，目前支持 `5` 和 `9`。
-- `--pygomoku-depth`：`pygomoku` 的搜索深度，默认6。
-- `--pygomoku-width`：`pygomoku` 根节点候选宽度，默认20，通常越大搜索越多，但也越慢。
-- `--zhou-depth`：`zhou` 的搜索深度，默认5。
-- `--parallel`：并行对局进程数，决定批量测试速度，也会显著影响机器负载。
-- `--colors`：选择只测 `black`、只测 `white`，或者 `both`。
-- `--limit-openings`：只取前几个固定开局，适合快速 smoke。
-- `--max-moves`：单局最大手数，默认120，用来避免极端情况下对局拖太久。
-- `--output-black` / `--output-white`：分别指定黑方测试和白方测试的结果 JSON 输出路径。
+- `--engine-type`: pick `pygomoku-direct` or `pygomoku`. The former calls the Python engine entry directly; the latter launches a Gomocup-protocol process via `python -m pygomoku.gomocup_engine`.
+- `--opening-set`: pick a fixed-opening set; currently `5` and `9` are supported.
+- `--pygomoku-depth`: `pygomoku`'s search depth, default 6.
+- `--pygomoku-width`: `pygomoku` root candidate width, default 20. Larger usually means more search but slower.
+- `--zhou-depth`: `zhou`'s search depth, default 5.
+- `--parallel`: number of parallel match processes. Controls batch throughput and machine load.
+- `--colors`: choose `black`, `white`, or `both`.
+- `--limit-openings`: take only the first N fixed openings — useful for quick smoke runs.
+- `--max-moves`: per-game move cap, default 120, to avoid pathological games dragging on forever.
+- `--output-black` / `--output-white`: explicit JSON output paths for the black-side and white-side results.
 
-## 性能与调试
+## Performance and debugging
 
-仓库自带一些性能与冒烟脚本：
+The repository ships a handful of performance and smoke scripts:
 
 - `benchmarks/profile_search.py`
 - `benchmarks/hotspot_report.py`
 - `benchmarks/selfplay_smoke.py`
 - `benchmarks/cache_audit.py`
 
-例如：
+For example:
 
 ```bash
 python benchmarks/profile_search.py --depth 2 --width 12 --top 25
@@ -442,24 +434,22 @@ python benchmarks/hotspot_report.py --top 20
 python benchmarks/selfplay_smoke.py
 ```
 
-如果你还没有执行 `pip install -e .`，那么像 `profile_search.py` 这种直接从
-子目录启动的脚本，可能需要这样运行：
+If you haven't run `pip install -e .` yet, scripts launched directly from a subdirectory (like `profile_search.py`) may need to be run as:
 
 ```bash
 PYTHONPATH=. python benchmarks/profile_search.py --depth 2 --width 12 --top 25
 ```
 
-## 开发建议
+## Development notes
 
-- 优先把当前主线引擎当成唯一语义主线，仓库内部仍沿用 `classic` 这个名字。
-- 性能优化前先保证语义稳定。
-- 改热点时尽量保留 Python fallback。
-- 不要把“感觉更强”当成充分证据，尽量让修改有测试、基准或实战结果支撑。
-- 运行广泛测试时优先用并行：`python -m pytest -n auto -q`
+- Treat the current mainline engine as the single source of semantic truth — internally it is still called `classic`.
+- Stabilise semantics before optimising performance.
+- When changing hot paths, keep the Python fallback intact whenever possible.
+- "Feels stronger" is not sufficient evidence — back changes with tests, benchmarks, or match results.
+- For broad test runs, prefer parallel: `python -m pytest -n auto -q`.
 
-## 致谢
+## Acknowledgements
 
-感谢 GitHub 上的 [SlowRenju](https://github.com/wind23/SlowRenju) 项目。
+Thanks to the [SlowRenju](https://github.com/wind23/SlowRenju) project on GitHub.
 
-虽然本项目当前已经收敛为自己的 Python 主线引擎，但它仍然可以理解为一个以 `SlowRenju` 为核心参考、面向 Python/Cython 的自由规则五子棋引擎重实现。
-这个仓库的很多关键概念，并不是凭空设计出来的，而是在吸收和消化这些成熟经验之后逐步落地的。仓库内部仍沿用 `classic` 这个名字来指代这条主线。
+Although this project has by now converged onto its own Python mainline engine, it can still be understood as a `SlowRenju`-inspired, Python/Cython-oriented reimplementation of a free-rule Gomoku engine. Many of the key concepts in this repository were not designed from scratch — they were absorbed and digested from that mature prior work before being landed here. Internally this mainline is still referred to as `classic`.
