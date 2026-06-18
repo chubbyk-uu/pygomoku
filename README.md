@@ -201,7 +201,9 @@ python setup.py build_ext --inplace
 If you intend to run matches, it is strongly recommended to also build `zhou`'s Cython extensions:
 
 ```bash
-python opponent/zhou/setup.py build_ext --inplace
+cd opponent/zhou
+python setup.py build_ext --inplace
+cd ../..
 ```
 
 ### macOS
@@ -222,7 +224,9 @@ python setup.py build_ext --inplace
 And build `zhou` as well:
 
 ```bash
-python opponent/zhou/setup.py build_ext --inplace
+cd opponent/zhou
+python setup.py build_ext --inplace
+cd ../..
 ```
 
 ### Notes on the build

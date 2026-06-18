@@ -204,7 +204,9 @@ python setup.py build_ext --inplace
 如果要跑对战，强烈建议把 `zhou` 的 Cython 扩展也编译出来，执行：
 
 ```bash
-python opponent/zhou/setup.py build_ext --inplace
+cd opponent/zhou
+python setup.py build_ext --inplace
+cd ../..
 ```
 
 ### macOS
@@ -225,7 +227,9 @@ python setup.py build_ext --inplace
 同时编译 `zhou`：
 
 ```bash
-python opponent/zhou/setup.py build_ext --inplace
+cd opponent/zhou
+python setup.py build_ext --inplace
+cd ../..
 ```
 
 ### 编译说明
