@@ -758,3 +758,39 @@ def test_alphabeta_matches_expected_mid_ladder_nonroot_score() -> None:
     )
     assert move_to_xy(move) == (12, 12)
     assert score == -43
+
+
+# Forced-move regression: with tactical search (VCF/VCT) disabled, the root must
+# still return the actual winning forcing move, not the first one in scan order.
+# Selecting candidates[0] under preserve_scan_order=True (the root) used to pick a
+# blunder here; only surfaces without VCF/VCT since they would otherwise find the
+# win. Mirrors the Rust regression in src/search/root.rs.
+_WIN_PRIORITY_BLUNDER_MOVES = [
+    (7, 7), (6, 8), (7, 8), (7, 6), (6, 7), (8, 7),
+    (8, 8), (5, 6), (8, 9), (9, 8), (10, 9), (9, 10),
+    (7, 9), (9, 9), (9, 7), (6, 10), (7, 10), (7, 11),
+    (8, 10), (6, 6), (8, 6), (5, 7), (6, 5), (5, 9),
+    (4, 8), (3, 2), (5, 8), (9, 11), (9, 12), (6, 11),
+    (6, 12),
+]
+
+
+def test_root_win_priority_selects_winning_move_without_tactics() -> None:
+    from pygomoku.constants import WIN
+
+    config = load_default_config()
+    config = replace(
+        config,
+        runtime=replace(config.runtime, compute_vcf=False, compute_vct=False),
+    )
+
+    for move_count, expected in [(25, (5, 8)), (31, (8, 11))]:
+        board = Board()
+        for x, y in _WIN_PRIORITY_BLUNDER_MOVES[:move_count]:
+            board.play(xy_to_move(x, y))
+        searcher = RootSearcher(config)
+        result = searcher.search(board, SearchLimits(max_depth=4, root_width=20))
+        assert move_to_xy(result.move) == expected, (
+            f"wrong win-priority move after {move_count} moves"
+        )
+        assert result.score >= WIN
