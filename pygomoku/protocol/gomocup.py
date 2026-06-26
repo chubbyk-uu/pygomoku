@@ -233,6 +233,20 @@ class GomocupProtocol:
             runtime = replace(self.config.runtime, compute_vcf=bool(parsed))
             self.config = replace(self.config, runtime=runtime)
             self._searcher = None
+        elif key == "compute_vct":
+            parsed = self._parse_one(value, int)
+            if parsed is None:
+                return
+            runtime = replace(self.config.runtime, compute_vct=bool(parsed))
+            self.config = replace(self.config, runtime=runtime)
+            self._searcher = None
+        elif key == "root_vct_depth":
+            parsed = self._parse_one(value, int)
+            if parsed is None:
+                return
+            runtime = replace(self.config.runtime, root_vct_depth=max(0, parsed))
+            self.config = replace(self.config, runtime=runtime)
+            self._searcher = None
         elif key == "static":
             parsed = self._parse_one(value, int)
             if parsed is None:

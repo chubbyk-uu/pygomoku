@@ -128,6 +128,20 @@ class CandidateGenerationResult:
     win_priority: bool
 
 
+def _best_forcing_candidate(candidates: list[Candidate]) -> Candidate:
+    """Pick the strongest forcing candidate (highest ``order_score``, lowest
+    ``move`` on ties), independent of scan order.
+
+    Returning ``candidates[0]`` here was a bug: at the root
+    (``preserve_scan_order=True``) the list is unsorted, so the first scan-order
+    forcing move was returned instead of the actual best/winning move. It only
+    surfaces with tactical search (VCF/VCT) disabled, since VCF/VCT would
+    otherwise find the win regardless. This matches the order obtained when the
+    list is presorted by ``(-order_score, move)``.
+    """
+    return min(candidates, key=lambda candidate: (-candidate.order_score, candidate.move))
+
+
 def covered_moves(board: Board) -> tuple[int, ...]:
     if board.move_count == 0:
         return (xy_to_move(BOARD_SIZE // 2, BOARD_SIZE // 2),)
@@ -255,7 +269,11 @@ def generate_candidates(
     if not preserve_scan_order:
         candidates.sort(key=lambda candidate: (-candidate.order_score, candidate.move))
     if winpri and candidates:
-        return CandidateGenerationResult((candidates[0],), False, bool(hsflag), True)
+        return CandidateGenerationResult(
+            (_best_forcing_candidate(candidates),), False, bool(hsflag), True
+        )
     if sglflag and candidates:
-        return CandidateGenerationResult((candidates[0],), True, bool(hsflag), winpri)
+        return CandidateGenerationResult(
+            (_best_forcing_candidate(candidates),), True, bool(hsflag), winpri
+        )
     return CandidateGenerationResult(tuple(candidates), False, bool(hsflag), winpri)

@@ -32,6 +32,8 @@ class RuntimeOptions:
     nonroot_vcf: bool
     static_board: bool
     dynamic_board_margin: int
+    compute_vct: bool = True
+    root_vct_depth: int = 4
 
 
 @dataclass(frozen=True)

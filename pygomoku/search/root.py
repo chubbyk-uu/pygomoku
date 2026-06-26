@@ -14,7 +14,9 @@ from pygomoku.search.alphabeta import AlphaBetaSearcher, SearchStats
 from pygomoku.search.movegen import generate_candidates
 from pygomoku.search.ordering import order_candidates
 from pygomoku.search.tt import TranspositionTable
+from pygomoku.threats.threat_board import forcing_threat_moves, has_vct_trigger
 from pygomoku.threats.vcf import VCFSearcher
+from pygomoku.threats.vct import VCTSearcher, VCTResult
 
 _CLASSIC_RAND_SEED = 1232356
 _CLASSIC_FALLBACK_STATE = (
@@ -210,7 +212,29 @@ class RootSearcher:
         self.tt = tt or TranspositionTable()
         self.alphabeta = AlphaBetaSearcher(config, self.tt)
         self.vcf = VCFSearcher()
+        self.vct = VCTSearcher()
         self._fallback_rng = _new_classic_fallback_rng()
+        self.last_trace: dict[str, object] | None = None
+
+    def _verify_root_vct_move(self, board: Board, side: int, move: int) -> tuple[bool, str | None]:
+        """Sanity-check a VCT-suggested move before using it as the engine reply.
+
+        Returns (accepted, reject_reason).  We reject moves that hand the opponent
+        an immediate forcing reply (WIN5 or A4), preventing false-positive VCT wins.
+        """
+        if not board.is_legal_move(move):
+            return False, "illegal"
+        trial = board.copy()
+        trial.side_to_move = side
+        trial.play(move, side)
+        if trial.winner == side:
+            return True, None
+        opp_forcing = forcing_threat_moves(trial, -side)
+        if opp_forcing:
+            return False, "opponent_forcing"
+        if self.config.runtime.compute_vcf and self.vcf.search(trial, -side, 4).found:
+            return False, "opponent_vcf"
+        return True, None
 
     def _root_allowed_moves(self, board: Board) -> set[int] | None:
         if self.config.runtime.static_board or board.move_count == 0:
@@ -295,10 +319,47 @@ class RootSearcher:
             return SearchResult(move=center, score=0, depth=0, nodes=0)
 
         side = board.side_to_move
+        trace: dict[str, object] = {
+            "used_vcf": False,
+            "vcf_found": False,
+            "used_vct": False,
+            "vct_triggered": False,
+            "vct_found": False,
+            "vct_move": None,
+            "vct_accepted": False,
+            "vct_reject_reason": None,
+            "vct_ms": None,
+            "tactical_path": "alphabeta",
+        }
+        self.last_trace = trace
+
         if self.config.runtime.compute_vcf:
+            trace["used_vcf"] = True
             vcf_result = self.vcf.search(board, side, 8)
             if vcf_result.found:
+                trace["vcf_found"] = True
+                trace["tactical_path"] = "vcf"
                 return SearchResult(move=vcf_result.move, score=INF, depth=0, nodes=0)
+
+        if self.config.runtime.compute_vct and self.config.runtime.root_vct_depth > 0:
+            trace["used_vct"] = True
+            # Trigger: attacker has B4+ (directly forcing) or dual-A3 (combination
+            # threat).  This avoids running the VCT tree on purely quiet positions.
+            if has_vct_trigger(board, side):
+                import time as _time
+                trace["vct_triggered"] = True
+                _t0 = _time.perf_counter()
+                vct_result = self.vct.search(board, side, self.config.runtime.root_vct_depth)
+                trace["vct_ms"] = round((_time.perf_counter() - _t0) * 1000.0, 3)
+                trace["vct_found"] = vct_result.found
+                trace["vct_move"] = vct_result.move
+                if vct_result.found:
+                    accepted, reason = self._verify_root_vct_move(board, side, vct_result.move)
+                    trace["vct_accepted"] = accepted
+                    trace["vct_reject_reason"] = reason
+                    if accepted:
+                        trace["tactical_path"] = "vct"
+                        return SearchResult(move=vct_result.move, score=INF, depth=0, nodes=0)
 
         caches = EvalCaches()
         recompute_all(board, caches)

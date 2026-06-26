@@ -10,6 +10,12 @@ from pygomoku.zobrist import DEFAULT_ZOBRIST, ZobristTable
 
 _DIRECTIONS: tuple[tuple[int, int], ...] = ((1, 0), (0, 1), (1, 1), (1, -1))
 
+_check_win_native = None
+try:
+    from pygomoku.threats._threat_board_cy import check_win_raw as _check_win_native
+except ImportError:
+    pass
+
 
 def xy_to_move(x: int, y: int) -> Move:
     """Convert 0-based board coordinates to a flat move index."""
@@ -130,6 +136,8 @@ class Board:
         return tuple(played.move for played in self.move_history)
 
     def _is_winning_move(self, x: int, y: int, side: int) -> bool:
+        if _check_win_native is not None:
+            return _check_win_native(self.grid, x, y, side, self.size)
         return any(self._count_aligned(x, y, side, dx, dy) >= 5 for dx, dy in _DIRECTIONS)
 
     def _count_aligned(self, x: int, y: int, side: int, dx: int, dy: int) -> int:

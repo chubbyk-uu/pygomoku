@@ -102,6 +102,8 @@ class _GomocupEngine:
         width: int | None = None,
         timeout_turn_ms: int | None = None,
         time_left_ms: int | None = None,
+        compute_vct: bool | None = None,
+        root_vct_depth: int | None = None,
     ) -> None:
         self._command = command
         self._name = name
@@ -110,6 +112,8 @@ class _GomocupEngine:
         self._width = width
         self._timeout_turn_ms = timeout_turn_ms
         self._time_left_ms = time_left_ms
+        self._compute_vct = compute_vct
+        self._root_vct_depth = root_vct_depth
         self._proc: subprocess.Popen[str] | None = None
         self._known_move_count = 0
         self._initialized = False
@@ -184,6 +188,10 @@ class _GomocupEngine:
             self._send_line(f"INFO timeout_turn {self._timeout_turn_ms}")
         if self._time_left_ms is not None:
             self._send_line(f"INFO time_left {self._time_left_ms}")
+        if self._compute_vct is not None:
+            self._send_line(f"INFO compute_vct {1 if self._compute_vct else 0}")
+        if self._root_vct_depth is not None:
+            self._send_line(f"INFO root_vct_depth {self._root_vct_depth}")
 
     def _restart(self) -> None:
         self._send_line("RESTART")
@@ -248,6 +256,8 @@ class _GomocupEngine:
             "width": self._width,
             "timeout_turn_ms": self._timeout_turn_ms,
             "time_left_ms": self._time_left_ms,
+            "compute_vct": self._compute_vct,
+            "root_vct_depth": self._root_vct_depth,
             "transport": self._last_transport,
             "startup_ms": None if self._startup_ms is None else round(self._startup_ms, 3),
             "setup_ms": None if self._last_setup_ms is None else round(self._last_setup_ms, 3),
@@ -288,17 +298,31 @@ def _close_cached_gomocup_engines() -> None:
 atexit.register(_close_cached_gomocup_engines)
 
 
-def _get_gomocup_engine(*, command: str, name: str, color: str) -> _GomocupEngine:
-    key = (command, name, color)
+def _get_gomocup_engine(
+    *,
+    command: str,
+    name: str,
+    color: str,
+    compute_vct: bool | None,
+    root_vct_depth: int | None,
+) -> _GomocupEngine:
+    key = (command, name, color, str(compute_vct), str(root_vct_depth))
     engine = _GOMOCUP_ENGINE_CACHE.get(key)
     if engine is None:
-        engine = _GomocupEngine(command=command, name=name, color=color)
+        engine = _GomocupEngine(
+            command=command,
+            name=name,
+            color=color,
+            compute_vct=compute_vct,
+            root_vct_depth=root_vct_depth,
+        )
         _GOMOCUP_ENGINE_CACHE[key] = engine
     return engine
 
 
 class _PygomokuDirectEngine:
-    def __init__(self, *, depth: int, width: int, color: str, name: str) -> None:
+    def __init__(self, *, depth: int, width: int, color: str, name: str,
+                 compute_vct: bool = False, vct_depth: int = 4) -> None:
         _ensure_paths()
         from dataclasses import replace
 
@@ -306,7 +330,11 @@ class _PygomokuDirectEngine:
         from pygomoku.search.root import RootSearcher, SearchLimits
 
         base = load_default_config()
-        config = replace(base, root_search=replace(base.root_search, depth=depth, wide=width))
+        config = replace(
+            base,
+            root_search=replace(base.root_search, depth=depth, wide=width),
+            runtime=replace(base.runtime, compute_vct=compute_vct, root_vct_depth=vct_depth),
+        )
         self._searcher = RootSearcher(config)
         self._limits = SearchLimits(max_depth=depth, root_width=width)
         self._color = color
@@ -327,6 +355,7 @@ class _PygomokuDirectEngine:
             "engine": self._name,
             "color": self._color,
             "mode": "direct",
+            "root_trace": _json_ready(self._searcher.last_trace),
         }
         return move_to_xy(result.move) if result.move >= 0 else None
 
@@ -370,7 +399,10 @@ def _play_task(
     pygomoku_width: int,
     zhou_depth: int,
     max_moves: int,
+    compute_vct: bool = False,
+    vct_depth: int = 4,
 ) -> dict[str, Any]:
+    kwargs = {"compute_vct": compute_vct, "vct_depth": vct_depth}
     _ensure_paths()
     from pygomoku.board import Board as PygomokuBoard
     from pygomoku.board import xy_to_move
@@ -383,7 +415,13 @@ def _play_task(
     reuse_engine = False
     if engine_type == "pygomoku":
         command = f"{engine_command} --depth {pygomoku_depth} --width {pygomoku_width}"
-        engine_impl = _get_gomocup_engine(command=command, name=engine_name, color=task.engine_color)
+        engine_impl = _get_gomocup_engine(
+            command=command,
+            name=engine_name,
+            color=task.engine_color,
+            compute_vct=kwargs.get("compute_vct"),
+            root_vct_depth=kwargs.get("vct_depth"),
+        )
         reuse_engine = True
     elif engine_type == "pygomoku-direct":
         engine_impl = _PygomokuDirectEngine(
@@ -391,6 +429,8 @@ def _play_task(
             width=pygomoku_width,
             color=task.engine_color,
             name=engine_name,
+            compute_vct=kwargs.get("compute_vct", False),
+            vct_depth=kwargs.get("vct_depth", 4),
         )
     else:
         raise ValueError(f"unsupported engine_type: {engine_type}")
@@ -539,6 +579,8 @@ def _build_payload(
     pygomoku_width: int,
     zhou_depth: int,
     max_moves: int,
+    compute_vct: bool,
+    root_vct_depth: int,
     games: list[dict[str, Any]],
 ) -> dict[str, Any]:
     ordered_games = sorted(games, key=lambda item: item["opening_index"])
@@ -557,6 +599,8 @@ def _build_payload(
             "pygomoku_width": pygomoku_width,
             "zhou_depth": zhou_depth,
             "max_moves": max_moves,
+            "compute_vct": compute_vct,
+            "root_vct_depth": root_vct_depth,
         },
         "summary": {
             "wins_engine": wins_engine,
@@ -583,6 +627,8 @@ def main() -> None:
     parser.add_argument("--output-black", type=Path, default=None)
     parser.add_argument("--output-white", type=Path, default=None)
     parser.add_argument("--limit-openings", type=int, default=None)
+    parser.add_argument("--compute-vct", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--root-vct-depth", "--vct-depth", dest="root_vct_depth", type=int, default=4)
     args = parser.parse_args()
 
     openings = OPENING_SETS[args.opening_set]
@@ -617,6 +663,8 @@ def main() -> None:
                 pygomoku_width=args.pygomoku_width,
                 zhou_depth=args.zhou_depth,
                 max_moves=args.max_moves,
+                compute_vct=args.compute_vct,
+                vct_depth=args.root_vct_depth,
             ): task
             for task in tasks
         }
@@ -642,6 +690,8 @@ def main() -> None:
             pygomoku_width=args.pygomoku_width,
             zhou_depth=args.zhou_depth,
             max_moves=args.max_moves,
+            compute_vct=args.compute_vct,
+            root_vct_depth=args.root_vct_depth,
             games=results_by_color["BLACK"],
         )
         _write_json(output_black, payload_black)
@@ -658,6 +708,8 @@ def main() -> None:
             pygomoku_width=args.pygomoku_width,
             zhou_depth=args.zhou_depth,
             max_moves=args.max_moves,
+            compute_vct=args.compute_vct,
+            root_vct_depth=args.root_vct_depth,
             games=results_by_color["WHITE"],
         )
         _write_json(output_white, payload_white)

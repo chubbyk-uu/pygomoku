@@ -9,6 +9,7 @@ from pygomoku.board import Board, move_to_xy, xy_to_move
 from pygomoku.constants import BOARD_SIZE
 from pygomoku.patterns.line import Line
 from pygomoku.patterns.shapes import DIAGONAL_DOWN, DIAGONAL_UP, HORIZONTAL, VERTICAL
+from pygomoku.threats.types import AttackMove, ThreatLevel
 
 THREAT_DIRS: tuple[tuple[int, int], ...] = (
     (-2, -2), (-1, -1), (2, 2), (1, 1),
@@ -24,6 +25,10 @@ if _THREAT_BOARD_BACKEND_MODE != "python":
         from pygomoku.threats._threat_board_cy import broken_four_point_for_side_raw as _broken_four_point_for_side_native
         from pygomoku.threats._threat_board_cy import broken_four_reply_raw as _broken_four_reply_native
         from pygomoku.threats._threat_board_cy import threat_moves_grid as _threat_moves_native
+        from pygomoku.threats._threat_board_cy import b4_count_raw as _b4_count_native
+        from pygomoku.threats._threat_board_cy import has_a4_raw as _has_a4_native
+        from pygomoku.threats._threat_board_cy import a3_gain_squares_raw as _a3_gain_squares_native
+        from pygomoku.threats._threat_board_cy import a3r_count_raw as _a3r_count_native
     except ImportError:
         if _THREAT_BOARD_BACKEND_MODE == "cython":
             raise
@@ -31,11 +36,19 @@ if _THREAT_BOARD_BACKEND_MODE != "python":
         _broken_four_point_for_side_native = None
         _broken_four_reply_native = None
         _threat_moves_native = None
+        _b4_count_native = None
+        _has_a4_native = None
+        _a3_gain_squares_native = None
+        _a3r_count_native = None
 else:
     _build_views_native = None
     _broken_four_point_for_side_native = None
     _broken_four_reply_native = None
     _threat_moves_native = None
+    _b4_count_native = None
+    _has_a4_native = None
+    _a3_gain_squares_native = None
+    _a3r_count_native = None
 
 
 def _ga(value: int) -> int:
@@ -159,6 +172,8 @@ class ThreatBoardView:
         return tuple(candidates)
 
     def has_a4(self, x: int, y: int) -> bool:
+        if _has_a4_native is not None:
+            return _has_a4_native(self.x1, self.x2, self.x3, self.x4, x, y, self.board.size)
         l1, l2, l3, l4, p1, p2, p3, p4 = self._lines_for(x, y)
         return bool(l1.a4(p1) or l2.a4(p2) or l3.a4(p3) or l4.a4(p4))
 
@@ -190,6 +205,8 @@ class ThreatBoardView:
     def b4_count(self, x: int, y: int) -> int:
         if self.board.grid[y][x] == 0:
             return 0
+        if _b4_count_native is not None:
+            return _b4_count_native(self.x1, self.x2, self.x3, self.x4, x, y, self.board.size)
         l1, l2, l3, l4, p1, p2, p3, p4 = self._lines_for(x, y)
         return l1.b4(p1) + l2.b4(p2) + l3.b4(p3) + l4.b4(p4)
 
@@ -198,6 +215,8 @@ class ThreatBoardView:
         if point == 0:
             return 0
         side = point
+        if _a3r_count_native is not None:
+            return _a3r_count_native(self.x1, self.x2, self.x3, self.x4, x, y, self.board.size)
         l1, l2, l3, l4, p1, p2, p3, p4 = self._lines_for(x, y)
         count = 0
         line_specs = (
@@ -307,6 +326,85 @@ class ThreatBoardView:
             return None, False
         return first_reply, False
 
+    def a3_gain_squares(self, x: int, y: int) -> tuple[int, ...]:
+        """Gain squares for all A3 patterns of the stone currently at (x, y).
+
+        Gain squares are the empty cells where the attacker would extend the A3
+        to create an A4 (open four).  Call this after playing the stone.
+        """
+        if _a3_gain_squares_native is not None:
+            return _a3_gain_squares_native(self.x1, self.x2, self.x3, self.x4, x, y, self.board.size)
+        l1, l2, l3, l4, p1, p2, p3, p4 = self._lines_for(x, y)
+        size = self.board.size
+        line_specs = (
+            (l1, p1, lambda r: (x, r)),
+            (l2, p2, lambda r: (r, y)),
+            (l3, p3, lambda r: (x + y - r, r)),
+            (l4, p4, lambda r: (BOARD_SIZE - 1 + x - y - r, BOARD_SIZE - 1 - r)),
+        )
+        seen: set[int] = set()
+        gains: list[int] = []
+        for line, pi, decode in line_specs:
+            encoded = line.a3(pi)
+            if encoded <= 0:
+                continue
+            raws = [_ga(encoded)]
+            if encoded >= 65536:
+                raws.append(_gb(encoded))
+            for raw in raws:
+                gx, gy = decode(raw)
+                if 0 <= gx < size and 0 <= gy < size:
+                    m = xy_to_move(gx, gy)
+                    if m not in seen:
+                        seen.add(m)
+                        gains.append(m)
+        return tuple(gains)
+
+    def classify_attack_at(self, x: int, y: int, attacker: int, move: int) -> AttackMove | None:
+        """Classify the threat created by a stone just placed at (x, y).
+
+        Returns an AttackMove describing the strongest threat the stone creates,
+        or None if it creates no forcing threat (A3 or stronger).
+        """
+        if self.board.winner == attacker:
+            return AttackMove(move, ThreatLevel.WIN5, ())
+        if self.has_a4(x, y):
+            return AttackMove(move, ThreatLevel.A4, ())
+        # Use _broken_four_reply_with_ambiguity to detect double-B4 (ambiguous)
+        # which means the opponent cannot respond to both → treat as A4.
+        reply, ambiguous = self._broken_four_reply_with_ambiguity(x, y)
+        if ambiguous:
+            return AttackMove(move, ThreatLevel.A4, ())
+        if reply is not None:
+            if self.board.is_legal_move(reply):
+                return AttackMove(move, ThreatLevel.B4, (reply,))
+            # Reply square occupied: shouldn't happen in normal play; treat as A4.
+            return AttackMove(move, ThreatLevel.A4, ())
+        gains = self.a3_gain_squares(x, y)
+        legal = tuple(g for g in gains if self.board.is_legal_move(g))
+        if legal:
+            return AttackMove(move, ThreatLevel.A3, legal)
+        return None
+
+    def collect_attack_moves(self, attacker: int) -> tuple[AttackMove, ...]:
+        """Return all forcing attack moves for *attacker*, sorted strongest first.
+
+        Considers all candidate squares near existing stones (from threat_moves),
+        trial-plays each, and classifies the resulting threat.
+        """
+        attacks: list[AttackMove] = []
+        for move in self.threat_moves(attacker):
+            if not self.board.is_legal_move(move):
+                continue
+            self.play(move, attacker)
+            x, y = move_to_xy(move)
+            attack = self.classify_attack_at(x, y, attacker, move)
+            self.undo()
+            if attack is not None:
+                attacks.append(attack)
+        attacks.sort(key=lambda a: -a.level.value)
+        return tuple(attacks)
+
     def winning_threat_moves(self, side: int) -> tuple[int, ...]:
         wins: list[int] = []
         for move in self.threat_moves(side):
@@ -326,6 +424,35 @@ class ThreatBoardView:
                 forcing.append(move)
             self.undo()
         return tuple(forcing)
+
+
+def has_vct_trigger(board: Board, side: int) -> bool:
+    """Return True if *side* has a forcing threat worth exploring with VCT.
+
+    Fires on:
+      - Any move creating B4, A4, or WIN5 (direct forcing chain).
+      - Any move creating dual-A3 in two different directions simultaneously
+        (combination threat — neither alone is immediately forcing, but
+        the defender cannot address both at once).
+    """
+    view = ThreatBoardView.from_board(board)
+    for move in view.threat_moves(side):
+        if not board.is_legal_move(move):
+            continue
+        view.play(move, side)
+        x, y = move_to_xy(move)
+        # B4 / A4 / WIN5 — any directly forcing pattern
+        is_b4_plus = (
+            view.board.winner == side
+            or view.has_a4(x, y)
+            or view.b4_count(x, y) >= 1
+        )
+        # Dual-A3: the move creates open-three patterns in ≥ 2 directions
+        is_dual_a3 = not is_b4_plus and view.a3r_count(x, y) >= 2
+        view.undo()
+        if is_b4_plus or is_dual_a3:
+            return True
+    return False
 
 
 def threat_moves(board: Board, side: int) -> tuple[int, ...]:

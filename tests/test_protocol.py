@@ -128,6 +128,24 @@ def test_protocol_info_compute_vcf_updates_runtime() -> None:
     assert not proto.config.runtime.compute_vcf
 
 
+def test_protocol_info_compute_vct_updates_runtime() -> None:
+    proto = _proto()
+    proto.handle_line("INFO compute_vct 0")
+    assert not proto.config.runtime.compute_vct
+
+
+def test_protocol_info_root_vct_depth_updates_runtime() -> None:
+    proto = _proto()
+    proto.handle_line("INFO root_vct_depth 9")
+    assert proto.config.runtime.root_vct_depth == 9
+
+
+def test_protocol_info_root_vct_depth_negative_clamps_to_zero() -> None:
+    proto = _proto()
+    proto.handle_line("INFO root_vct_depth -3")
+    assert proto.config.runtime.root_vct_depth == 0
+
+
 def test_protocol_info_max_node_zero_means_unlimited() -> None:
     proto = _proto()
     proto.handle_line("INFO max_node 0")
@@ -153,11 +171,15 @@ def test_protocol_info_invalid_numeric_values_are_ignored() -> None:
     proto.handle_line("INFO time_left bar")
     proto.handle_line("INFO max_node baz")
     proto.handle_line("INFO compute_vcf qux")
+    proto.handle_line("INFO compute_vct nope")
+    proto.handle_line("INFO root_vct_depth nope")
     proto.handle_line("INFO static zed")
     assert proto.timeout_turn_ms == 500.0
     assert proto.time_left_ms is None
     assert proto.node_limit is None
     assert proto.config.runtime.compute_vcf is True
+    assert proto.config.runtime.compute_vct is True
+    assert proto.config.runtime.root_vct_depth == 4
     assert proto.config.runtime.static_board is True
 
 
