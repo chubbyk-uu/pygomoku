@@ -41,7 +41,7 @@ class _MemoEntry:
 
 class VCTSearcher:
     def __init__(self) -> None:
-        self._memo: dict[tuple[int, int, int, int], _MemoEntry] = {}
+        self._memo: dict[tuple[int, int, int, int, int], _MemoEntry] = {}
 
     def search(self, board: Board, side: int, depth: int) -> VCTResult:
         """Search for a VCT win for *side* up to *depth* rounds."""
@@ -62,19 +62,23 @@ class VCTSearcher:
     # Memoization helpers
     # ------------------------------------------------------------------
 
-    def _memo_lookup(self, node: int, attacker: int, depth: int, key: int) -> VCTResult | None:
-        entry = self._memo.get((node, attacker, depth, key))
+    def _memo_lookup(
+        self, node: int, attacker: int, depth: int, key: int, context: int = 0
+    ) -> VCTResult | None:
+        entry = self._memo.get((node, attacker, depth, key, context))
         if entry is not None:
             return entry.result
         # A shallower "found" win is still valid at a greater depth.
         for d in range(1, depth):
-            entry = self._memo.get((node, attacker, d, key))
+            entry = self._memo.get((node, attacker, d, key, context))
             if entry is not None and entry.result.found:
                 return entry.result
         return None
 
-    def _store(self, node: int, attacker: int, depth: int, key: int, result: VCTResult) -> VCTResult:
-        self._memo[(node, attacker, depth, key)] = _MemoEntry(depth=depth, result=result)
+    def _store(
+        self, node: int, attacker: int, depth: int, key: int, result: VCTResult, context: int = 0
+    ) -> VCTResult:
+        self._memo[(node, attacker, depth, key, context)] = _MemoEntry(depth=depth, result=result)
         return result
 
     # ------------------------------------------------------------------
@@ -101,14 +105,18 @@ class VCTSearcher:
 
         solved = True
         for attack in attacks:
-            # WIN5 and A4 are immediate wins — no need to enter the AND-node.
-            if attack.level >= ThreatLevel.A4:
+            # WIN5 always wins on the spot. An open/double four (A4) only wins
+            # immediately if the defender cannot answer with a five of their own
+            # (the defender moves next, so a four they already hold that this
+            # move does not block completes first). Otherwise it must go through
+            # the AND-node so the counter-five gets a chance to refute.
+            if attack.level >= ThreatLevel.A4 and self._a4_wins_immediately(view, attacker, attack):
                 return self._store(_OR_NODE, attacker, depth, key,
                                    VCTResult(attack.move, True, True))
 
             view.play(attack.move, attacker)
             defenses = self._collect_defenses(view, attack, attacker)
-            and_result = self._and_node(view, attacker, depth, defenses)
+            and_result = self._and_node(view, attacker, depth, defenses, attack.level)
             view.undo()
 
             if and_result.found:
@@ -120,6 +128,24 @@ class VCTSearcher:
         return self._store(_OR_NODE, attacker, depth, key,
                            VCTResult(NO_MOVE, False, solved))
 
+    def _a4_wins_immediately(
+        self, view: ThreatBoardView, attacker: int, attack: AttackMove
+    ) -> bool:
+        """Whether an A4-or-higher attack wins on the spot.
+
+        WIN5 always does. An open/double four wins immediately only if the
+        defender has no five of their own to reply with: the defender moves
+        next, so any four they already hold (that this attack does not block)
+        completes first. Attacker moves never create defender fours, so this
+        also covers the "defender had no four" case.
+        """
+        if attack.level >= ThreatLevel.WIN5:
+            return True
+        view.play(attack.move, attacker)
+        defender_five = view.broken_four_point_for_side(-attacker)[0]
+        view.undo()
+        return defender_five is None
+
     # ------------------------------------------------------------------
     # AND-node: defender's turn
     # ------------------------------------------------------------------
@@ -130,14 +156,20 @@ class VCTSearcher:
         attacker: int,
         depth: int,
         defenses: tuple[int, ...],
+        attack_level: int,
     ) -> VCTResult:
-        """All candidate defenses must fail for the attacker to win."""
+        """All candidate defenses must fail for the attacker to win.
+
+        `attack_level` is the level of the attacker move that led here; the
+        result depends on it (see the refutation gate below), so it is folded
+        into the memo key as *context* to keep transposing attacks separate.
+        """
         if not defenses:
             # Attacker's threat has no valid defense.
             return VCTResult(NO_MOVE, True, True)
 
         key = view.board.zobrist_key
-        cached = self._memo_lookup(_AND_NODE, attacker, depth, key)
+        cached = self._memo_lookup(_AND_NODE, attacker, depth, key, attack_level)
         if cached is not None:
             return cached
 
@@ -149,11 +181,15 @@ class VCTSearcher:
             view.play(d_move, -attacker)
             dx, dy = move_to_xy(d_move)
 
-            # Defender wins immediately via WIN5 or A4.
-            if view.board.winner == -attacker or view.has_a4(dx, dy):
+            # A defender five refutes any threat. A defender open four only
+            # refutes an open-three attack: against a four (B4) the attacker
+            # completes five first, so that reply is searched like any other.
+            if view.board.winner == -attacker or (
+                attack_level < ThreatLevel.B4 and view.has_a4(dx, dy)
+            ):
                 view.undo()
                 return self._store(_AND_NODE, attacker, depth, key,
-                                   VCTResult(NO_MOVE, False, True))
+                                   VCTResult(NO_MOVE, False, True), attack_level)
 
             or_result = self._or_node(view, attacker, depth - 1)
             view.undo()
@@ -161,13 +197,13 @@ class VCTSearcher:
             if not or_result.found:
                 # This defense survives → attacker cannot force a win here.
                 return self._store(_AND_NODE, attacker, depth, key,
-                                   VCTResult(NO_MOVE, False, or_result.solved))
+                                   VCTResult(NO_MOVE, False, or_result.solved), attack_level)
             if not or_result.solved:
                 solved = False
 
         # Every defense failed → attacker wins regardless.
         return self._store(_AND_NODE, attacker, depth, key,
-                           VCTResult(NO_MOVE, True, solved))
+                           VCTResult(NO_MOVE, True, solved), attack_level)
 
     # ------------------------------------------------------------------
     # Defense candidate generation

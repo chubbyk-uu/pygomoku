@@ -37,6 +37,17 @@ def _make_board(*moves: tuple[int, int, int]) -> Board:
     return board
 
 
+def _board_from_stones(stones: list[tuple[int, int, int]], side_to_move: int = 1) -> Board:
+    """Place arbitrary stones directly for tactical fixtures that are not
+    naturally alternating (clustered same-colour groups). No winner/zobrist is
+    derived, which is fine for VCT search on non-terminal positions."""
+    board = Board()
+    for x, y, side in stones:
+        board.grid[y][x] = side
+    board.side_to_move = side_to_move
+    return board
+
+
 def _root(vct_depth: int = 4, vct_on: bool = True) -> RootSearcher:
     config = load_default_config()
     config = replace(
@@ -281,6 +292,32 @@ class TestVCTSearcher:
         r2 = searcher.search(board, 1, 4)   # second call reuses same searcher
         assert r1.found == r2.found
         assert r1.move == r2.move
+
+    def test_open_four_not_instant_win_when_defender_has_five(self):
+        # Black open three (6,7)(7,7)(8,7); white already holds an open four
+        # (1,1)-(4,4). Extending to an open four is NOT an instant VCT win —
+        # the defender moves next and completes five first — so the OR-node
+        # must not shortcut an A4 attack to a win here.
+        board = _board_from_stones([
+            (6, 7, 1), (7, 7, 1), (8, 7, 1),
+            (1, 1, -1), (2, 2, -1), (3, 3, -1), (4, 4, -1),
+        ])
+        r = VCTSearcher().search(board, 1, 4)
+        assert r.found is False
+
+    def test_four_attack_not_refuted_by_defender_counter_open_four(self):
+        # Black plays (8,7): a forcing four (5,6,7,8 on row 7, blocked left by
+        # white (4,7)) plus a column three (8,5)(8,6)(8,7). White's only counter
+        # is an open four on the (1,1)-(3,3) diagonal, but a defender open four
+        # cannot refute a B4 attack (the four completes five first), so the
+        # four -> open-four chain is a real VCT win at (8,7).
+        board = _board_from_stones([
+            (5, 7, 1), (6, 7, 1), (7, 7, 1), (8, 5, 1), (8, 6, 1),
+            (4, 7, -1), (1, 1, -1), (2, 2, -1), (3, 3, -1),
+        ])
+        r = VCTSearcher().search(board, 1, 4)
+        assert r.found is True
+        assert move_to_xy(r.move) == (8, 7)
 
 
 # ---------------------------------------------------------------------------
