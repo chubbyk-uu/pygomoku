@@ -291,7 +291,7 @@ class Line:
                     return _comc(1, i - 1, i + 4)
                 return _comb(1, i + 4)
             if shape == 0x1D:
-                if i <= BOARD_SIZE - 7 and self.cells[i + 5] == x0 and self.cells[i + 6] == x0 and self.cells[i + 7] == x0:
+                if i <= BOARD_SIZE - 7 and self.cells[i + 5] == EMPTY and self.cells[i + 6] == x0 and self.cells[i + 7] == x0 and self.cells[i + 8] == x0:
                     if p == i + 4 and self.cells[i + 3] == EMPTY:
                         return _comc(1, i + 3, i + 5)
                 if self.cells[i + 3] == EMPTY:

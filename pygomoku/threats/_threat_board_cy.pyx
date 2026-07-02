@@ -66,7 +66,7 @@ cdef inline int _b4p_row(object row, int point_index, int size):
                 return _comc(1, i - 1, i + 4)
             return _comb(1, i + 4)
         if shape == 0x1D:
-            if i <= size - 7 and _padded_get(row, i + 5, size) == x0 and _padded_get(row, i + 6, size) == x0 and _padded_get(row, i + 7, size) == x0:
+            if i <= size - 7 and _padded_get(row, i + 5, size) == _EMPTY and _padded_get(row, i + 6, size) == x0 and _padded_get(row, i + 7, size) == x0 and _padded_get(row, i + 8, size) == x0:
                 if p == i + 4 and _padded_get(row, i + 3, size) == _EMPTY:
                     return _comc(1, i + 3, i + 5)
             if _padded_get(row, i + 3, size) == _EMPTY:

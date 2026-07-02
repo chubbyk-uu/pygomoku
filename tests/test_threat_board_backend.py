@@ -8,6 +8,9 @@ import textwrap
 
 import pytest
 
+from pygomoku.board import Board, move_to_xy
+from pygomoku.threats.threat_board import ThreatBoardView
+
 
 _BACKEND_PROBE = r"""
 import json
@@ -83,3 +86,35 @@ def test_threat_board_a3r_count_backends_match_a5test_adjustment() -> None:
         "is_double3r": False,
         "has_vct_trigger": True,
     }
+
+
+def _black_view(points):
+    board = Board()
+    for x, y in points:
+        board.grid[y][x] = 1
+    return ThreatBoardView.from_board(board.copy())
+
+
+def test_b4p_jump_four_does_not_report_spurious_second_five() -> None:
+    # Row 7 = X X X _ X _ X X (black 3,4,5,7,9,10; 6,8,11 empty). Anchor (7,7)
+    # sits between the two gaps. Only (6,7) completes a five; playing (8,7)
+    # leaves 7,8,9,10 — four, not five — because col 11 is empty. The b4p 0x1D
+    # jump-four branch must not treat this as a two-point (ambiguous) threat.
+    view = _black_view([(3, 7), (4, 7), (5, 7), (7, 7), (9, 7), (10, 7)])
+    reply, ambiguous = view.broken_four_point_for_side(1)
+    assert ambiguous is False
+    rep = view.broken_four_reply(7, 7)
+    assert rep is not None
+    rx, ry = move_to_xy(rep)
+    assert (rx, ry) == (6, 7)
+    played = _black_view([(3, 7), (4, 7), (5, 7), (7, 7), (9, 7), (10, 7)])
+    played.play(rep, 1)
+    assert played.has_a5(rx, ry)  # the reported reply really completes five
+
+
+def test_b4p_real_jump_four_reports_both_five_points() -> None:
+    # Adding col 11 makes a real jump four X X X _ X _ X X X: both (6,7) and
+    # (8,7) complete a five, so the threat is genuinely ambiguous (two points).
+    view = _black_view([(3, 7), (4, 7), (5, 7), (7, 7), (9, 7), (10, 7), (11, 7)])
+    _, ambiguous = view.broken_four_point_for_side(1)
+    assert ambiguous is True
