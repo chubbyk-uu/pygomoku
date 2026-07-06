@@ -170,12 +170,11 @@ pip install -e .
 pip install -e ".[gui]"
 ```
 
-如果你要做开发和测试，建议至少安装：
+如果你要做开发和测试（`.[test]` = pytest + pytest-xdist，`.[gui]` = pygame）：
 
 ```bash
-pip install -U pip setuptools wheel
-pip install cython pytest pytest-xdist pygame
-pip install -e ".[gui]"
+pip install -U pip setuptools wheel cython
+pip install -e ".[gui,test]"
 ```
 
 完成上述安装后，README 里的大多数命令都可以直接运行，不需要额外加
@@ -286,7 +285,7 @@ python -m pygomoku.gomocup_engine --depth 6 --width 20
 
 ### 推荐做法
 
-仓库测试已经按用途做了分组，推荐优先使用并行运行。
+仓库测试已经按用途做了分组，并行是默认行为：`pyproject.toml` 里设了 `addopts = ["-n", "auto"]`，因此直接 `python -m pytest` 就会并行，需要 `pytest-xdist`（含在 `.[test]` extra 中）。想串行调试时加 `-n0`。
 
 全量回归：
 

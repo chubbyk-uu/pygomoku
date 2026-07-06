@@ -169,12 +169,11 @@ If you need the GUI:
 pip install -e ".[gui]"
 ```
 
-For development and testing, install at least:
+For development and testing (`.[test]` = pytest + pytest-xdist, `.[gui]` = pygame):
 
 ```bash
-pip install -U pip setuptools wheel
-pip install cython pytest pytest-xdist pygame
-pip install -e ".[gui]"
+pip install -U pip setuptools wheel cython
+pip install -e ".[gui,test]"
 ```
 
 After the steps above, most commands in this README can be run directly without prefixing `PYTHONPATH=.`.
@@ -295,7 +294,7 @@ The Gomocup protocol layer also supports these runtime controls:
 
 ### Recommended
 
-The tests are grouped by purpose; parallel runs are preferred.
+The tests are grouped by purpose. Parallel runs are the default: `pyproject.toml` sets `addopts = ["-n", "auto"]`, so plain `python -m pytest` already runs in parallel and requires `pytest-xdist` (in the `.[test]` extra). To debug serially, pass `-n0`.
 
 Full regression:
 

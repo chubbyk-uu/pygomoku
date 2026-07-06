@@ -39,11 +39,11 @@ python -m pip install -e .
 python -m pip install -e ".[gui]"
 ```
 
-开发常用依赖：
+开发常用依赖（`.[test]` = pytest + pytest-xdist，`.[gui]` = pygame）：
 
 ```bash
-python -m pip install cython pytest pytest-xdist pygame
-python -m pip install -e ".[gui]"
+python -m pip install -U cython
+python -m pip install -e ".[gui,test]"
 ```
 
 ## 开发命令
@@ -130,7 +130,7 @@ python -m pytest tests/test_vcf.py -q
 python -m pytest tests/test_protocol.py -q
 ```
 
-⚠️ **警告**：如果本地未安装 `pytest-xdist`，把命令里的 `-n auto` 去掉。
+> 测试已在 `pyproject.toml` 中默认并行（`addopts = ["-n", "auto"]`），即使命令不写 `-n auto` 也会并行，因此需要 `pytest-xdist`（包含在 `.[test]` extra 中）。未安装时先 `pip install -e ".[test]"`，或临时串行运行：`python -m pytest -n0 -q`。
 
 ### 性能与对战
 
