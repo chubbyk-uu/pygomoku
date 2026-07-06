@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass, field
 
 from pygomoku.board import Board, move_to_xy, xy_to_move
-from pygomoku.constants import BOARD_SIZE
+from pygomoku.constants import BOARD_SIZE, EMPTY
 from pygomoku.patterns.line import Line
 from pygomoku.patterns.shapes import DIAGONAL_DOWN, DIAGONAL_UP, HORIZONTAL, VERTICAL
 from pygomoku.threats.types import AttackMove, ThreatLevel
@@ -360,6 +360,66 @@ class ThreatBoardView:
                         gains.append(m)
         return tuple(gains)
 
+    def _legal_win_completions(self, gx: int, gy: int, side: int) -> list[int]:
+        """Empty points where *side* could play next to make five, restricted to
+        the four lines through (gx, gy).  Mirrors rust's `legal_win_completions`:
+        the stone at (gx, gy) must already be on the board (call after playing
+        the gain), so these are the completion/endpoint squares of the four."""
+        grid = self.board.grid
+        wins: list[int] = []
+        for dx, dy in ((1, 0), (0, 1), (1, 1), (1, -1)):
+            for step in range(-4, 5):
+                if step == 0:
+                    continue
+                cx = gx + dx * step
+                cy = gy + dy * step
+                if not (0 <= cx < BOARD_SIZE and 0 <= cy < BOARD_SIZE):
+                    continue
+                if grid[cy][cx] != EMPTY:
+                    continue
+                cand = xy_to_move(cx, cy)
+                if cand in wins:
+                    continue
+                grid[cy][cx] = side
+                win = self.board._is_winning_move(cx, cy, side)
+                grid[cy][cx] = EMPTY
+                if win:
+                    wins.append(cand)
+        return wins
+
+    def _a3_defense_info(self, x: int, y: int, attacker: int) -> tuple[bool, tuple[int, ...]]:
+        """Defensive replies to an A3 (open-three) attack by the stone at (x, y).
+
+        Ported from rust_gomoku b785d36: the gain squares are not the whole
+        defense set.  For each gain that really makes an unstoppable open four
+        (>= 2 legal win completions, or an immediate five), the defender can
+        also occupy an *endpoint* of that future open four — turning the
+        continuation into a single broken four instead of a continuous threat.
+        Omitting those endpoints under-generates defender replies and lets VCT
+        report false-positive wins.  Returns (has_real_gain, defenses)."""
+        gains = self.a3_gain_squares(x, y)
+        has_real = False
+        defenses: list[int] = []
+        for gain in gains:
+            if not self.board.is_legal_move(gain):
+                continue
+            self.play(gain, attacker)
+            gx, gy = move_to_xy(gain)
+            completions = self._legal_win_completions(gx, gy, attacker)
+            real_gain = self.board.winner == attacker or len(completions) >= 2
+            self.undo()
+            if not real_gain:
+                continue
+            has_real = True
+            # In Freestyle an empty square is legal for either side, so the gain
+            # itself is always a valid defensive block.
+            if gain not in defenses:
+                defenses.append(gain)
+            for completion in completions:
+                if self.board.is_legal_move(completion) and completion not in defenses:
+                    defenses.append(completion)
+        return has_real, tuple(defenses)
+
     def classify_attack_at(self, x: int, y: int, attacker: int, move: int) -> AttackMove | None:
         """Classify the threat created by a stone just placed at (x, y).
 
@@ -380,10 +440,9 @@ class ThreatBoardView:
                 return AttackMove(move, ThreatLevel.B4, (reply,))
             # Reply square occupied: shouldn't happen in normal play; treat as A4.
             return AttackMove(move, ThreatLevel.A4, ())
-        gains = self.a3_gain_squares(x, y)
-        legal = tuple(g for g in gains if self.board.is_legal_move(g))
-        if legal:
-            return AttackMove(move, ThreatLevel.A3, legal)
+        has_real_gain, defenses = self._a3_defense_info(x, y, attacker)
+        if has_real_gain:
+            return AttackMove(move, ThreatLevel.A3, defenses)
         return None
 
     def collect_attack_moves(self, attacker: int) -> tuple[AttackMove, ...]:

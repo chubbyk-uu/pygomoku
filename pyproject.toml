@@ -31,10 +31,14 @@ classifiers = [
 
 [project.optional-dependencies]
 gui = ["pygame>=2.5"]
+test = ["pytest>=7", "pytest-xdist>=3"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# Run in parallel by default (pytest-xdist); the suite is search-heavy. Override
+# with `-n0` for a serial run when debugging.
+addopts = ["-n", "auto"]
 markers = [
     "fast: small unit and structural regression tests intended for frequent local runs",
     "alignment: classic search regressions for curated positions and score semantics",

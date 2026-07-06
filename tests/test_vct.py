@@ -417,3 +417,55 @@ class TestRootVCTIntegration:
     def test_last_trace_is_none_before_first_search(self):
         searcher = _root()
         assert searcher.last_trace is None
+
+
+class TestA3EndpointDefenses:
+    """Regression for the b785d36 port: an A3 attack's defense set must include
+    the endpoints of the open four each gain would create, not just the gain
+    squares. Omitting them let VCT report false-positive wins in Freestyle.
+
+    These three positions were surfaced by a pygomoku-internal differential
+    scan and independently corroborated by rust_gomoku HEAD (which carries the
+    fix): the correct Freestyle verdict is no forced win at depth 5, but a real
+    (deeper) win at depth 6. Before the fix, depth-5 search wrongly reported a
+    win because the quiet endpoint defense was never generated."""
+
+    CASES = (
+        (1, [(1, 0, 1), (3, 0, -1), (1, 3, 1), (14, 3, -1), (7, 4, 1), (6, 5, 1),
+             (10, 5, -1), (12, 7, -1), (5, 8, -1), (9, 8, 1), (3, 9, -1), (4, 10, 1),
+             (5, 10, 1), (0, 12, 1), (12, 12, -1), (14, 13, -1)]),
+        (-1, [(4, 0, 1), (12, 0, 1), (4, 1, -1), (5, 1, -1), (14, 1, 1), (1, 3, 1),
+              (5, 4, -1), (9, 4, -1), (11, 5, 1), (5, 6, -1), (5, 7, 1), (10, 7, -1),
+              (4, 8, 1), (0, 12, -1), (9, 13, -1), (7, 14, 1)]),
+        (-1, [(3, 0, -1), (9, 0, -1), (3, 1, 1), (11, 2, -1), (14, 3, 1), (1, 4, -1),
+              (8, 6, -1), (12, 6, 1), (8, 9, -1), (5, 10, -1), (6, 10, -1), (13, 11, 1),
+              (5, 12, 1), (12, 12, 1), (3, 13, 1), (7, 14, 1)]),
+    )
+
+    @pytest.mark.parametrize("side, stones", CASES)
+    def test_no_false_positive_vct_at_depth5(self, side, stones):
+        board = _board_from_stones(stones, side_to_move=side)
+        assert VCTSearcher().search(board.copy(), side, 5).found is False
+
+    @pytest.mark.parametrize("side, stones", CASES)
+    def test_real_deeper_win_still_found_at_depth6(self, side, stones):
+        board = _board_from_stones(stones, side_to_move=side)
+        assert VCTSearcher().search(board.copy(), side, 6).found is True
+
+    def test_a3_defenses_include_open_four_endpoint(self):
+        # Black open three (6,7)(7,7)(8,7) on an otherwise empty board. Playing
+        # a gain makes an open four; its five-completion endpoints must appear
+        # in the A3 defense set alongside the gain squares.
+        view = ThreatBoardView.from_board(
+            _board_from_stones([(6, 7, 1), (7, 7, 1)], side_to_move=1)
+        )
+        view.play(xy_to_move(8, 7), 1)
+        atk = view.classify_attack_at(8, 7, 1, xy_to_move(8, 7))
+        assert atk is not None and atk.level == ThreatLevel.A3
+        # Gains are (5,7) and (9,7). The quiet endpoint defenses are (4,7) and
+        # (10,7) — the outer five-completion of each open four the gain makes —
+        # which the pre-fix gain-only defense set omitted.
+        assert xy_to_move(5, 7) in atk.defenses
+        assert xy_to_move(9, 7) in atk.defenses
+        assert xy_to_move(4, 7) in atk.defenses
+        assert xy_to_move(10, 7) in atk.defenses
